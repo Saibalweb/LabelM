@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils'
 const inputClasses =
   'w-full h-14 px-4 bg-surface-container-lowest border border-outline-variant rounded font-body-md text-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors placeholder:text-on-surface-variant'
 
-export function CreateLabelPage() {
+export function Create() {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
   const { draft } = useAppSelector((state) => state.draft)

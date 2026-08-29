@@ -16,7 +16,7 @@ function Detail({ label, value }: { label: string; value: string }) {
   )
 }
 
-export function LabelPreviewPage() {
+export function Preview() {
   const dispatch = useAppDispatch()
   const { id } = useParams<{ id: string }>()
   const { items, status } = useAppSelector((state) => state.labels)

@@ -58,7 +58,7 @@ function StatCard({
   )
 }
 
-export function DashboardPage() {
+export function Dashboard() {
   const navigate = useNavigate()
   const { items, status } = useAppSelector((state) => state.labels)
   const [query, setQuery] = useState('')

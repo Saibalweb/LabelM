@@ -33,7 +33,7 @@ const avatarStyles = [
   'bg-primary-fixed-dim text-on-primary-fixed',
 ]
 
-export function CustomersPage() {
+export function Customers() {
   const dispatch = useAppDispatch()
   const { items, status } = useAppSelector((state) => state.customers)
   const [query, setQuery] = useState('')

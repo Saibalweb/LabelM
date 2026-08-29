@@ -4,7 +4,7 @@ import { TopNav } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 
-export function SettingsPage() {
+export function Settings() {
   return (
     <div className="flex h-full flex-col">
       <TopNav title="Settings" backTo="/" />

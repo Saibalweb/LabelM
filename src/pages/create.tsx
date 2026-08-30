@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Printer, Save, UserRound, Search } from 'lucide-react'
+import { Phone, Printer, Save, Search, X } from 'lucide-react'
 import { TopNav, MobileSearchBar } from '@/components/layout/TopNav'
 import { Label as FormLabel } from '@/components/ui/label'
 import { CustomerFormDialog } from '@/components/customers/CustomerFormDialog'
@@ -80,10 +80,6 @@ export function Create() {
       toast.error('Please select a customer.')
       return
     }
-    if (!draft.productId.trim()) {
-      toast.error('Please enter a product ID.')
-      return
-    }
     if (weight <= 0 || mrp <= 0) {
       toast.error('Enter a valid weight and MRP.')
       return
@@ -94,10 +90,10 @@ export function Create() {
       date: draft.date,
       customerId: draft.customer.id,
       customerName: draft.customer.name,
-      productId: draft.productId.trim(),
-      batch: draft.batch.trim() || 'BATCH-A',
-      expDate: draft.expDate.trim() || '12/2026',
-      description: draft.description.trim() || 'Standard goods label.',
+      productId: draft.productId.trim() || undefined,
+      batch: draft.batch.trim() || undefined,
+      expDate: draft.expDate.trim() || undefined,
+      description: draft.description.trim(),
       totalWeightKg: weight,
       mrpPerKg: mrp,
       status: 'draft',
@@ -144,9 +140,10 @@ export function Create() {
                   </FormLabel>
                   <input
                     type="text"
-                    readOnly
-                    value={slNo}
-                    className={cn(inputClasses, 'bg-surface-container-low font-label-md text-label-md')}
+                    value={draft.slNo}
+                    onChange={(e) => update({ slNo: e.target.value })}
+                    placeholder="Enter SL No..."
+                    className={cn(inputClasses, 'font-label-md text-label-md')}
                   />
                 </div>
                 <div>
@@ -159,57 +156,6 @@ export function Create() {
                     onChange={(e) => update({ date: e.target.value })}
                     className={inputClasses}
                   />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <FormLabel className="mb-2 block font-label-md text-label-md text-on-surface-variant">
-                    Product ID
-                  </FormLabel>
-                  <input
-                    type="text"
-                    value={draft.productId}
-                    onChange={(e) => update({ productId: e.target.value })}
-                    placeholder="CHM-992-BX4"
-                    className={cn(inputClasses, 'font-label-md text-label-md')}
-                  />
-                </div>
-                <div>
-                  <FormLabel className="mb-2 block font-label-md text-label-md text-on-surface-variant">
-                    Batch Number
-                  </FormLabel>
-                  <input
-                    type="text"
-                    value={draft.batch}
-                    onChange={(e) => update({ batch: e.target.value })}
-                    placeholder="B-2024-881A"
-                    className={cn(inputClasses, 'font-label-md text-label-md')}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <FormLabel className="mb-2 block font-label-md text-label-md text-on-surface-variant">
-                    Expiration Date
-                  </FormLabel>
-                  <input
-                    type="text"
-                    value={draft.expDate}
-                    onChange={(e) => update({ expDate: e.target.value })}
-                    placeholder="12/2026"
-                    className={cn(inputClasses, 'font-label-md text-label-md')}
-                  />
-                </div>
-                <div className="flex items-end">
-                  <button
-                    type="button"
-                    className="h-14 w-full rounded border border-dashed border-outline-variant bg-surface-container-low font-label-md text-label-md text-on-surface-variant transition-colors hover:bg-surface-container-high"
-                    onClick={() => setDialogOpen(true)}
-                  >
-                    + New Product
-                  </button>
                 </div>
               </div>
 
@@ -233,13 +179,49 @@ export function Create() {
                     placeholder="Search customer ID or name..."
                     className={cn(inputClasses, 'pl-12')}
                   />
-                  {draft.customer && !showCustomerList ? (
-                    <span className="absolute top-1/2 right-4 flex -translate-y-1/2 items-center gap-1.5 font-label-md text-label-md text-primary">
-                      <UserRound className="size-4" />
-                      {draft.customer.name}
-                    </span>
-                  ) : null}
                 </div>
+
+                {draft.customer ? (
+                  <div className="relative mt-3 rounded-lg border border-outline-variant bg-surface-container-low p-4">
+                    <button
+                      type="button"
+                      aria-label="Clear customer"
+                      onClick={() => {
+                        update({ customer: null })
+                        setCustomerQuery('')
+                      }}
+                      className="absolute top-3 right-3 rounded p-1 text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
+                    >
+                      <X className="size-4" />
+                    </button>
+                    <p className="pr-8 font-headline-md text-headline-md text-on-surface">
+                      {draft.customer.name}
+                    </p>
+                    {draft.customer.address ? (
+                      <p className="mt-1 font-body-sm text-body-sm text-on-surface-variant">
+                        {draft.customer.address}
+                      </p>
+                    ) : null}
+                    <div className="mt-2.5 flex items-center gap-3">
+                      {draft.customer.phone ? (
+                        <span className="flex items-center gap-1.5 font-body-sm text-body-sm text-on-surface-variant">
+                          <Phone className="size-4" />
+                          {draft.customer.phone}
+                        </span>
+                      ) : null}
+                      {draft.customer.category ? (
+                        <span className="rounded-full bg-secondary-container px-2.5 py-0.5 font-label-sm text-label-sm text-on-secondary-container uppercase">
+                          {draft.customer.category}
+                        </span>
+                      ) : null}
+                      {!draft.customer.phone && !draft.customer.category ? (
+                        <span className="font-body-sm text-body-sm text-on-surface-variant">
+                          {draft.customer.company || draft.customer.email || 'No details'}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
 
                 {showCustomerList ? (
                   <div className="absolute left-0 right-0 z-30 mt-2 overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-lg">
@@ -380,7 +362,7 @@ export function Create() {
               <div className="flex flex-col gap-4">
                 <button
                   type="button"
-                  className="flex h-[52px] w-full items-center justify-center gap-2 rounded bg-secondary font-body-md text-body-md text-on-secondary transition-opacity hover:opacity-90"
+                  className="flex h-[52px] w-full items-center justify-center gap-2 rounded bg-secondary font-body-md text-body-md text-white transition-opacity hover:opacity-90"
                   onClick={handleGenerate}
                 >
                   <Printer className="size-5" />
@@ -389,7 +371,7 @@ export function Create() {
                 <button
                   type="button"
                   className="flex h-[52px] w-full items-center justify-center gap-2 rounded border border-outline-variant bg-surface-container-lowest font-body-md text-body-md text-primary transition-colors hover:bg-surface-container-low"
-                  onClick={() => toast.info('Saved as draft (demo)')}
+                  onClick={() => toast.info('Saved as draft')}
                 >
                   <Save className="size-5" />
                   Save as Draft

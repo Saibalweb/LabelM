@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { CheckCircle2, ChevronLeft, ChevronRight, MoreVertical, PauseCircle, Plus, SlidersHorizontal, SortAsc } from 'lucide-react'
+import { CheckCircle2, ChevronLeft, ChevronRight, MoreVertical, PauseCircle, Plus, SlidersHorizontal, SortAsc, Users } from 'lucide-react'
 import { TopNav, MobileSearchBar } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import { CustomerFormDialog } from '@/components/customers/CustomerFormDialog'
 import {
   AlertDialog,
@@ -156,6 +157,15 @@ export function Customers() {
             </div>
           </div>
 
+          {!loading && items.length === 0 ? (
+            <EmptyState
+              icon={<Users className="size-9" />}
+              title="No customers yet"
+              description="Add your first customer to attach details like company ID, contact, and category to your labels."
+              actionLabel="Add your first customer"
+              onAction={handleOpenAdd}
+            />
+          ) : (
           <div className="overflow-hidden rounded-xl border border-surface-variant bg-surface-container-lowest shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-left">
@@ -181,9 +191,7 @@ export function Customers() {
                   ) : filtered.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="p-8 text-center text-on-surface-variant">
-                        {query || activeCategory !== 'All'
-                          ? 'No customers match your filters.'
-                          : 'No customers yet. Add your first customer.'}
+                        No customers match your filters.
                       </td>
                     </tr>
                   ) : (
@@ -306,6 +314,8 @@ export function Customers() {
               </div>
             </div>
           </div>
+          )}
+
         </div>
       </main>
 

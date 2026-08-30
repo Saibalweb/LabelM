@@ -10,9 +10,11 @@ import {
   Package,
   Layers,
   Printer,
+  Tag,
   TrendingUp,
 } from 'lucide-react'
 import { TopNav, MobileSearchBar } from '@/components/layout/TopNav'
+import { EmptyState } from '@/components/ui/empty-state'
 import { useAppSelector } from '@/store/hooks'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -165,6 +167,15 @@ export function Dashboard() {
             />
           </div>
 
+          {!loading && items.length === 0 ? (
+            <EmptyState
+              icon={<Tag className="size-9" />}
+              title="No labels yet"
+              description="Create your first label to start generating printable, trackable labels for your batches."
+              actionLabel="Create your first label"
+              onAction={() => navigate('/create')}
+            />
+          ) : (
           <div className="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm">
             <div className="hidden grid-cols-12 gap-4 border-b border-outline-variant bg-surface-container-low px-6 py-4 font-label-md text-label-md tracking-wider text-on-surface-variant uppercase md:grid">
               <div className="col-span-2">SL No</div>
@@ -181,13 +192,22 @@ export function Dashboard() {
                 ))
               ) : filtered.length === 0 ? (
                 <div className="px-6 py-10 text-center font-body-md text-body-md text-on-surface-variant">
-                  {query ? 'No labels match your search.' : 'No labels yet. Create your first label.'}
+                  No labels match your search.
                 </div>
               ) : (
                 filtered.map((label) => (
                   <div
                     key={label.id}
-                    className="group grid min-h-16 grid-cols-1 items-center gap-4 border-b border-outline-variant px-6 py-4 transition-colors last:border-b-0 hover:bg-surface md:grid-cols-12"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => navigate(`/preview/${label.id}`)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        navigate(`/preview/${label.id}`)
+                      }
+                    }}
+                    className="group grid min-h-16 cursor-pointer grid-cols-1 items-center gap-4 border-b border-outline-variant px-6 py-4 transition-colors last:border-b-0 hover:bg-surface focus-visible:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 md:grid-cols-12"
                   >
                     <div className="col-span-12 flex items-center justify-between md:col-span-2 md:justify-start">
                       <span className="font-label-sm text-label-sm text-on-surface-variant uppercase md:hidden">
@@ -239,7 +259,10 @@ export function Dashboard() {
                         type="button"
                         className="flex size-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-high"
                         title="View Details"
-                        onClick={() => navigate(`/preview/${label.id}`)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          navigate(`/preview/${label.id}`)
+                        }}
                       >
                         <Eye className="size-5" />
                       </button>
@@ -247,7 +270,8 @@ export function Dashboard() {
                         type="button"
                         className="flex size-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-high"
                         title="Print Again"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation()
                           toast.info('Print again coming soon')
                         }}
                       >
@@ -282,6 +306,7 @@ export function Dashboard() {
               </div>
             </div>
           </div>
+          )}
 
           <div className="h-24 md:h-8" />
         </div>

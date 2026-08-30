@@ -65,7 +65,7 @@ export function Preview() {
             <div className="mt-6 mb-6 flex items-start justify-between border-b border-outline-variant pb-6">
               <div>
                 <h3 className="font-headline-lg text-headline-lg font-bold tracking-tight text-on-surface uppercase">
-                  {label.productId}
+{label.productId || 'Untitled Label'}
                 </h3>
                 <p className="mt-2 font-label-md text-label-md text-on-surface-variant uppercase">
                   {label.batch || 'Standard Batch'}
@@ -77,7 +77,7 @@ export function Preview() {
             </div>
 
             <div className="grid grid-cols-2 gap-x-8 gap-y-6">
-              <Detail label="Product ID" value={label.productId} />
+              <Detail label="Product ID" value={label.productId || '—'} />
               <Detail label="Batch Number" value={label.batch || '—'} />
               <Detail label="Manufacture Date" value={formatDate(label.date)} />
               <Detail label="Expiration Date" value={label.expDate || '—'} />
@@ -116,7 +116,7 @@ export function Preview() {
               <button
                 type="button"
                 onClick={handlePrint}
-                className="flex min-h-[52px] w-full items-center justify-center gap-3 rounded-xl bg-secondary font-label-md text-label-md font-bold text-on-secondary shadow-sm transition-opacity hover:opacity-90"
+                className="flex min-h-[52px] w-full items-center justify-center gap-3 rounded-xl bg-secondary font-label-md text-label-md font-bold text-white shadow-sm transition-opacity hover:opacity-90"
               >
                 <Printer className="size-5" />
                 Print Label

@@ -19,9 +19,9 @@ export interface Label {
   customerId: string | null
   customerName?: string
   date: string
-  productId: string
-  batch: string
-  expDate: string
+  productId?: string
+  batch?: string
+  expDate?: string
   description: string
   totalWeightKg: number
   mrpPerKg: number

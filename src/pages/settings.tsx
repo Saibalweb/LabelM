@@ -92,8 +92,8 @@ export function Settings() {
               <div>
                 <p className="font-body-md text-body-md text-on-surface">LabelMaster Pro</p>
                 <p className="mt-0.5 font-body-md text-body-md leading-relaxed text-on-surface-variant">
-                  Label & bill generator for inventory and retail use. Demo data is stored locally
-                  on this device.
+                  Label & bill generator for inventory and retail use. Your data is stored locally on
+                  this device.
                 </p>
               </div>
             </div>

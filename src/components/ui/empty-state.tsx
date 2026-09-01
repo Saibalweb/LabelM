@@ -40,7 +40,7 @@ export function EmptyState({
         <Button
           type="button"
           onClick={onAction}
-          className="mt-6 h-12 gap-2 rounded-full px-6 font-label-md text-label-md"
+          className="mt-6 h-12 gap-2 rounded-full px-6 font-label-md text-label-md text-white"
         >
           {actionLabel}
         </Button>

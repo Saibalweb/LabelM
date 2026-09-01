@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { Phone, Printer, Save, Search, X } from 'lucide-react'
 import { TopNav, MobileSearchBar } from '@/components/layout/TopNav'
 import { Label as FormLabel } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
 import { CustomerFormDialog } from '@/components/customers/CustomerFormDialog'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { setDraft, resetDraft } from '@/store/slices/draftSlice'
@@ -183,17 +184,19 @@ export function Create() {
 
                 {draft.customer ? (
                   <div className="relative mt-3 rounded-lg border border-outline-variant bg-surface-container-low p-4">
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="icon-xs"
                       aria-label="Clear customer"
                       onClick={() => {
                         update({ customer: null })
                         setCustomerQuery('')
                       }}
-                      className="absolute top-3 right-3 rounded p-1 text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
+                      className="absolute top-3 right-3 rounded p-1 text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
                     >
                       <X className="size-4" />
-                    </button>
+                    </Button>
                     <p className="pr-8 font-headline-md text-headline-md text-on-surface">
                       {draft.customer.name}
                     </p>
@@ -226,26 +229,28 @@ export function Create() {
                 {showCustomerList ? (
                   <div className="absolute left-0 right-0 z-30 mt-2 overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-lg">
                     {filteredCustomers.length === 0 ? (
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => {
                           setShowCustomerList(false)
                           setDialogOpen(true)
                         }}
-                        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-container"
+                        className="flex w-full items-center justify-start gap-3 rounded-none px-4 py-3 text-left hover:bg-surface-container"
                       >
                         <span className="font-label-md text-label-md text-primary">+ Add new customer</span>
-                      </button>
+                      </Button>
                     ) : (
                       filteredCustomers.map((customer) => (
-                        <button
+                        <Button
                           key={customer.id}
                           type="button"
+                          variant="ghost"
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => pickCustomer(customer)}
                           className={cn(
-                            'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-container',
+                            'flex w-full items-center justify-start gap-3 rounded-none px-4 py-3 text-left hover:bg-surface-container',
                             draft.customer?.id === customer.id && 'bg-surface-container'
                           )}
                         >
@@ -260,7 +265,7 @@ export function Create() {
                               {customer.company || customer.email || 'No details'}
                             </span>
                           </span>
-                        </button>
+                        </Button>
                       ))
                     )}
                   </div>
@@ -360,22 +365,24 @@ export function Create() {
               </div>
 
               <div className="flex flex-col gap-4">
-                <button
+                <Button
                   type="button"
-                  className="flex h-[52px] w-full items-center justify-center gap-2 rounded bg-secondary font-body-md text-body-md text-white transition-opacity hover:opacity-90"
+                  variant="secondary"
+                  className="h-[52px] w-full gap-2 rounded font-body-md text-body-md"
                   onClick={handleGenerate}
                 >
                   <Printer className="size-5" />
                   Generate Label
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className="flex h-[52px] w-full items-center justify-center gap-2 rounded border border-outline-variant bg-surface-container-lowest font-body-md text-body-md text-primary transition-colors hover:bg-surface-container-low"
+                  variant="outline"
+                  className="h-[52px] w-full gap-2 rounded border-outline-variant bg-surface-container-lowest font-body-md text-body-md text-primary hover:bg-surface-container-low hover:text-primary"
                   onClick={() => toast.info('Saved as draft')}
                 >
                   <Save className="size-5" />
                   Save as Draft
-                </button>
+                </Button>
               </div>
 
               <div className="mt-4 flex h-48 flex-col items-center justify-center gap-2 rounded border border-dashed border-outline-variant bg-surface p-4 text-center">

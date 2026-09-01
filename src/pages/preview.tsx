@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Download, FileText, Printer, QrCode, Share2 } from 'lucide-react'
 import { TopNav } from '@/components/layout/TopNav'
+import { Button } from '@/components/ui/button'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { fetchLabels, updateLabel } from '@/store/slices/labelsSlice'
 import { formatCurrency, formatDate } from '@/lib/format'
@@ -113,31 +114,34 @@ export function Preview() {
               Actions
             </h4>
             <div className="flex flex-col gap-4">
-              <button
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={handlePrint}
-                className="flex min-h-[52px] w-full items-center justify-center gap-3 rounded-xl bg-secondary font-label-md text-label-md font-bold text-white shadow-sm transition-opacity hover:opacity-90"
+                className="min-h-[52px] w-full gap-3 rounded-xl font-label-md text-label-md font-bold shadow-sm"
               >
                 <Printer className="size-5" />
                 Print Label
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="outline"
                 onClick={handlePdf}
-                className="flex min-h-[52px] w-full items-center justify-center gap-3 rounded-xl border border-outline-variant bg-surface-container-lowest font-label-md text-label-md text-primary transition-colors hover:bg-surface-container-low"
+                className="min-h-[52px] w-full gap-3 rounded-xl border-outline-variant bg-surface-container-lowest font-label-md text-label-md text-primary hover:bg-surface-container-low hover:text-primary"
               >
                 <Download className="size-5" />
                 Download PDF
-              </button>
+              </Button>
               <div className="my-2 h-px w-full bg-outline-variant" />
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={handleWhatsApp}
-                className="flex min-h-[52px] w-full items-center justify-center gap-3 rounded-xl border border-outline-variant bg-surface-container-lowest font-label-md text-label-md text-on-surface transition-colors hover:bg-surface-container-low"
+                className="min-h-[52px] w-full gap-3 rounded-xl border-outline-variant bg-surface-container-lowest font-label-md text-label-md text-on-surface hover:bg-surface-container-low"
               >
                 <Share2 className="size-5" />
                 Share via WhatsApp
-              </button>
+              </Button>
             </div>
           </div>
 

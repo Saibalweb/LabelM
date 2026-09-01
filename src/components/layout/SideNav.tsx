@@ -1,6 +1,7 @@
 import { Link, NavLink } from 'react-router-dom'
 import { Plus, Tag, Users, Settings, LogOut, type LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 function NavItem({
@@ -47,13 +48,15 @@ export function SideNav() {
         </p>
       </div>
 
-      <Link
-        to="/create"
-        className="flex h-[52px] min-h-[52px] w-full items-center justify-center gap-2 rounded bg-primary font-label-md text-label-md text-on-primary shadow-sm transition-colors hover:bg-primary-container hover:text-on-primary-container"
+      <Button
+        asChild
+        className="h-[52px] min-h-[52px] w-full gap-2 rounded font-label-md text-label-md text-on-primary shadow-sm hover:bg-primary-container hover:text-on-primary-container"
       >
-        <Plus className="size-5" />
-        New Label
-      </Link>
+        <Link to="/create">
+          <Plus className="size-5" />
+          New Label
+        </Link>
+      </Button>
 
       <ul className="flex flex-1 flex-col gap-2">
         <NavItem to="/" icon={Tag} label="Labels" end />
@@ -62,14 +65,15 @@ export function SideNav() {
       </ul>
 
       <div className="mt-auto border-t border-outline-variant/30 pt-4">
-        <button
+        <Button
           type="button"
+          variant="ghost"
           onClick={() => toast.info('Signed out (demo)')}
-          className="flex min-h-[48px] w-full items-center gap-3 rounded-xl px-4 py-3 font-label-md text-label-md text-on-surface-variant transition-all duration-200 hover:bg-error-container hover:text-on-error-container active:scale-95"
+          className="flex min-h-[48px] w-full items-center justify-start gap-3 rounded-xl px-4 py-3 font-label-md text-label-md text-on-surface-variant hover:bg-error-container hover:text-on-error-container active:scale-95"
         >
           <LogOut className="size-5" />
           Logout
-        </button>
+        </Button>
       </div>
     </nav>
   )

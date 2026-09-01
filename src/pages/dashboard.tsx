@@ -14,6 +14,7 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { TopNav, MobileSearchBar } from '@/components/layout/TopNav'
+import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useAppSelector } from '@/store/hooks'
 import { formatCurrency, formatDate } from '@/lib/format'
@@ -109,20 +110,22 @@ export function Dashboard() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <button
+              <Button
                 type="button"
-                className="flex h-12 items-center gap-2 rounded-full border border-outline-variant bg-surface-container px-4 font-label-md text-label-md text-on-surface transition-colors hover:bg-surface-container-high"
+                variant="outline"
+                className="h-12 gap-2 rounded-full border-outline-variant bg-surface-container px-4 font-label-md text-label-md text-on-surface hover:bg-surface-container-high"
               >
                 <Filter className="size-[18px]" />
                 Filter
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
-                className="flex h-12 items-center gap-2 rounded-full border border-outline-variant bg-surface-container px-4 font-label-md text-label-md text-on-surface transition-colors hover:bg-surface-container-high"
+                variant="outline"
+                className="h-12 gap-2 rounded-full border-outline-variant bg-surface-container px-4 font-label-md text-label-md text-on-surface hover:bg-surface-container-high"
               >
                 <Download className="size-[18px]" />
                 Export
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -255,9 +258,11 @@ export function Dashboard() {
                       </span>
                     </div>
                     <div className="col-span-12 flex items-center justify-end gap-2 transition-opacity md:col-span-1 md:opacity-0 md:group-hover:opacity-100">
-                      <button
+                      <Button
                         type="button"
-                        className="flex size-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-high"
+                        variant="ghost"
+                        size="icon-lg"
+                        className="size-10 rounded-full text-on-surface-variant hover:bg-surface-container-high"
                         title="View Details"
                         onClick={(e) => {
                           e.stopPropagation()
@@ -265,10 +270,12 @@ export function Dashboard() {
                         }}
                       >
                         <Eye className="size-5" />
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
-                        className="flex size-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-high"
+                        variant="ghost"
+                        size="icon-lg"
+                        className="size-10 rounded-full text-on-surface-variant hover:bg-surface-container-high"
                         title="Print Again"
                         onClick={(e) => {
                           e.stopPropagation()
@@ -276,7 +283,7 @@ export function Dashboard() {
                         }}
                       >
                         <Printer className="size-5" />
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ))
@@ -288,21 +295,25 @@ export function Dashboard() {
                 Showing 1-{filtered.length} of {items.length}
               </span>
               <div className="flex items-center gap-2">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="icon-lg"
                   disabled
-                  className="flex size-10 items-center justify-center rounded border border-outline-variant text-on-surface-variant transition-colors hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-50"
+                  className="size-10 rounded border-outline-variant text-on-surface-variant hover:bg-surface-container-high"
                   aria-label="Previous page"
                 >
                   <ChevronLeft className="size-[18px]" />
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className="flex size-10 items-center justify-center rounded border border-outline-variant text-on-surface-variant transition-colors hover:bg-surface-container-high"
+                  variant="outline"
+                  size="icon-lg"
+                  className="size-10 rounded border-outline-variant text-on-surface-variant hover:bg-surface-container-high"
                   aria-label="Next page"
                 >
                   <ChevronRight className="size-[18px]" />
-                </button>
+                </Button>
               </div>
             </div>
           </div>

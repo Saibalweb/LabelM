@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Bell, CircleHelp, Search } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 interface TopNavProps {
@@ -27,14 +28,16 @@ export function TopNav({
     <header className="z-10 flex h-14 shrink-0 items-center justify-between border-b border-outline-variant bg-surface px-4 lg:px-5">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         {backTo ? (
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-lg"
             onClick={() => navigate(backTo)}
-            className="flex size-10 shrink-0 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-high active:opacity-80 md:hidden"
+            className="size-10 shrink-0 rounded-full text-on-surface-variant hover:bg-surface-container-high active:opacity-80 md:hidden"
             aria-label="Go back"
           >
             <ArrowLeft className="size-5" />
-          </button>
+          </Button>
         ) : (
           <span className="truncate font-headline-md text-headline-md font-bold text-primary md:hidden">
             LabelMaster Pro
@@ -69,20 +72,24 @@ export function TopNav({
       </div>
 
       <div className="flex items-center gap-2">
-        <button
+        <Button
           type="button"
-          className="flex size-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-high active:opacity-80"
+          variant="ghost"
+          size="icon-lg"
+          className="size-10 rounded-full text-on-surface-variant hover:bg-surface-container-high active:opacity-80"
           aria-label="Notifications"
         >
           <Bell className="size-5" />
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          className="mr-2 flex size-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-high active:opacity-80"
+          variant="ghost"
+          size="icon-lg"
+          className="mr-2 size-10 rounded-full text-on-surface-variant hover:bg-surface-container-high active:opacity-80"
           aria-label="Help"
         >
           <CircleHelp className="size-5" />
-        </button>
+        </Button>
         <div className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full border border-outline-variant bg-primary-container font-headline-md text-headline-md text-on-primary-container transition-all hover:ring-2 hover:ring-primary hover:ring-offset-2">
           A
         </div>

@@ -124,36 +124,41 @@ export function Customers() {
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-surface-variant bg-surface-container-lowest p-4 shadow-sm">
             <div className="flex flex-wrap gap-2">
               {categories.map((category) => (
-                <button
+                <Button
                   key={category}
                   type="button"
+                  variant="outline"
                   onClick={() => setActiveCategory(category)}
                   className={cn(
-                    'flex min-h-12 items-center gap-2 rounded-full border px-4 font-label-sm text-label-sm transition-colors',
+                    'min-h-12 gap-2 rounded-full px-4 font-label-sm text-label-sm',
                     activeCategory === category
                       ? 'border-outline-variant bg-surface-container-high text-on-surface'
                       : 'border-transparent bg-surface-container text-on-surface-variant hover:border-outline-variant'
                   )}
                 >
                   {category}
-                </button>
+                </Button>
               ))}
             </div>
             <div className="flex items-center gap-2">
-              <button
+              <Button
                 type="button"
-                className="flex min-h-12 min-w-12 items-center justify-center rounded p-2 text-on-surface-variant transition-colors hover:bg-surface-container"
+                variant="ghost"
+                size="icon-lg"
+                className="min-h-12 min-w-12 rounded p-2 text-on-surface-variant hover:bg-surface-container"
                 aria-label="Filter"
               >
                 <SlidersHorizontal className="size-5" />
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
-                className="flex min-h-12 min-w-12 items-center justify-center rounded p-2 text-on-surface-variant transition-colors hover:bg-surface-container"
+                variant="ghost"
+                size="icon-lg"
+                className="min-h-12 min-w-12 rounded p-2 text-on-surface-variant hover:bg-surface-container"
                 aria-label="Sort"
               >
                 <SortAsc className="size-5" />
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -296,21 +301,23 @@ export function Customers() {
                 Showing 1-{filtered.length} of {items.length}
               </span>
               <div className="flex gap-2">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
                   disabled
-                  className="flex min-h-12 items-center justify-center rounded border border-outline-variant px-3 text-on-surface-variant transition-colors hover:bg-surface-container disabled:opacity-50"
+                  className="min-h-12 rounded border-outline-variant px-3 text-on-surface-variant hover:bg-surface-container"
                   aria-label="Previous page"
                 >
                   <ChevronLeft className="size-5" />
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className="flex min-h-12 items-center justify-center rounded border border-outline-variant px-3 text-on-surface-variant transition-colors hover:bg-surface-container"
+                  variant="outline"
+                  className="min-h-12 rounded border-outline-variant px-3 text-on-surface-variant hover:bg-surface-container"
                   aria-label="Next page"
                 >
                   <ChevronRight className="size-5" />
-                </button>
+                </Button>
               </div>
             </div>
           </div>

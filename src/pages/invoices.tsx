@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
   ChevronDown,
@@ -10,24 +11,11 @@ import {
 } from 'lucide-react'
 import { TopNav, MobileSearchBar } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
+import { demoInvoices, type Invoice, type InvoiceStatus } from '@/lib/demo/invoices'
 import { formatCurrency } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-type InvoiceStatus = 'Paid' | 'Unpaid' | 'Partial'
 type StatusFilter = 'All' | InvoiceStatus
-
-interface Invoice {
-  id: string
-  customer: string
-  tone: number
-  invoiceId: string
-  period: string
-  total: number
-  paid: number
-  due: number
-  status: InvoiceStatus
-  generatedOn: string
-}
 
 const filters: StatusFilter[] = ['All', 'Unpaid', 'Partial', 'Paid']
 
@@ -44,129 +32,6 @@ const statusPillStyles: Record<InvoiceStatus, string> = {
   Partial: 'bg-tertiary-container text-on-tertiary-container',
 }
 
-const demoInvoices: Invoice[] = [
-  {
-    id: 'inv-1',
-    customer: 'Acme Corp',
-    tone: 0,
-    invoiceId: 'INV-2026-0042',
-    period: 'Oct 1 - Oct 31, 2026',
-    total: 12450,
-    paid: 12450,
-    due: 0,
-    status: 'Paid',
-    generatedOn: 'Nov 01, 2026',
-  },
-  {
-    id: 'inv-2',
-    customer: 'Global Logistics',
-    tone: 1,
-    invoiceId: 'INV-2026-0043',
-    period: 'Oct 1 - Oct 31, 2026',
-    total: 8900.5,
-    paid: 0,
-    due: 8900.5,
-    status: 'Unpaid',
-    generatedOn: 'Nov 02, 2026',
-  },
-  {
-    id: 'inv-3',
-    customer: 'TechFlow Inc',
-    tone: 2,
-    invoiceId: 'INV-2026-0044',
-    period: 'Sep 15 - Oct 15, 2026',
-    total: 24000,
-    paid: 10000,
-    due: 14000,
-    status: 'Partial',
-    generatedOn: 'Oct 16, 2026',
-  },
-  {
-    id: 'inv-4',
-    customer: 'Nexus Retail',
-    tone: 3,
-    invoiceId: 'INV-2026-0045',
-    period: 'Oct 1 - Oct 31, 2026',
-    total: 3200,
-    paid: 3200,
-    due: 0,
-    status: 'Paid',
-    generatedOn: 'Nov 03, 2026',
-  },
-  {
-    id: 'inv-5',
-    customer: 'BluePeak Industries',
-    tone: 0,
-    invoiceId: 'INV-2026-0046',
-    period: 'Oct 1 - Oct 31, 2026',
-    total: 18750,
-    paid: 7500,
-    due: 11250,
-    status: 'Partial',
-    generatedOn: 'Nov 04, 2026',
-  },
-  {
-    id: 'inv-6',
-    customer: 'Orbit Exports',
-    tone: 1,
-    invoiceId: 'INV-2026-0047',
-    period: 'Sep 1 - Sep 30, 2026',
-    total: 5400,
-    paid: 5400,
-    due: 0,
-    status: 'Paid',
-    generatedOn: 'Oct 02, 2026',
-  },
-  {
-    id: 'inv-7',
-    customer: 'Vertex Traders',
-    tone: 2,
-    invoiceId: 'INV-2026-0048',
-    period: 'Sep 1 - Sep 30, 2026',
-    total: 16200.75,
-    paid: 0,
-    due: 16200.75,
-    status: 'Unpaid',
-    generatedOn: 'Oct 05, 2026',
-  },
-  {
-    id: 'inv-8',
-    customer: 'Summit Foods',
-    tone: 3,
-    invoiceId: 'INV-2026-0049',
-    period: 'Aug 1 - Aug 31, 2026',
-    total: 9800,
-    paid: 9800,
-    due: 0,
-    status: 'Paid',
-    generatedOn: 'Sep 01, 2026',
-  },
-  {
-    id: 'inv-9',
-    customer: 'Quantum Pharma',
-    tone: 0,
-    invoiceId: 'INV-2026-0050',
-    period: 'Aug 1 - Aug 31, 2026',
-    total: 22100,
-    paid: 12100,
-    due: 10000,
-    status: 'Partial',
-    generatedOn: 'Sep 04, 2026',
-  },
-  {
-    id: 'inv-10',
-    customer: 'Stellar Motors',
-    tone: 1,
-    invoiceId: 'INV-2026-0051',
-    period: 'Aug 1 - Aug 31, 2026',
-    total: 7600,
-    paid: 0,
-    due: 7600,
-    status: 'Unpaid',
-    generatedOn: 'Sep 06, 2026',
-  },
-]
-
 function initials(name: string): string {
   return name
     .split(' ')
@@ -177,6 +42,7 @@ function initials(name: string): string {
 }
 
 export function Invoices() {
+  const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('All')
 
@@ -194,8 +60,7 @@ export function Invoices() {
   }, [query, statusFilter])
 
   const handleGenerate = () => toast.info('Invoice generation coming soon')
-  const handleView = (invoice: Invoice) =>
-    toast.info(`${invoice.invoiceId} details coming soon`)
+  const handleView = (invoice: Invoice) => navigate(`/invoice/${invoice.id}`)
 
   return (
     <div className="flex h-full flex-col">
@@ -298,7 +163,8 @@ export function Invoices() {
                     filtered.map((invoice) => (
                       <tr
                         key={invoice.id}
-                        className="border-b border-outline-variant transition-colors last:border-b-0 hover:bg-surface-container-low"
+                        onClick={() => handleView(invoice)}
+                        className="cursor-pointer border-b border-outline-variant transition-colors last:border-b-0 hover:bg-surface-container-low"
                       >
                         <td className="p-6">
                           <div className="flex items-center gap-3">

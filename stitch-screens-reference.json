@@ -1,0 +1,33 @@
+{
+  "projectId": "11686263861835796824",
+  "categories": {
+    "invoice_customer": [
+      { "id": "b58c0153d1f246a0be4aedba8bd901f1", "title": "Dues Overview - Dashboard", "device": "DESKTOP", "size": "2560x2048" },
+      { "id": "ce75ebabf2774d0cb4daa1aa2532f8e8", "title": "Invoices - Dashboard", "device": "DESKTOP", "size": "2560x2048" },
+      { "id": "afe31cf63ebc49c3b9bf4eee9224e8ad", "title": "Invoice #INV-2026-0042 - Details", "device": "DESKTOP", "size": "2560x2048" },
+      { "id": "b9268f4827ce4990866f1e42b18550db", "title": "Invoice Details - Record Payment Modal", "device": "DESKTOP", "size": "2560x2048" },
+      { "id": "985e9c6a33c9439aa443ab5a260209bc", "title": "Customers - Desktop", "device": "DESKTOP", "size": "2560x2048" },
+      { "id": "8e2bf4bc7dca40df985df2c774c06200", "title": "Generate Invoice - Step 1: Select Details", "device": "DESKTOP", "size": "2560x2048" },
+      { "id": "bdcc8b207a394bcda8ecd08f073425a5", "title": "Generate Invoice - Step 2: Review Labels", "device": "DESKTOP", "size": "2560x2048" },
+      { "id": "2dacaea558be4357b0f9e383a0c54027", "title": "Generate Invoice - Step 3: Confirm", "device": "DESKTOP", "size": "2560x2048" }
+    ],
+    "label": [
+      { "id": "5507439a2e7d4f62ac7fe27a20c5a536", "title": "Label Preview - Desktop", "device": "DESKTOP", "size": "2560x2048" },
+      { "id": "5b230ce9aa97417b9267b7ab434f4059", "title": "Label Preview - Refined Desktop", "device": "DESKTOP", "size": "2560x2048" },
+      { "id": "d47023f89cd6460a80219f1ceb69ce00", "title": "Label Preview", "device": "MOBILE", "size": "780x1768" },
+      { "id": "2b2974e267404dce8e374e403895ff8f", "title": "Label Preview - Refined from Image", "device": "MOBILE", "size": "780x1768" },
+      { "id": "13659fc74131420e9989524c78edf7a6", "title": "New Label", "device": "MOBILE", "size": "780x1768" },
+      { "id": "67dbf037d1bb43edaf99e93a075d48e0", "title": "New Label - Customer Selected", "device": "MOBILE", "size": "780x1824" },
+      { "id": "c0407c7bb6714f1aa9d10e706b58438d", "title": "Create New Label - Desktop", "device": "DESKTOP", "size": "2560x2048" },
+      { "id": "7baa1cba27bb4e4b828f8f27ee7387d2", "title": "Create New Label - Customer Selected - Desktop", "device": "DESKTOP", "size": "2560x2048" },
+      { "id": "f3d435884026409d92c31be8b416a2ff", "title": "Select Customer", "device": "MOBILE", "size": "780x2262" },
+      { "id": "379e2c15d79347b29c601760942e8a3e", "title": "Label History", "device": "MOBILE", "size": "780x1768" },
+      { "id": "211f7b0fd9044c00ac414370987febf6", "title": "Label History - Desktop", "device": "DESKTOP", "size": "2560x2048" }
+    ],
+    "images_no_html": [
+      { "id": "6393425353318349052", "title": "image.png", "size": "720x1280" },
+      { "id": "18116869099951203256", "title": "WhatsApp Image 2026-08-12 at 2.47.11 PM.jpeg", "size": "937x502" },
+      { "id": "18116869099951204530", "title": "dfa1813a-03a6-4ca8-be85-abd586dda4a0.jpeg", "size": "720x1280" }
+    ]
+  }
+}

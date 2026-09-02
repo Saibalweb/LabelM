@@ -1,21 +1,12 @@
 import { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Download, FileText, Printer, QrCode, Share2 } from 'lucide-react'
+import { Download, FileText, Printer, Share2 } from 'lucide-react'
 import { TopNav } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { fetchLabels, updateLabel } from '@/store/slices/labelsSlice'
-import { formatCurrency, formatDate } from '@/lib/format'
-
-function Detail({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col">
-      <span className="mb-1 font-label-sm text-label-sm text-outline uppercase">{label}</span>
-      <span className="font-label-md text-label-md font-bold text-on-surface">{value}</span>
-    </div>
-  )
-}
+import { formatDate } from '@/lib/format'
 
 export function Preview() {
   const dispatch = useAppDispatch()
@@ -29,6 +20,7 @@ export function Preview() {
   }, [status, dispatch])
 
   const label = items.find((item) => item.id === id)
+  console.log('Preview label:', label)
 
   const handlePrint = () => {
     if (!label) return
@@ -60,50 +52,24 @@ export function Preview() {
 
       <main className="flex flex-1 flex-col gap-8 overflow-y-auto bg-surface-bright p-4 md:p-8 lg:flex-row print-area">
         <div className="flex flex-1 items-start justify-center lg:items-center">
-          <div className="relative flex w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest p-8 shadow-sm">
-            <div className="bg-barcode absolute top-0 left-0 h-6 w-full" />
-
-            <div className="mt-6 mb-6 flex items-start justify-between border-b border-outline-variant pb-6">
-              <div>
-                <h3 className="font-headline-lg text-headline-lg font-bold tracking-tight text-on-surface uppercase">
-{label.productId || 'Untitled Label'}
-                </h3>
-                <p className="mt-2 font-label-md text-label-md text-on-surface-variant uppercase">
-                  {label.batch || 'Standard Batch'}
-                </p>
-              </div>
-              <div className="flex size-24 shrink-0 items-center justify-center rounded border border-outline-variant bg-surface-container-highest p-1">
-                <QrCode className="size-20 text-on-surface" />
-              </div>
+          <div className="flex w-full max-w-2xl flex-col items-center justify-center rounded-xl border border-outline-variant bg-surface-container-lowest p-12 text-center shadow-sm">
+            <div className="space-y-2">
+              <h2 className="text-3xl font-extrabold tracking-tight text-on-surface uppercase md:text-4xl">
+                My Company Name
+              </h2>
+              <p className="font-label-md font-semibold tracking-widest text-on-surface-variant uppercase">
+                {label.customerName ? label.customerName : 'Walk-in Customer'}
+              </p>
             </div>
-
-            <div className="grid grid-cols-2 gap-x-8 gap-y-6">
-              <Detail label="Product ID" value={label.productId || '—'} />
-              <Detail label="Batch Number" value={label.batch || '—'} />
-              <Detail label="Manufacture Date" value={formatDate(label.date)} />
-              <Detail label="Expiration Date" value={label.expDate || '—'} />
-              <div className="col-span-2 flex flex-col">
-                <span className="mb-1 font-label-sm text-label-sm text-outline uppercase">
-                  Warning Details
-                </span>
-                <p className="font-body-md text-body-md leading-tight text-on-surface">
-                  {label.description || 'No additional details provided.'}
-                </p>
+            <div className="mt-8 space-y-3">
+              <div className="flex items-baseline justify-center gap-2">
+                <span className="font-label-md font-medium tracking-wider text-outline uppercase">DATE -</span>
+                <span className="text-lg font-bold text-on-surface">{formatDate(label.date)}</span>
               </div>
-            </div>
-
-            <div className="mt-8 flex items-end justify-between border-t border-outline-variant pt-6">
-              <div className="flex gap-2">
-                <span className="rounded bg-surface-container-highest px-2 py-1 font-label-sm text-label-sm text-on-surface uppercase">
-                  {formatCurrency(label.mrpPerKg)}/kg
-                </span>
-                <span className="rounded bg-surface-container-highest px-2 py-1 font-label-sm text-label-sm text-on-surface uppercase">
-                  {label.totalWeightKg} kg
-                </span>
+              <div className="flex items-baseline justify-center gap-2">
+                <span className="font-label-md font-medium tracking-wider text-outline uppercase">WT (gm) -</span>
+                <span className="text-lg font-bold text-on-surface">{label.totalWeightKg}</span>
               </div>
-              <span className="font-label-sm text-label-sm text-outline">
-                {label.slNo} / {formatDate(label.createdAt)}
-              </span>
             </div>
           </div>
         </div>

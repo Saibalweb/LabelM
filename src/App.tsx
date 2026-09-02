@@ -8,6 +8,7 @@ import { Dashboard } from '@/pages/dashboard'
 import { Create } from '@/pages/create'
 import { Preview } from '@/pages/preview'
 import { Customers } from '@/pages/customers'
+import { Invoices } from '@/pages/invoices'
 import { Settings } from '@/pages/settings'
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
         <Route path="/create" element={<Create />} />
         <Route path="/preview/:id" element={<Preview />} />
         <Route path="/customers" element={<Customers />} />
+        <Route path="/invoice" element={<Invoices />} />
         <Route path="/settings" element={<Settings />} />
       </Route>
     </Routes>

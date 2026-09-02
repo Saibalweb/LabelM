@@ -227,7 +227,7 @@ export function Create() {
                 ) : null}
 
                 {showCustomerList ? (
-                  <div className="absolute left-0 right-0 z-30 mt-2 overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-lg">
+                  <div className="absolute left-0 right-0 z-30 mt-2 flex flex-col overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-lg">
                     {filteredCustomers.length === 0 ? (
                       <Button
                         type="button"
@@ -237,7 +237,7 @@ export function Create() {
                           setShowCustomerList(false)
                           setDialogOpen(true)
                         }}
-                        className="flex w-full items-center justify-start gap-3 rounded-none px-4 py-3 text-left hover:bg-surface-container"
+                        className="flex h-auto w-full items-center justify-start gap-3 border-b border-outline-variant rounded-none px-4 py-3 text-left last:border-b-0 hover:bg-surface-container"
                       >
                         <span className="font-label-md text-label-md text-primary">+ Add new customer</span>
                       </Button>
@@ -250,7 +250,7 @@ export function Create() {
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => pickCustomer(customer)}
                           className={cn(
-                            'flex w-full items-center justify-start gap-3 rounded-none px-4 py-3 text-left hover:bg-surface-container',
+                            'flex h-auto w-full items-center justify-start gap-3 border-b border-outline-variant rounded-none px-4 py-3.5 text-left last:border-b-0 hover:bg-surface-container',
                             draft.customer?.id === customer.id && 'bg-surface-container'
                           )}
                         >

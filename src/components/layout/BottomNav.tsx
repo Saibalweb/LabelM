@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom'
-import { Plus, Tag, Users, Settings } from 'lucide-react'
+import { Plus, ReceiptText, Tag, Users, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const items = [
   { to: '/', label: 'Labels', icon: Tag },
+  { to: '/invoice', label: 'Invoices', icon: ReceiptText },
   { to: '/customers', label: 'Customers', icon: Users },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]
@@ -19,7 +20,7 @@ export function BottomNav() {
         <Plus className="size-6" />
       </NavLink>
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-outline-variant bg-background/95 backdrop-blur">
-        <div className="mx-auto grid max-w-md grid-cols-3">
+        <div className="mx-auto grid max-w-md grid-cols-4">
           {items.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}

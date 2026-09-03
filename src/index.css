@@ -269,25 +269,3 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-
-@media print {
-  body {
-    background: #ffffff;
-  }
-  body * {
-    visibility: hidden;
-  }
-  .print-area,
-  .print-area * {
-    visibility: visible;
-  }
-  .print-area {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    padding: 0;
-  }
-  .print-area .rounded-xl {
-    border-radius: 0;
-  }
-}

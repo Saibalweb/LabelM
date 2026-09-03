@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
@@ -9,8 +10,23 @@ import {
 } from 'lucide-react'
 import { TopNav } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
-import { demoInvoices, type InvoiceStatus } from '@/lib/demo/invoices'
-import { formatCurrency } from '@/lib/format'
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  demoInvoices,
+  type Invoice,
+  type InvoicePayment,
+  type InvoiceStatus,
+} from '@/lib/demo/invoices'
+import { formatCurrency, todayInputValue } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 const statusPillStyles: Record<InvoiceStatus, string> = {
@@ -39,14 +55,177 @@ function toAmount(value: number): string {
   })
 }
 
+const paymentModes = ['Cash', 'UPI', 'Bank Transfer', 'Cheque'] as const
+type PaymentMode = (typeof paymentModes)[number]
+
+interface RecordPaymentDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  dueAmount: number
+  onSave: (payment: InvoicePayment) => void
+}
+
+function RecordPaymentDialog({
+  open,
+  onOpenChange,
+  dueAmount,
+  onSave,
+}: RecordPaymentDialogProps) {
+  const [amount, setAmount] = useState<string>(String(Math.round(dueAmount)))
+  const [date, setDate] = useState<string>(todayInputValue())
+  const [mode, setMode] = useState<PaymentMode>('Bank Transfer')
+  const [notes, setNotes] = useState('')
+  const [error, setError] = useState('')
+
+  const reset = () => {
+    setAmount(String(Math.round(dueAmount)))
+    setDate(todayInputValue())
+    setMode('Bank Transfer')
+    setNotes('')
+    setError('')
+  }
+
+  const handleSave = () => {
+    const value = Number(amount)
+    if (!amount || Number.isNaN(value) || value <= 0) {
+      setError('Enter a valid amount greater than zero.')
+      return
+    }
+    if (value > dueAmount) {
+      setError(`Amount cannot exceed the due amount of ${formatCurrency(dueAmount)}.`)
+      return
+    }
+    onSave({
+      amount: value,
+      date: new Date(date).toLocaleDateString('en-US', {
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric',
+      }),
+      method: mode,
+      receivedBy: 'Admin',
+    })
+    onOpenChange(false)
+    setNotes('')
+    toast.success('Payment recorded')
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        onOpenChange(next)
+        if (next) reset()
+      }}
+    >
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Record Payment</DialogTitle>
+        </DialogHeader>
+
+        <div className="grid gap-5 py-2">
+          <div className="grid gap-2">
+            <Label htmlFor="payment-amount">Amount (₹)</Label>
+            <Input
+              id="payment-amount"
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step="0.01"
+              value={amount}
+              onChange={(e) => {
+                setAmount(e.target.value)
+                setError('')
+              }}
+              className="h-11 px-4 text-base"
+              autoFocus
+            />
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="payment-date">Payment Date</Label>
+            <Input
+              id="payment-date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="h-11 px-4 text-base"
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label>Payment Mode</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {paymentModes.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setMode(item)}
+                  className={cn(
+                    'h-10 rounded-lg border font-label-sm text-label-sm transition-colors',
+                    mode === item
+                      ? 'border-primary bg-primary-container text-on-primary-container'
+                      : 'border-outline-variant hover:bg-surface-container-low'
+                  )}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="payment-notes">Notes (Optional)</Label>
+            <textarea
+              id="payment-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add internal notes..."
+              className="min-h-[100px] w-full resize-none rounded-lg border border-input bg-transparent px-3 py-2 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
+            />
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-2">
+          <DialogClose asChild>
+            <Button type="button" variant="outline">
+              Cancel
+            </Button>
+          </DialogClose>
+          <Button type="button" onClick={handleSave}>
+            Save Payment
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function InvoiceDetails() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
-  const invoice = demoInvoices.find((item) => item.id === id)
+  const found = demoInvoices.find((item) => item.id === id)
+  const [invoice, setInvoice] = useState<Invoice | null>(found ?? null)
+  const [paymentOpen, setPaymentOpen] = useState(false)
 
   const handleShare = () => toast.info('Sharing coming soon')
   const handleExportPdf = () => toast.info('PDF export coming soon')
-  const handleRecordPayment = () => toast.info('Record payment coming soon')
+
+  const handleRecordPayment = (payment: InvoicePayment) => {
+    if (!invoice) return
+    const newPaid = invoice.paid + payment.amount
+    const newDue = Math.max(0, invoice.total - newPaid)
+    const newStatus: InvoiceStatus =
+      newDue <= 0 ? 'Paid' : newPaid > 0 ? 'Partial' : 'Unpaid'
+    setInvoice({
+      ...invoice,
+      paid: newPaid,
+      due: newDue,
+      status: newStatus,
+      payments: [...invoice.payments, payment],
+    })
+  }
 
   if (!invoice) {
     return (
@@ -262,7 +441,7 @@ export function InvoiceDetails() {
 
                 <Button
                   type="button"
-                  onClick={handleRecordPayment}
+                  onClick={() => setPaymentOpen(true)}
                   className="mb-8 flex h-[52px] w-full items-center justify-center gap-2 rounded font-label-md text-label-md shadow-sm"
                 >
                   <Wallet className="size-5" />
@@ -306,6 +485,13 @@ export function InvoiceDetails() {
           </div>
         </div>
       </main>
+
+      <RecordPaymentDialog
+        open={paymentOpen}
+        onOpenChange={setPaymentOpen}
+        dueAmount={invoice.due}
+        onSave={handleRecordPayment}
+      />
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { Link, NavLink } from 'react-router-dom'
-import { Plus, ReceiptText, Tag, Users, Settings, LogOut, type LucideIcon } from 'lucide-react'
+import { Landmark, Plus, ReceiptText, Tag, Users, Settings, LogOut, type LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -61,6 +61,7 @@ export function SideNav() {
       <ul className="flex flex-1 flex-col gap-2">
         <NavItem to="/" icon={Tag} label="Labels" end />
         <NavItem to="/invoice" icon={ReceiptText} label="Invoices" />
+        <NavItem to="/dues" icon={Landmark} label="Dues" />
         <NavItem to="/customers" icon={Users} label="Customers" />
         <NavItem to="/settings" icon={Settings} label="Settings" />
       </ul>

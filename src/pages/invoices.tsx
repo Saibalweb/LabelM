@@ -1,6 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { toast } from 'sonner'
 import {
   ChevronDown,
   ChevronLeft,
@@ -11,7 +10,9 @@ import {
 } from 'lucide-react'
 import { TopNav, MobileSearchBar } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
-import { demoInvoices, type Invoice, type InvoiceStatus } from '@/lib/demo/invoices'
+import { useAppDispatch, useAppSelector } from '@/store/hooks'
+import { fetchInvoices } from '@/store/slices/invoicesSlice'
+import type { Invoice, InvoiceStatus } from '@/lib/types'
 import { formatCurrency } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -43,12 +44,20 @@ function initials(name: string): string {
 
 export function Invoices() {
   const navigate = useNavigate()
+  const dispatch = useAppDispatch()
+  const { items: invoices, status } = useAppSelector((state) => state.invoices)
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('All')
 
+  useEffect(() => {
+    if (status === 'idle' || status === 'failed') {
+      dispatch(fetchInvoices())
+    }
+  }, [status, dispatch])
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return demoInvoices.filter((invoice) => {
+    return invoices.filter((invoice) => {
       const matchesStatus =
         statusFilter === 'All' || invoice.status === statusFilter
       const matchesQuery =
@@ -57,9 +66,9 @@ export function Invoices() {
         invoice.invoiceId.toLowerCase().includes(q)
       return matchesStatus && matchesQuery
     })
-  }, [query, statusFilter])
+  }, [invoices, query, statusFilter])
 
-  const handleGenerate = () => toast.info('Invoice generation coming soon')
+  const handleGenerate = () => navigate('/invoice/new')
   const handleView = (invoice: Invoice) => navigate(`/invoice/${invoice.id}`)
 
   return (

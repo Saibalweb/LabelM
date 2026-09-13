@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
@@ -20,12 +20,9 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  demoInvoices,
-  type Invoice,
-  type InvoicePayment,
-  type InvoiceStatus,
-} from '@/lib/demo/invoices'
+import { useAppDispatch, useAppSelector } from '@/store/hooks'
+import { fetchInvoices, updateInvoice } from '@/store/slices/invoicesSlice'
+import type { InvoicePayment, InvoiceStatus } from '@/lib/types'
 import { formatCurrency, todayInputValue } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -204,27 +201,39 @@ function RecordPaymentDialog({
 
 export function InvoiceDetails() {
   const navigate = useNavigate()
+  const dispatch = useAppDispatch()
   const { id } = useParams<{ id: string }>()
-  const found = demoInvoices.find((item) => item.id === id)
-  const [invoice, setInvoice] = useState<Invoice | null>(found ?? null)
+  const { items, status } = useAppSelector((state) => state.invoices)
   const [paymentOpen, setPaymentOpen] = useState(false)
+
+  useEffect(() => {
+    if (status === 'idle' || status === 'failed') {
+      dispatch(fetchInvoices())
+    }
+  }, [status, dispatch])
+
+  const invoice = items.find((item) => item.id === id) ?? null
 
   const handleShare = () => toast.info('Sharing coming soon')
   const handleExportPdf = () => toast.info('PDF export coming soon')
 
-  const handleRecordPayment = (payment: InvoicePayment) => {
+  const handleRecordPayment = async (payment: InvoicePayment) => {
     if (!invoice) return
     const newPaid = invoice.paid + payment.amount
     const newDue = Math.max(0, invoice.total - newPaid)
     const newStatus: InvoiceStatus =
       newDue <= 0 ? 'Paid' : newPaid > 0 ? 'Partial' : 'Unpaid'
-    setInvoice({
-      ...invoice,
-      paid: newPaid,
-      due: newDue,
-      status: newStatus,
-      payments: [...invoice.payments, payment],
-    })
+    await dispatch(
+      updateInvoice({
+        id: invoice.id,
+        patch: {
+          paid: newPaid,
+          due: newDue,
+          status: newStatus,
+          payments: [...invoice.payments, payment],
+        },
+      })
+    )
   }
 
   if (!invoice) {
@@ -233,7 +242,7 @@ export function InvoiceDetails() {
         <TopNav title="Invoice Details" backTo="/invoice" />
         <main className="flex flex-1 items-center justify-center bg-surface-bright p-8">
           <p className="font-body-md text-body-md text-on-surface-variant">
-            Invoice not found.
+            {status === 'loading' ? 'Loading invoice...' : 'Invoice not found.'}
           </p>
         </main>
       </div>

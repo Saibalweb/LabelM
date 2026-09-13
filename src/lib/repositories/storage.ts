@@ -1,7 +1,8 @@
-import type { Customer, Label } from '@/lib/types'
+import type { Customer, Invoice, Label } from '@/lib/types'
 
 const LABELS_KEY = 'labelm.labels'
 const CUSTOMERS_KEY = 'labelm.customers'
+const INVOICES_KEY = 'labelm.invoices'
 
 function read<T>(key: string, fallback: T): T {
   try {
@@ -31,6 +32,24 @@ export function loadCustomers(): Customer[] {
 
 export function saveCustomers(customers: Customer[]): void {
   write(CUSTOMERS_KEY, customers)
+}
+
+export function loadInvoices(): Invoice[] {
+  return read<Invoice[]>(INVOICES_KEY, [])
+}
+
+export function saveInvoices(invoices: Invoice[]): void {
+  write(INVOICES_KEY, invoices)
+}
+
+export function nextInvoiceId(invoices: Invoice[]): string {
+  const year = new Date().getFullYear()
+  const max = invoices.reduce((acc, invoice) => {
+    const match = invoice.invoiceId.match(/(\d+)$/)
+    const num = match ? Number(match[1]) : 0
+    return Math.max(acc, num)
+  }, 0)
+  return `INV-${year}-${String(max + 1).padStart(4, '0')}`
 }
 
 export function nextSlNo(labels: Label[]): string {

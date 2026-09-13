@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   CalendarClock,
@@ -12,11 +12,9 @@ import {
 } from 'lucide-react'
 import { TopNav, MobileSearchBar } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
-import {
-  demoInvoices,
-  type Invoice,
-  type InvoiceStatus,
-} from '@/lib/demo/invoices'
+import { useAppDispatch, useAppSelector } from '@/store/hooks'
+import { fetchInvoices } from '@/store/slices/invoicesSlice'
+import type { Invoice, InvoiceStatus } from '@/lib/types'
 import { formatCurrency, formatCurrencyWhole } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -108,21 +106,26 @@ function StatCard({
 
 export function Dues() {
   const navigate = useNavigate()
+  const dispatch = useAppDispatch()
+  const { items: invoices, status } = useAppSelector((state) => state.invoices)
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<SortKey>('Highest Due First')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
-  const referenceNow = useMemo(
-    () =>
-      Math.max(
-        ...demoInvoices.map((inv) => parseDate(inv.dueDate).getTime())
-      ),
-    []
-  )
+  useEffect(() => {
+    if (status === 'idle' || status === 'failed') {
+      dispatch(fetchInvoices())
+    }
+  }, [status, dispatch])
+
+  const referenceNow = useMemo(() => {
+    if (invoices.length === 0) return 0
+    return Math.max(...invoices.map((inv) => parseDate(inv.dueDate).getTime()))
+  }, [invoices])
 
   const customers = useMemo(() => {
     const byCustomer = new Map<string, DuesCustomer>()
-    for (const invoice of demoInvoices) {
+    for (const invoice of invoices) {
       if (invoice.due <= 0) continue
       const dueDate = parseDate(invoice.dueDate).getTime()
       const daysOverdue = Math.max(0, Math.floor((referenceNow - dueDate) / DAY_MS))
@@ -145,7 +148,7 @@ export function Dues() {
       byCustomer.set(invoice.customer, entry)
     }
     return Array.from(byCustomer.values())
-  }, [referenceNow])
+  }, [invoices, referenceNow])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()

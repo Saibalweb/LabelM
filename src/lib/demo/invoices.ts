@@ -1,43 +1,11 @@
-export type InvoiceStatus = 'Paid' | 'Unpaid' | 'Partial'
+import type { Invoice } from '@/lib/types'
 
-export interface InvoiceLineItem {
-  slNo: string
-  date: string
-  weightKg: number
-  rate: number
-  amount: number
-}
-
-export interface InvoicePayment {
-  amount: number
-  date: string
-  method: string
-  receivedBy: string
-}
-
-export interface Invoice {
-  id: string
-  customer: string
-  tone: number
-  invoiceId: string
-  period: string
-  billingPeriod: string
-  dateIssued: string
-  dueDate: string
-  address: string
-  email: string
-  phone: string
-  total: number
-  subtotal: number
-  taxRate: number
-  tax: number
-  paid: number
-  due: number
-  status: InvoiceStatus
-  generatedOn: string
-  lineItems: InvoiceLineItem[]
-  payments: InvoicePayment[]
-}
+export type {
+  Invoice,
+  InvoiceLineItem,
+  InvoicePayment,
+  InvoiceStatus,
+} from '@/lib/types'
 
 const kgRate = 12.0
 

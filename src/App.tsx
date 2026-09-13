@@ -4,11 +4,13 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { useAppDispatch } from '@/store/hooks'
 import { fetchLabels } from '@/store/slices/labelsSlice'
 import { fetchCustomers } from '@/store/slices/customersSlice'
+import { fetchInvoices } from '@/store/slices/invoicesSlice'
 import { Dashboard } from '@/pages/dashboard'
 import { Create } from '@/pages/create'
 import { Preview } from '@/pages/preview'
 import { Customers } from '@/pages/customers'
 import { Invoices } from '@/pages/invoices'
+import { CreateInvoice } from '@/pages/createInvoice'
 import { Dues } from '@/pages/dues'
 import { InvoiceDetails } from '@/pages/invoiceDetails'
 import { Settings } from '@/pages/settings'
@@ -19,6 +21,7 @@ function App() {
   useEffect(() => {
     dispatch(fetchLabels())
     dispatch(fetchCustomers())
+    dispatch(fetchInvoices())
   }, [dispatch])
 
   return (
@@ -29,6 +32,7 @@ function App() {
         <Route path="/preview/:id" element={<Preview />} />
         <Route path="/customers" element={<Customers />} />
         <Route path="/invoice" element={<Invoices />} />
+        <Route path="/invoice/new" element={<CreateInvoice />} />
         <Route path="/dues" element={<Dues />} />
         <Route path="/invoice/:id" element={<InvoiceDetails />} />
         <Route path="/settings" element={<Settings />} />

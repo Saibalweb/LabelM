@@ -1,6 +1,19 @@
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Bell, CircleHelp, Search } from 'lucide-react'
+import {
+  ArrowLeft,
+  BadgeCheck,
+  Bell,
+  CircleHelp,
+  LogOut,
+  Search,
+  Settings,
+} from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { useAppDispatch, useAppSelector } from '@/store/hooks'
+import { signOut } from '@/store/slices/authSlice'
+import { hasRole, initialsOf, roleLabels } from '@/lib/auth'
 import { cn } from '@/lib/utils'
 
 interface TopNavProps {
@@ -11,6 +24,93 @@ interface TopNavProps {
   searchValue?: string
   onSearchChange?: (value: string) => void
   backTo?: string
+}
+
+function UserMenu() {
+  const dispatch = useAppDispatch()
+  const navigate = useNavigate()
+  const user = useAppSelector((state) => state.auth.user)
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClick(event: MouseEvent) {
+      if (ref.current && !ref.current.contains(event.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  if (!user) return null
+
+  async function handleSignOut() {
+    setOpen(false)
+    await dispatch(signOut())
+    toast.success('Signed out')
+    navigate('/login', { replace: true })
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-label="User menu"
+        className="flex size-8 shrink-0 items-center justify-center rounded-full border border-outline-variant bg-primary-container font-label-md text-label-md text-on-primary-container transition-all hover:ring-2 hover:ring-primary hover:ring-offset-2"
+      >
+        {initialsOf(user.name)}
+      </button>
+
+      {open ? (
+        <div className="absolute right-0 z-30 mt-2 w-60 rounded-xl border border-outline-variant bg-surface-container-lowest py-1.5 shadow-xl">
+          <div className="border-b border-outline-variant/60 px-4 py-3">
+            <p className="truncate font-body-md text-body-md font-semibold text-on-surface">
+              {user.name}
+            </p>
+            <p className="truncate font-label-sm text-label-sm font-mono text-on-surface-variant">
+              {user.email}
+            </p>
+            <span className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-surface-container-high px-2 py-0.5 font-label-sm text-label-sm font-semibold text-on-surface-variant">
+              {roleLabels[user.role]}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false)
+              navigate('/settings')
+            }}
+            className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-on-surface hover:bg-surface-container-low"
+          >
+            <Settings className="size-4" />
+            Profile &amp; settings
+          </button>
+          {hasRole(user.role, 'admin') ? (
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false)
+                navigate('/team')
+              }}
+              className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-on-surface hover:bg-surface-container-low"
+            >
+              <BadgeCheck className="size-4" />
+              Team
+            </button>
+          ) : null}
+          <div className="my-1 h-px bg-surface-container-high" />
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-destructive hover:bg-destructive/10"
+          >
+            <LogOut className="size-4" />
+            Sign out
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 export function TopNav({
@@ -90,9 +190,7 @@ export function TopNav({
         >
           <CircleHelp className="size-5" />
         </Button>
-        <div className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full border border-outline-variant bg-primary-container font-headline-md text-headline-md text-on-primary-container transition-all hover:ring-2 hover:ring-primary hover:ring-offset-2">
-          A
-        </div>
+        <UserMenu />
       </div>
     </header>
   )

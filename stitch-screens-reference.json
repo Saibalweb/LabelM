@@ -1,6 +1,22 @@
 {
   "projectId": "11686263861835796824",
   "categories": {
+    "auth": [
+      { "id": "62681159c52249aaac90abc162439789", "title": "Sign In - Modern Presentation - LabelMaster Pro", "device": "DESKTOP", "size": "2560x2048", "route": "/login" },
+      { "id": "64389f6c63474f1ea89a662b4a71b8fa", "title": "Magic Link Sent - LabelMaster Pro", "device": "DESKTOP", "size": "2560x2048", "route": "/magic-link-sent" },
+      { "id": "329353de21aa47faaabef7b816f225bd", "title": "Reset Password - LabelMaster Pro", "device": "DESKTOP", "size": "2560x2048", "route": "/forgot-password" },
+      { "id": "3c8623321a444ef7aee5adda7ae51c49", "title": "Set New Password - LabelMaster Pro", "device": "DESKTOP", "size": "2560x2048", "route": "/reset-password" },
+      { "id": "3b926c5279af4a50b1a5024868f776b9", "title": "Accept Invitation - LabelMaster Pro", "device": "DESKTOP", "size": "2560x2048", "route": "/accept-invite" },
+      { "id": "42fc7051c1e54d0b814e53e141dd7853", "title": "Access Restricted - LabelMaster Pro", "device": "DESKTOP", "size": "2560x2048", "route": "/unauthorized" }
+    ],
+    "team_settings": [
+      { "id": "0cbd690c31f946b4a0e770cc62b91afc", "title": "Team - LabelMaster Pro", "device": "DESKTOP", "size": "2560x2374", "route": "/team" },
+      { "id": "3eb6526e8a9540f3935347c6f66f16e1", "title": "Team - Invite Member Modal", "device": "DESKTOP", "size": "2560x2374", "route": "/team (dialog)" },
+      { "id": "0c64eca3a30444bfb553921b23f58405", "title": "Settings - LabelMaster Pro", "device": "DESKTOP", "size": "2560x4560", "route": "/settings" }
+    ],
+    "ditched": [
+      { "id": "aac301479c6f46308053f56c0f844a62", "title": "Audit Log - LabelMaster Pro", "device": "DESKTOP", "size": "2560x3606", "note": "Out of scope for v1" }
+    ],
     "invoice_customer": [
       { "id": "b58c0153d1f246a0be4aedba8bd901f1", "title": "Dues Overview - Dashboard", "device": "DESKTOP", "size": "2560x2048" },
       { "id": "ce75ebabf2774d0cb4daa1aa2532f8e8", "title": "Invoices - Dashboard", "device": "DESKTOP", "size": "2560x2048" },

@@ -1,7 +1,20 @@
-import { Link, NavLink } from 'react-router-dom'
-import { Landmark, Plus, ReceiptText, Tag, Users, Settings, LogOut, type LucideIcon } from 'lucide-react'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
+import {
+  BadgeCheck,
+  Landmark,
+  Plus,
+  ReceiptText,
+  Tag,
+  Users,
+  Settings,
+  LogOut,
+  type LucideIcon,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { useAppDispatch, useAppSelector } from '@/store/hooks'
+import { signOut } from '@/store/slices/authSlice'
+import { hasRole } from '@/lib/auth'
 import { cn } from '@/lib/utils'
 
 function NavItem({
@@ -37,13 +50,24 @@ function NavItem({
 }
 
 export function SideNav() {
+  const dispatch = useAppDispatch()
+  const navigate = useNavigate()
+  const role = useAppSelector((state) => state.auth.user?.role)
+  const canManageTeam = hasRole(role, 'admin')
+
+  async function handleSignOut() {
+    await dispatch(signOut())
+    toast.success('Signed out')
+    navigate('/login', { replace: true })
+  }
+
   return (
     <nav className="fixed top-0 left-0 z-20 hidden h-screen w-64 flex-col gap-4 border-r border-outline-variant bg-surface-container-low p-4 md:flex">
       <div className="mb-4">
         <h1 className="font-headline-md text-headline-md font-semibold tracking-tight text-primary">
           LabelMaster
         </h1>
-        <p className="mt-1 font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">
+        <p className="mt-1 font-label-sm text-label-sm tracking-wider text-on-surface-variant uppercase">
           Management Console
         </p>
       </div>
@@ -63,6 +87,7 @@ export function SideNav() {
         <NavItem to="/invoice" icon={ReceiptText} label="Invoices" />
         <NavItem to="/dues" icon={Landmark} label="Dues" />
         <NavItem to="/customers" icon={Users} label="Customers" />
+        {canManageTeam ? <NavItem to="/team" icon={BadgeCheck} label="Team" /> : null}
         <NavItem to="/settings" icon={Settings} label="Settings" />
       </ul>
 
@@ -70,8 +95,8 @@ export function SideNav() {
         <Button
           type="button"
           variant="ghost"
-          onClick={() => toast.info('Signed out (demo)')}
-          className="flex min-h-[48px] w-full items-center justify-start gap-3 rounded-xl px-4 py-3 font-label-md text-label-md text-on-surface-variant hover:bg-error-container hover:text-on-error-container active:scale-95"
+          onClick={handleSignOut}
+          className="flex min-h-[48px] w-full items-center justify-start gap-3 rounded-xl px-4 py-3 font-label-md text-label-md text-on-surface-variant hover:bg-destructive/10 hover:text-destructive active:scale-95"
         >
           <LogOut className="size-5" />
           Logout

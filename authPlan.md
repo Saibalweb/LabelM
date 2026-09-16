@@ -33,9 +33,10 @@ invited company members can authenticate. Backend: Supabase (Auth + Postgres + R
 
 ## 4. Auth Model
 - Supabase Auth, `Enable sign ups = OFF`.
-- Roles source of truth: `profiles.role`; mirrored to `app_metadata.role` (never
+- Roles source of truth: `employees.role`; mirrored to `app_metadata.role` (never
   `user_metadata`).
-- `current_role()` security-definer helper used by RLS (avoids stale JWT roles).
+- `get_my_role()` security-definer helper used by RLS (avoids stale JWT roles;
+  named to avoid the reserved `current_role` keyword).
 - Invites: Edge Function `invite-user` (service role) calls
   `auth.admin.inviteUserByEmail`, sets `app_metadata.role` + creates `profiles` row.
 - SMTP required for magic links + invites. Recommended provider: **Resend**.
@@ -69,7 +70,8 @@ Notes:
   Set new password. Invite link → Accept invite.
 
 ## 6. Supabase Schema
-- `profiles` — id → auth.users, full_name, email, role, status, created_at, last_seen_at
+- `employees` — id → auth.users, email, full_name, role (enum), status (enum),
+  avatar, deactivated_at, deactivated_by, created_by, created_at, updated_at
 - `company_settings` — single row: name, address, logo_url, tax_rate, invoice_prefix,
   label_prefix, currency
 - `customers`, `labels`, `invoices` — line items + payments as JSONB (matches
@@ -79,9 +81,14 @@ Notes:
   in `src/lib/repositories/storage.ts`), using `SELECT ... FOR UPDATE`
 
 ## 7. RLS Strategy
-- All tables: `authenticated` only.
+- All tables: `authenticated` only; `anon` has no access.
 - Business tables: any authenticated member (single company).
-- Role checks via `current_role()` for team management, settings, purge.
+- Role checks via `get_my_role()` for team management, settings, purge.
+- `employees`: read own row; read team (admin+); direct update limited to
+  `full_name`/`avatar` via column privileges. Role/status changes and purges are
+  only possible through `SECURITY DEFINER` RPCs (`admin_update_member_status`,
+  `owner_update_member_role`, `owner_purge_member`). Inserts happen only via the
+  invite Edge Function (service role).
 - Soft-delete: default queries filter `deleted_at IS NULL`.
 - Restore: admin+; purge: owner-only via RPC.
 

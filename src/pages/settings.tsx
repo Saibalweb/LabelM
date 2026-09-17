@@ -16,9 +16,9 @@ import {
 import { TopNav } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { signOut } from '@/store/slices/authSlice'
-import { hasRole, initialsOf, roleLabels } from '@/lib/auth'
+import { useAppSelector } from '@/store/hooks'
+import { hasRole, initialsOf, roleLabels } from '@/lib/roles'
+import { authService } from '@/services/auth'
 import { cn } from '@/lib/utils'
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -57,13 +57,15 @@ function Row({
 }
 
 export function Settings() {
-  const dispatch = useAppDispatch()
   const user = useAppSelector((state) => state.auth.user)
   const canManageTeam = hasRole(user?.role, 'admin')
 
   async function handleSignOut() {
-    await dispatch(signOut())
-    toast.success('Signed out')
+    try {
+      await authService.signOut()
+    } finally {
+      toast.success('Signed out')
+    }
   }
 
   return (

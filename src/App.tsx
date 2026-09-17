@@ -1,12 +1,6 @@
-import { useEffect } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Route, Navigate, Routes } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { RequireAuth, RequireRole } from '@/components/auth/RequireAuth'
-import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { restoreSession } from '@/store/slices/authSlice'
-import { fetchLabels } from '@/store/slices/labelsSlice'
-import { fetchCustomers } from '@/store/slices/customersSlice'
-import { fetchInvoices } from '@/store/slices/invoicesSlice'
 import { Login } from '@/pages/auth/login'
 import { MagicLinkSent } from '@/pages/auth/magicLinkSent'
 import { ForgotPassword } from '@/pages/auth/forgotPassword'
@@ -25,20 +19,6 @@ import { Settings } from '@/pages/settings'
 import { Team } from '@/pages/team'
 
 function App() {
-  const dispatch = useAppDispatch()
-  const user = useAppSelector((state) => state.auth.user)
-
-  useEffect(() => {
-    dispatch(restoreSession())
-  }, [dispatch])
-
-  useEffect(() => {
-    if (!user) return
-    dispatch(fetchLabels())
-    dispatch(fetchCustomers())
-    dispatch(fetchInvoices())
-  }, [user, dispatch])
-
   return (
     <Routes>
       <Route path="/login" element={<Login />} />

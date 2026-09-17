@@ -1,17 +1,16 @@
 import { useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { KeyRound, Mail, User } from 'lucide-react'
+import { useLocation } from 'react-router-dom'
+import { Info, KeyRound, Mail, User } from 'lucide-react'
 import { toast } from 'sonner'
 import { AuthLayout } from '@/components/auth/AuthLayout'
 import { TextField } from '@/components/auth/TextField'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { useAppDispatch } from '@/store/hooks'
-import { acceptInvite } from '@/store/slices/authSlice'
+import { authService } from '@/services/auth'
+
+const DEFAULT_ERROR = 'Unable to accept the invitation. Please try again.'
 
 export function AcceptInvite() {
-  const dispatch = useAppDispatch()
-  const navigate = useNavigate()
   const location = useLocation()
   const invitedEmail = (location.state as { email?: string } | null)?.email ?? ''
 
@@ -20,20 +19,22 @@ export function AcceptInvite() {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const valid = name.trim().length > 1 && password.length >= 8 && password === confirm
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     if (!valid) return
+    setError(null)
     setSubmitting(true)
-    const result = await dispatch(
-      acceptInvite({ name, email: email || 'new.member@company.com', password })
-    )
-    setSubmitting(false)
-    if (acceptInvite.fulfilled.match(result)) {
+    try {
+      await authService.acceptInvite({ name, email: email || 'new.member@company.com', password })
       toast.success(`Welcome aboard, ${name.split(' ')[0]}!`)
-      navigate('/', { replace: true })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : DEFAULT_ERROR)
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -105,6 +106,13 @@ export function AcceptInvite() {
             ) : null
           }
         />
+
+        {error ? (
+          <div className="flex items-start gap-2 rounded-lg bg-destructive/10 px-3.5 py-2.5 text-destructive">
+            <Info className="mt-0.5 size-4 shrink-0" />
+            <p className="font-label-sm text-label-sm">{error}</p>
+          </div>
+        ) : null}
 
         <Button
           type="submit"

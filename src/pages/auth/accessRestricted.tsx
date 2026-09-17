@@ -2,15 +2,13 @@ import { useNavigate } from 'react-router-dom'
 import { ShieldX } from 'lucide-react'
 import { AuthLayout } from '@/components/auth/AuthLayout'
 import { Button } from '@/components/ui/button'
-import { useAppDispatch } from '@/store/hooks'
-import { signOut } from '@/store/slices/authSlice'
+import { authService } from '@/services/auth'
 
 export function AccessRestricted() {
-  const dispatch = useAppDispatch()
   const navigate = useNavigate()
 
   async function handleSignOut() {
-    await dispatch(signOut())
+    await authService.signOut()
     navigate('/login', { replace: true })
   }
 

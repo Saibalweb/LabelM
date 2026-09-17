@@ -1,24 +1,31 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Mail, MailCheck } from 'lucide-react'
+import { ArrowLeft, Info, Mail, MailCheck } from 'lucide-react'
 import { AuthLayout } from '@/components/auth/AuthLayout'
 import { TextField } from '@/components/auth/TextField'
 import { Button } from '@/components/ui/button'
-import { useAppDispatch } from '@/store/hooks'
-import { requestPasswordReset } from '@/store/slices/authSlice'
+import { authService } from '@/services/auth'
+
+const DEFAULT_ERROR = 'Unable to send the reset link. Please try again.'
 
 export function ForgotPassword() {
-  const dispatch = useAppDispatch()
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
+    setError(null)
     setSubmitting(true)
-    await dispatch(requestPasswordReset({ email }))
-    setSubmitting(false)
-    setSent(true)
+    try {
+      await authService.requestPasswordReset(email.trim())
+      setSent(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : DEFAULT_ERROR)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -68,6 +75,13 @@ export function ForgotPassword() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
+
+          {error ? (
+            <div className="flex items-start gap-2 rounded-lg bg-destructive/10 px-3.5 py-2.5 text-destructive">
+              <Info className="mt-0.5 size-4 shrink-0" />
+              <p className="font-label-sm text-label-sm">{error}</p>
+            </div>
+          ) : null}
 
           <Button
             type="submit"

@@ -1,4 +1,4 @@
-import type { MemberStatus, Role } from '@/lib/auth'
+import type { MemberStatus, Role } from '@/lib/types'
 
 export interface TeamMember {
   id: string

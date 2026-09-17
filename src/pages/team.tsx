@@ -31,7 +31,8 @@ import {
 } from '@/components/ui/dialog'
 import { TextField } from '@/components/auth/TextField'
 import { useAppSelector } from '@/store/hooks'
-import { initialsOf, roleLabels, type MemberStatus, type Role } from '@/lib/auth'
+import { initialsOf, roleLabels } from '@/lib/roles'
+import type { MemberStatus, Role } from '@/lib/types'
 import { demoMembers, type TeamMember } from '@/lib/demo/team'
 import { cn } from '@/lib/utils'
 

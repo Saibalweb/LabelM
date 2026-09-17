@@ -1,57 +1,55 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, Eye, EyeOff, Info, KeyRound, Link2, Mail } from 'lucide-react'
 import { AuthLayout } from '@/components/auth/AuthLayout'
 import { TextField } from '@/components/auth/TextField'
 import { Button } from '@/components/ui/button'
-import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import {
-  clearAuthError,
-  requestMagicLink,
-  signInWithPassword,
-} from '@/store/slices/authSlice'
+import { authService } from '@/services/auth'
+
+const DEFAULT_ERROR = 'Unable to sign in. Please try again.'
 
 export function Login() {
-  const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const location = useLocation()
-  const { status, error } = useAppSelector((state) => state.auth)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [remember, setRemember] = useState(true)
-  const [localError, setLocalError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const from = (location.state as { from?: string } | null)?.from ?? '/'
-  const submitting = status === 'loading'
-
-  useEffect(() => {
-    dispatch(clearAuthError())
-  }, [dispatch])
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
-    setLocalError(null)
-    const result = await dispatch(signInWithPassword({ email, password }))
-    if (signInWithPassword.fulfilled.match(result)) {
+    setError(null)
+    setSubmitting(true)
+    try {
+      await authService.signInWithPassword({ email, password })
       navigate(from, { replace: true })
-    } else if (signInWithPassword.rejected.match(result)) {
-      if (result.payload?.code === 'restricted') navigate('/unauthorized')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : DEFAULT_ERROR)
+    } finally {
+      setSubmitting(false)
     }
   }
 
   async function handleMagicLink() {
     if (!email.trim()) {
-      setLocalError('Enter your work email first to receive a magic link.')
+      setError('Enter your work email first to receive a magic link.')
       return
     }
-    setLocalError(null)
-    await dispatch(requestMagicLink({ email }))
-    navigate('/magic-link-sent', { state: { email } })
+    setError(null)
+    setSubmitting(true)
+    try {
+      await authService.requestMagicLink(email.trim())
+      navigate('/magic-link-sent', { state: { email: email.trim() } })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : DEFAULT_ERROR)
+    } finally {
+      setSubmitting(false)
+    }
   }
-
-  const message = localError ?? error
 
   return (
     <AuthLayout title="Sign in" subtitle="Use your company account">
@@ -65,7 +63,10 @@ export function Login() {
           placeholder="name@company.com"
           icon={<Mail className="size-5" />}
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            setEmail(e.target.value)
+            setError(null)
+          }}
         />
 
         <TextField
@@ -77,7 +78,10 @@ export function Login() {
           placeholder="••••••••"
           icon={<KeyRound className="size-5" />}
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e) => {
+            setPassword(e.target.value)
+            setError(null)
+          }}
           trailing={
             <button
               type="button"
@@ -94,8 +98,6 @@ export function Login() {
           <label className="inline-flex cursor-pointer items-center gap-2.5 select-none">
             <input
               type="checkbox"
-              checked={remember}
-              onChange={(e) => setRemember(e.target.checked)}
               className="size-4 cursor-pointer rounded border-outline-variant text-primary accent-primary"
             />
             <span className="font-label-md text-label-md text-on-surface-variant">Remember me</span>
@@ -108,10 +110,10 @@ export function Login() {
           </Link>
         </div>
 
-        {message ? (
+        {error ? (
           <div className="flex items-start gap-2 rounded-lg bg-destructive/10 px-3.5 py-2.5 text-destructive">
             <Info className="mt-0.5 size-4 shrink-0" />
-            <p className="font-label-sm text-label-sm">{message}</p>
+            <p className="font-label-sm text-label-sm">{error}</p>
           </div>
         ) : null}
 
@@ -141,18 +143,6 @@ export function Login() {
           Email me a magic link
         </Button>
       </form>
-
-      <div className="mt-6 rounded-xl border border-dashed border-outline-variant bg-surface-container-low/60 p-3.5">
-        <p className="font-label-sm text-label-sm font-semibold tracking-wide text-on-surface-variant uppercase">
-          Demo accounts
-        </p>
-        <p className="mt-1.5 font-label-sm text-label-sm text-on-surface-variant">
-          owner@labelmaster.test · admin@labelmaster.test · staff@labelmaster.test
-        </p>
-        <p className="mt-0.5 font-label-sm text-label-sm text-on-surface-variant">
-          Password: <span className="font-mono text-on-surface">labelmaster</span>
-        </p>
-      </div>
     </AuthLayout>
   )
 }

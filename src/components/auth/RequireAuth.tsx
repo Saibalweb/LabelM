@@ -2,7 +2,8 @@ import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { QrCode } from 'lucide-react'
 import { useAppSelector } from '@/store/hooks'
-import { hasRole, type Role } from '@/lib/auth'
+import { hasRole } from '@/lib/roles'
+import type { Role } from '@/lib/types'
 
 function FullScreenLoader() {
   return (
@@ -20,6 +21,10 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   const location = useLocation()
 
   if (!bootstrapped || status === 'loading') return <FullScreenLoader />
+
+  if (status === 'restricted') {
+    return <Navigate to="/unauthorized" replace />
+  }
 
   if (status !== 'authenticated' || !user) {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />

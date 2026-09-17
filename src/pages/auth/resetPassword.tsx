@@ -5,8 +5,8 @@ import { toast } from 'sonner'
 import { AuthLayout } from '@/components/auth/AuthLayout'
 import { TextField } from '@/components/auth/TextField'
 import { Button } from '@/components/ui/button'
-import { useAppDispatch } from '@/store/hooks'
-import { updatePassword } from '@/store/slices/authSlice'
+import { useAppSelector } from '@/store/hooks'
+import { authService } from '@/services/auth'
 import { cn } from '@/lib/utils'
 
 function scorePassword(password: string): number {
@@ -21,8 +21,8 @@ function scorePassword(password: string): number {
 const strengthLabels = ['Too weak', 'Weak', 'Fair', 'Good', 'Strong']
 
 export function ResetPassword() {
-  const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const status = useAppSelector((state) => state.auth.status)
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -36,14 +36,21 @@ export function ResetPassword() {
   ]
   const valid = checks.every((c) => c.ok) && password === confirm && password.length > 0
 
+  const needsSession = status !== 'authenticated' && status !== 'restricted'
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     if (!valid) return
     setSubmitting(true)
-    await dispatch(updatePassword({ password }))
-    setSubmitting(false)
-    toast.success('Password updated. You can sign in now.')
-    navigate('/login', { replace: true })
+    try {
+      await authService.updatePassword(password)
+      toast.success('Password updated. You can sign in now.')
+      navigate('/login', { replace: true })
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Unable to update your password.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -55,6 +62,15 @@ export function ResetPassword() {
             Reset links expire after 15 minutes. Request a new one if this link no longer works.
           </p>
         </div>
+
+        {needsSession ? (
+          <div className="flex items-start gap-2 rounded-lg bg-destructive/10 px-3.5 py-2.5 text-destructive">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+            <p className="font-label-sm text-label-sm">
+              This reset link is invalid or expired. Please request a new one.
+            </p>
+          </div>
+        ) : null}
 
         <TextField
           id="password"

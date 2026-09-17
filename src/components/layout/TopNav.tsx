@@ -11,9 +11,9 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { signOut } from '@/store/slices/authSlice'
-import { hasRole, initialsOf, roleLabels } from '@/lib/auth'
+import { useAppSelector } from '@/store/hooks'
+import { hasRole, initialsOf, roleLabels } from '@/lib/roles'
+import { authService } from '@/services/auth'
 import { cn } from '@/lib/utils'
 
 interface TopNavProps {
@@ -27,7 +27,6 @@ interface TopNavProps {
 }
 
 function UserMenu() {
-  const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const user = useAppSelector((state) => state.auth.user)
   const [open, setOpen] = useState(false)
@@ -45,9 +44,12 @@ function UserMenu() {
 
   async function handleSignOut() {
     setOpen(false)
-    await dispatch(signOut())
-    toast.success('Signed out')
-    navigate('/login', { replace: true })
+    try {
+      await authService.signOut()
+    } finally {
+      toast.success('Signed out')
+      navigate('/login', { replace: true })
+    }
   }
 
   return (

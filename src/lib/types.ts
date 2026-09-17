@@ -1,3 +1,23 @@
+export type Role = 'owner' | 'admin' | 'staff'
+export type MemberStatus = 'invited' | 'active' | 'suspended'
+
+export interface Employee {
+  id: string
+  email: string
+  full_name: string
+  role: Role
+  status: MemberStatus
+  avatar: string | null
+  created_at: string
+}
+
+export interface AuthUser {
+  id: string
+  name: string
+  email: string
+  role: Role
+}
+
 export type CustomerCategory = 'B2B' | 'Retail' | 'Wholesale'
 export type CustomerStatus = 'active' | 'inactive'
 

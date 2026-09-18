@@ -1,0 +1,52 @@
+# LabelM — Supabase CLI configuration.
+# Reference: https://supabase.com/docs/guides/local-development/cli/config
+
+project_id = "labelm"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173/accept-invite"]
+
+# Invite-only product: public sign-ups stay disabled.
+[auth.email]
+enable_signup = false
+enable_confirmations = true
+
+# ---------------------------------------------------------------------------
+# Custom SMTP — NOT enabled yet. The project still uses Supabase's built-in
+# email relay (rate-limited, team members only). When the client has a domain,
+# switch to a real provider (e.g. ZeptoMail) by filling in the block below and
+# setting the same values in the hosted dashboard (Auth -> SMTP Settings).
+# See authPlan.md "SMTP switch checklist" for the full runbook.
+# ---------------------------------------------------------------------------
+# [auth.email.smtp]
+# host = "smtp.yourprovider.com"
+# port = 587
+# user = "your-smtp-user"
+# pass = "your-smtp-password"
+# admin_email = "no-reply@mail.yourdomain.com"
+# sender_name = "LabelM"
+
+[functions.invite-user]
+verify_jwt = true

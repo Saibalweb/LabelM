@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Download,
   Hourglass,
+  Loader2,
   Lock,
   Mail,
   MoreVertical,
@@ -32,8 +33,8 @@ import {
 import { TextField } from '@/components/auth/TextField'
 import { useAppSelector } from '@/store/hooks'
 import { initialsOf, roleLabels } from '@/lib/roles'
+import { teamRepository, type TeamMember } from '@/lib/repositories/teamRepository'
 import type { MemberStatus, Role } from '@/lib/types'
-import { demoMembers, type TeamMember } from '@/lib/demo/team'
 import { cn } from '@/lib/utils'
 
 const avatarStyles = [
@@ -106,33 +107,31 @@ interface InviteDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   canInviteAdmin: boolean
-  onInvite: (member: TeamMember) => void
+  onInvite: (email: string, role: Role) => Promise<void>
 }
 
 function InviteMemberDialog({ open, onOpenChange, canInviteAdmin, onInvite }: InviteDialogProps) {
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<Role>('staff')
+  const [inviting, setInviting] = useState(false)
+  const [inviteError, setInviteError] = useState<string | null>(null)
 
-  function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     if (!email.trim()) return
-    const name = email
-      .split('@')[0]
-      .split(/[._-]/)
-      .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
-      .join(' ')
-    onInvite({
-      id: `m-${Date.now()}`,
-      name,
-      email: email.trim(),
-      role,
-      status: 'invited',
-      lastActive: 'Pending join',
-    })
-    toast.success(`Invitation sent to ${email}`)
-    setEmail('')
-    setRole('staff')
-    onOpenChange(false)
+    setInviteError(null)
+    setInviting(true)
+    try {
+      await onInvite(email.trim(), role)
+      toast.success(`Invitation sent to ${email.trim()}`)
+      setEmail('')
+      setRole('staff')
+      onOpenChange(false)
+    } catch (err) {
+      setInviteError(err instanceof Error ? err.message : 'Unable to send the invitation.')
+    } finally {
+      setInviting(false)
+    }
   }
 
   return (
@@ -161,7 +160,10 @@ function InviteMemberDialog({ open, onOpenChange, canInviteAdmin, onInvite }: In
             placeholder="colleague@company.com"
             icon={<Mail className="size-5" />}
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value)
+              setInviteError(null)
+            }}
           />
 
           <div className="space-y-1.5">
@@ -194,6 +196,10 @@ function InviteMemberDialog({ open, onOpenChange, canInviteAdmin, onInvite }: In
             ) : null}
           </div>
 
+          {inviteError ? (
+            <p className="font-label-sm text-label-sm text-destructive">{inviteError}</p>
+          ) : null}
+
           <div className="flex items-start gap-3 rounded-xl bg-surface-container-low p-3.5">
             <Send className="mt-0.5 size-4 shrink-0 text-primary" />
             <p className="font-label-sm text-label-sm text-on-surface-variant">
@@ -213,9 +219,10 @@ function InviteMemberDialog({ open, onOpenChange, canInviteAdmin, onInvite }: In
             </Button>
             <Button
               type="submit"
+              disabled={inviting}
               className="h-11 rounded-xl bg-primary px-6 font-body-md text-body-md font-semibold text-on-primary hover:bg-primary-container"
             >
-              Send invitation
+              {inviting ? 'Sending…' : 'Send invitation'}
             </Button>
           </DialogFooter>
         </form>
@@ -259,7 +266,8 @@ function StatCard({
 
 export function Team() {
   const currentUser = useAppSelector((state) => state.auth.user)
-  const [members, setMembers] = useState<TeamMember[]>(demoMembers)
+  const [members, setMembers] = useState<TeamMember[]>([])
+  const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -268,6 +276,25 @@ export function Team() {
   const menuRef = useRef<HTMLDivElement>(null)
 
   const canInviteAdmin = currentUser?.role === 'owner'
+  const isOwner = currentUser?.role === 'owner'
+
+  useEffect(() => {
+    let active = true
+    teamRepository
+      .list()
+      .then((list) => {
+        if (active) setMembers(list)
+      })
+      .catch((err) => {
+        if (active) toast.error(err instanceof Error ? err.message : 'Unable to load the team')
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
   useEffect(() => {
     function handleClick(event: MouseEvent) {
@@ -278,6 +305,14 @@ export function Team() {
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
+
+  async function reload() {
+    try {
+      setMembers(await teamRepository.list())
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Unable to refresh the team')
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -299,15 +334,69 @@ export function Team() {
     [members]
   )
 
-  function updateStatus(id: string, status: MemberStatus) {
-    setMembers((prev) => prev.map((m) => (m.id === id ? { ...m, status } : m)))
-    setOpenMenu(null)
+  async function handleInvite(email: string, role: Role) {
+    await teamRepository.invite({ email, role })
+    await reload()
   }
 
-  function removeMember(id: string) {
-    setMembers((prev) => prev.filter((m) => m.id !== id))
+  async function handleResend(member: TeamMember) {
     setOpenMenu(null)
-    toast.success('Member removed')
+    try {
+      await teamRepository.invite({ email: member.email, role: member.role })
+      toast.success(`Invite resent to ${member.email}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Unable to resend the invite')
+    }
+  }
+
+  async function handleRevoke(member: TeamMember) {
+    setOpenMenu(null)
+    try {
+      await teamRepository.revokeInvite(member.id)
+      setMembers((prev) => prev.filter((m) => m.id !== member.id))
+      toast.success('Invitation revoked')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Unable to revoke the invitation')
+    }
+  }
+
+  async function handleSetStatus(member: TeamMember, status: Exclude<MemberStatus, 'invited'>) {
+    setOpenMenu(null)
+    try {
+      await teamRepository.setStatus(member.id, status)
+      await reload()
+      toast.success(status === 'suspended' ? 'Member suspended' : 'Member reactivated')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Unable to update the member')
+    }
+  }
+
+  async function handleSetRole(member: TeamMember, role: Role) {
+    setOpenMenu(null)
+    try {
+      await teamRepository.setRole(member.id, role)
+      await reload()
+      toast.success(`Role updated to ${roleLabels[role].toLowerCase()}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Unable to update the role')
+    }
+  }
+
+  async function handleRemove(member: TeamMember) {
+    setOpenMenu(null)
+    try {
+      if (isOwner) {
+        await teamRepository.purge(member.id)
+        setMembers((prev) => prev.filter((m) => m.id !== member.id))
+        toast.success('Member removed')
+      } else {
+        await teamRepository.setStatus(member.id, 'suspended')
+        await reload()
+        toast.success('Member suspended')
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Unable to remove the member')
+    }
   }
 
   return (
@@ -445,172 +534,200 @@ export function Team() {
           </div>
 
           <div className="overflow-x-auto rounded-b-xl border border-outline-variant bg-surface-container-lowest shadow-sm">
-            <table className="w-full min-w-[760px] border-collapse text-left">
-              <thead>
-                <tr className="bg-surface-container-low/70 font-label-sm text-label-sm tracking-wider text-on-surface-variant uppercase">
-                  <th className="px-6 py-3.5 font-semibold">Member</th>
-                  <th className="px-6 py-3.5 font-semibold">Role</th>
-                  <th className="px-6 py-3.5 font-semibold">Status</th>
-                  <th className="px-6 py-3.5 font-semibold">Last Active</th>
-                  <th className="px-6 py-3.5 text-right font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-outline-variant/50">
-                {filtered.map((member, index) => (
-                  <tr key={member.id} className="group transition-colors hover:bg-surface-container-low/40">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3.5">
-                        <Avatar name={member.name} index={index} />
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="truncate font-body-md text-body-md font-semibold text-on-surface">
-                              {member.name}
+            {loading ? (
+              <div className="flex items-center justify-center gap-3 py-16">
+                <Loader2 className="size-5 animate-spin text-primary" />
+                <span className="font-body-md text-body-md text-on-surface-variant">
+                  Loading team…
+                </span>
+              </div>
+            ) : (
+              <table className="w-full min-w-[760px] border-collapse text-left">
+                <thead>
+                  <tr className="bg-surface-container-low/70 font-label-sm text-label-sm tracking-wider text-on-surface-variant uppercase">
+                    <th className="px-6 py-3.5 font-semibold">Member</th>
+                    <th className="px-6 py-3.5 font-semibold">Role</th>
+                    <th className="px-6 py-3.5 font-semibold">Status</th>
+                    <th className="px-6 py-3.5 font-semibold">Last Active</th>
+                    <th className="px-6 py-3.5 text-right font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline-variant/50">
+                  {filtered.map((member, index) => (
+                    <tr key={member.id} className="group transition-colors hover:bg-surface-container-low/40">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3.5">
+                          <Avatar name={member.name} index={index} />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="truncate font-body-md text-body-md font-semibold text-on-surface">
+                                {member.name}
+                              </span>
+                              {member.role === 'owner' ? (
+                                <BadgeCheck className="size-4 text-primary" />
+                              ) : null}
+                            </div>
+                            <span className="truncate font-label-sm text-label-sm font-mono text-on-surface-variant">
+                              {member.email}
                             </span>
-                            {member.role === 'owner' ? (
-                              <BadgeCheck className="size-4 text-primary" />
-                            ) : null}
                           </div>
-                          <span className="truncate font-label-sm text-label-sm font-mono text-on-surface-variant">
-                            {member.email}
-                          </span>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <RoleBadge role={member.role} />
-                    </td>
-                    <td className="px-6 py-4">
-                      <StatusBadge status={member.status} />
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="font-label-sm text-label-sm text-on-surface">
-                        {member.lastActive}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="relative inline-block text-left">
-                        <button
-                          type="button"
-                          aria-label="Member options"
-                          onClick={() =>
-                            setOpenMenu((prev) => (prev === member.id ? null : member.id))
-                          }
-                          className="flex size-9 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container-high"
-                        >
-                          <MoreVertical className="size-5" />
-                        </button>
-                        {openMenu === member.id ? (
-                          <div
-                            ref={menuRef}
-                            className="absolute right-0 z-20 mt-1 w-56 rounded-xl border border-outline-variant bg-surface-container-lowest py-1.5 shadow-xl"
+                      </td>
+                      <td className="px-6 py-4">
+                        <RoleBadge role={member.role} />
+                      </td>
+                      <td className="px-6 py-4">
+                        <StatusBadge status={member.status} />
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="font-label-sm text-label-sm text-on-surface">
+                          {member.lastActive}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="relative inline-block text-left">
+                          <button
+                            type="button"
+                            aria-label="Member options"
+                            onClick={() =>
+                              setOpenMenu((prev) => (prev === member.id ? null : member.id))
+                            }
+                            className="flex size-9 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container-high"
                           >
-                            {member.role === 'owner' ? (
-                              <>
-                                <div className="mx-1.5 mb-1 flex items-center gap-2 rounded-lg bg-surface-container-low/60 px-3.5 py-2">
-                                  <Lock className="size-4 text-outline" />
-                                  <span className="font-label-sm text-label-sm text-on-surface-variant">
-                                    Owner cannot be removed
-                                  </span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setOpenMenu(null)
-                                    toast.info('Ownership transfer requires confirmation')
-                                  }}
-                                  className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-on-surface hover:bg-surface-container-low"
-                                >
-                                  <RefreshCw className="size-4" />
-                                  Transfer ownership
-                                </button>
-                              </>
-                            ) : null}
+                            <MoreVertical className="size-5" />
+                          </button>
+                          {openMenu === member.id ? (
+                            <div
+                              ref={menuRef}
+                              className="absolute right-0 z-20 mt-1 w-56 rounded-xl border border-outline-variant bg-surface-container-lowest py-1.5 shadow-xl"
+                            >
+                              {member.role === 'owner' ? (
+                                <>
+                                  <div className="mx-1.5 mb-1 flex items-center gap-2 rounded-lg bg-surface-container-low/60 px-3.5 py-2">
+                                    <Lock className="size-4 text-outline" />
+                                    <span className="font-label-sm text-label-sm text-on-surface-variant">
+                                      Owner cannot be removed
+                                    </span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenMenu(null)
+                                      toast.info('Ownership transfer requires confirmation')
+                                    }}
+                                    className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-on-surface hover:bg-surface-container-low"
+                                  >
+                                    <RefreshCw className="size-4" />
+                                    Transfer ownership
+                                  </button>
+                                </>
+                              ) : null}
 
-                            {member.status === 'invited' ? (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setOpenMenu(null)
-                                    toast.success(`Invite resent to ${member.email}`)
-                                  }}
-                                  className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-on-surface hover:bg-surface-container-low"
-                                >
-                                  <Send className="size-4" />
-                                  Resend invite
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => removeMember(member.id)}
-                                  className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-destructive hover:bg-destructive/10"
-                                >
-                                  <Trash2 className="size-4" />
-                                  Revoke invite
-                                </button>
-                              </>
-                            ) : null}
+                              {member.status === 'invited' ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleResend(member)}
+                                    className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-on-surface hover:bg-surface-container-low"
+                                  >
+                                    <Send className="size-4" />
+                                    Resend invite
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRevoke(member)}
+                                    className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-destructive hover:bg-destructive/10"
+                                  >
+                                    <Trash2 className="size-4" />
+                                    Revoke invite
+                                  </button>
+                                </>
+                              ) : null}
 
-                            {member.status === 'active' && member.role !== 'owner' ? (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => updateStatus(member.id, 'suspended')}
-                                  className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-on-surface hover:bg-surface-container-low"
-                                >
-                                  <Pause className="size-4" />
-                                  Suspend member
-                                </button>
-                                <div className="my-1 h-px bg-surface-container-high" />
-                                <button
-                                  type="button"
-                                  onClick={() => removeMember(member.id)}
-                                  className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-destructive hover:bg-destructive/10"
-                                >
-                                  <Trash2 className="size-4" />
-                                  Remove member
-                                </button>
-                              </>
-                            ) : null}
+                              {member.status === 'active' && member.role !== 'owner' ? (
+                                <>
+                                  {isOwner && member.role === 'staff' ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSetRole(member, 'admin')}
+                                      className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-on-surface hover:bg-surface-container-low"
+                                    >
+                                      <ShieldCheck className="size-4" />
+                                      Promote to admin
+                                    </button>
+                                  ) : null}
+                                  {isOwner && member.role === 'admin' ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSetRole(member, 'staff')}
+                                      className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-on-surface hover:bg-surface-container-low"
+                                    >
+                                      <BadgeCheck className="size-4" />
+                                      Demote to staff
+                                    </button>
+                                  ) : null}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSetStatus(member, 'suspended')}
+                                    className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-on-surface hover:bg-surface-container-low"
+                                  >
+                                    <Pause className="size-4" />
+                                    Suspend member
+                                  </button>
+                                  <div className="my-1 h-px bg-surface-container-high" />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemove(member)}
+                                    className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-destructive hover:bg-destructive/10"
+                                  >
+                                    <Trash2 className="size-4" />
+                                    Remove member
+                                  </button>
+                                </>
+                              ) : null}
 
-                            {member.status === 'suspended' ? (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => updateStatus(member.id, 'active')}
-                                  className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-secondary hover:bg-surface-container-low"
-                                >
-                                  <Play className="size-4" />
-                                  Reactivate member
-                                </button>
-                                <div className="my-1 h-px bg-surface-container-high" />
-                                <button
-                                  type="button"
-                                  onClick={() => removeMember(member.id)}
-                                  className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-destructive hover:bg-destructive/10"
-                                >
-                                  <Trash2 className="size-4" />
-                                  Remove member
-                                </button>
-                              </>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-6 py-12 text-center font-body-md text-body-md text-on-surface-variant"
-                    >
-                      No members match your filters.
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
+                              {member.status === 'suspended' ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSetStatus(member, 'active')}
+                                    className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-secondary hover:bg-surface-container-low"
+                                  >
+                                    <Play className="size-4" />
+                                    Reactivate member
+                                  </button>
+                                  <div className="my-1 h-px bg-surface-container-high" />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemove(member)}
+                                    className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-destructive hover:bg-destructive/10"
+                                  >
+                                    <Trash2 className="size-4" />
+                                    Remove member
+                                  </button>
+                                </>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {filtered.length === 0 && !loading ? (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="px-6 py-12 text-center font-body-md text-body-md text-on-surface-variant"
+                      >
+                        {members.length === 0
+                          ? 'No team members yet. Invite someone to get started.'
+                          : 'No members match your filters.'}
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            )}
           </div>
 
           <div className="mt-4 flex flex-col items-center justify-between gap-4 px-2 sm:flex-row">
@@ -647,7 +764,7 @@ export function Team() {
         open={inviteOpen}
         onOpenChange={setInviteOpen}
         canInviteAdmin={canInviteAdmin}
-        onInvite={(member) => setMembers((prev) => [member, ...prev])}
+        onInvite={handleInvite}
       />
     </div>
   )

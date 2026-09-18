@@ -127,3 +127,36 @@ Never ship the service role key in the client.
 - Audit log page + `audit_log` table.
 - Multi-tenant / company_id isolation.
 - 2FA, SSO.
+
+## 12. SMTP Switch Checklist (Built-in -> Custom, e.g. ZeptoMail)
+No code changes are required — Supabase Auth relays through whatever SMTP is
+configured. When moving off the built-in relay:
+
+1. Buy/point a domain, then add the provider's DNS records (SPF, DKIM, DMARC) —
+   ideally on a sending subdomain such as `mail.yourdomain.com`. Missing DKIM is
+   the #1 cause of auth emails landing in spam.
+2. Supabase dashboard → Authentication → SMTP Settings: enable **Custom SMTP**,
+   enter host / port (587) / user / password, set Sender email
+   (`no-reply@mail.yourdomain.com`) and Sender name.
+3. Auth → URL Configuration: add the production origin (e.g.
+   `https://app.yourdomain.com/accept-invite`). The `invite-user` function
+   derives the invite link from the request `Origin` header.
+4. Auth → Rate Limits: after enabling custom SMTP, Supabase caps sends at
+   30/hour — raise it for real traffic.
+5. Optional: set a custom domain on Supabase (`auth.yourdomain.com`) so
+   magic-link / invite URLs show your domain, not `<ref>.supabase.co`.
+6. Verify: send a real invite + magic link, check inbox and spam. A brand-new
+   domain starts with zero reputation — expect a few weeks of cautious filtering.
+
+## 13. Deploying the Invite Flow (Manual)
+- Apply migrations: `supabase db push` (or paste SQL in the dashboard editor).
+- Deploy the function:
+  ```
+  supabase link --project-ref <ref>
+  supabase functions deploy invite-user
+  ```
+- Confirm Auth → Sign in/Providers has **Enable email signups** OFF.
+- Add `http://localhost:5173/accept-invite` to Auth → URL Configuration.
+- Note: the built-in SMTP relay only sends to the organization's team-member
+  email addresses (2 emails/hour) — use Mailpit locally or add test addresses to
+  the org team for invite testing.

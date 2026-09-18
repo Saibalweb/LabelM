@@ -1,24 +1,35 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, Eye, EyeOff, Info, KeyRound, Link2, Mail } from 'lucide-react'
 import { AuthLayout } from '@/components/auth/AuthLayout'
 import { TextField } from '@/components/auth/TextField'
 import { Button } from '@/components/ui/button'
 import { authService } from '@/services/auth'
+import { useAppSelector } from '@/store/hooks'
 
 const DEFAULT_ERROR = 'Unable to sign in. Please try again.'
 
 export function Login() {
   const navigate = useNavigate()
   const location = useLocation()
+  const status = useAppSelector((state) => state.auth.status)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const pendingFrom = useRef<string | null>(null)
 
   const from = (location.state as { from?: string } | null)?.from ?? '/'
+
+  useEffect(() => {
+    const dest = pendingFrom.current
+    if (dest && (status === 'authenticated' || status === 'restricted')) {
+      pendingFrom.current = null
+      navigate(dest, { replace: true })
+    }
+  }, [status, navigate])
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
@@ -26,7 +37,11 @@ export function Login() {
     setSubmitting(true)
     try {
       await authService.signInWithPassword({ email, password })
-      navigate(from, { replace: true })
+      if (status === 'authenticated' || status === 'restricted') {
+        navigate(from, { replace: true })
+      } else {
+        pendingFrom.current = from
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : DEFAULT_ERROR)
     } finally {

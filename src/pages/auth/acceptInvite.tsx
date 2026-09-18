@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Info, KeyRound, Mail, User } from 'lucide-react'
 import { toast } from 'sonner'
 import { AuthLayout } from '@/components/auth/AuthLayout'
@@ -7,12 +7,19 @@ import { TextField } from '@/components/auth/TextField'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { authService } from '@/services/auth'
+import { setProfile } from '@/store/slices/authSlice'
+import { useAppDispatch } from '@/store/hooks'
 
 const DEFAULT_ERROR = 'Unable to accept the invitation. Please try again.'
 
 export function AcceptInvite() {
-  const location = useLocation()
-  const invitedEmail = (location.state as { email?: string } | null)?.email ?? ''
+  const navigate = useNavigate()
+  const dispatch = useAppDispatch()
+  const [searchParams] = useSearchParams()
+
+  const tokenHash = searchParams.get('token_hash')
+  const type = searchParams.get('type')
+  const invitedEmail = searchParams.get('email') ?? ''
 
   const [name, setName] = useState('')
   const [email] = useState(invitedEmail)
@@ -25,17 +32,36 @@ export function AcceptInvite() {
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
-    if (!valid) return
+    if (!valid || !tokenHash) return
     setError(null)
     setSubmitting(true)
     try {
-      await authService.acceptInvite({ name, email: email || 'new.member@company.com', password })
-      toast.success(`Welcome aboard, ${name.split(' ')[0]}!`)
+      const employee = await authService.acceptInvite({
+        tokenHash,
+        name: name.trim(),
+        password,
+      })
+      dispatch(setProfile(employee))
+      toast.success(`Welcome aboard, ${name.trim().split(' ')[0]}!`)
+      navigate('/', { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : DEFAULT_ERROR)
     } finally {
       setSubmitting(false)
     }
+  }
+
+  if (!tokenHash || type !== 'invite') {
+    return (
+      <AuthLayout title="Invitation link invalid" subtitle="This link is missing or expired.">
+        <div className="flex items-start gap-2 rounded-lg bg-destructive/10 px-3.5 py-2.5 text-destructive">
+          <Info className="mt-0.5 size-4 shrink-0" />
+          <p className="font-label-sm text-label-sm">
+            Ask your workspace admin to resend your invitation, then open the new link.
+          </p>
+        </div>
+      </AuthLayout>
+    )
   }
 
   return (
@@ -67,16 +93,18 @@ export function AcceptInvite() {
           onChange={(e) => setName(e.target.value)}
         />
 
-        <TextField
-          id="email"
-          label="Email"
-          type="email"
-          readOnly
-          placeholder="name@company.com"
-          icon={<Mail className="size-5" />}
-          value={email}
-          className="cursor-not-allowed bg-surface-container text-on-surface-variant"
-        />
+        {email ? (
+          <TextField
+            id="email"
+            label="Email"
+            type="email"
+            readOnly
+            placeholder="name@company.com"
+            icon={<Mail className="size-5" />}
+            value={email}
+            className="cursor-not-allowed bg-surface-container text-on-surface-variant"
+          />
+        ) : null}
 
         <TextField
           id="password"

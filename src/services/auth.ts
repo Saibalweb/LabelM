@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import type { Employee } from '@/lib/types'
+import type { Employee, Role } from '@/lib/types'
 
 const FALLBACK = 'Something went wrong. Please try again.'
 
@@ -46,8 +46,50 @@ export const authService = {
     if (error) throw new Error(error.message || FALLBACK)
   },
 
-  async acceptInvite(_input: { name: string; email: string; password: string }) {
-    throw new Error('Invitations are not available yet. Ask an admin for access.')
+  async inviteUser({ email, role }: { email: string; role: Role }) {
+    const { data, error } = await supabase.functions.invoke('invite-user', {
+      body: { email, role },
+    })
+    if (error) {
+      const context = (error as { context?: { data?: { error?: string } } }).context?.data
+      throw new Error(context?.error ?? error.message ?? FALLBACK)
+    }
+    if (!data?.ok) {
+      throw new Error((data as { error?: string } | null)?.error ?? FALLBACK)
+    }
+    return data as { ok: true; id: string }
+  },
+
+  async acceptInvite({
+    tokenHash,
+    name,
+    password,
+  }: {
+    tokenHash: string
+    name: string
+    password: string
+  }): Promise<Employee> {
+    const { error: verifyErr } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: 'invite',
+    })
+    if (verifyErr) {
+      throw new Error(
+        verifyErr.message.toLowerCase().includes('expired')
+          ? 'This invitation link has expired. Ask your admin to resend it.'
+          : verifyErr.message || FALLBACK
+      )
+    }
+
+    const { error: pwErr } = await supabase.auth.updateUser({ password })
+    if (pwErr) throw new Error(pwErr.message || FALLBACK)
+
+    const { data: employee, error: rpcErr } = await supabase.rpc('activate_my_membership', {
+      new_full_name: name,
+    })
+    if (rpcErr) throw new Error(rpcErr.message || FALLBACK)
+
+    return employee as Employee
   },
 
   async getProfile(userId: string): Promise<Employee | null> {

@@ -156,7 +156,14 @@ configured. When moving off the built-in relay:
   supabase functions deploy invite-user
   ```
 - Confirm Auth → Sign in/Providers has **Enable email signups** OFF.
-- Add `http://localhost:5173/accept-invite` to Auth → URL Configuration.
+- Auth → URL Configuration:
+  - Set **Site URL** to the app origin (default `http://localhost:3000` makes
+    every emailed link dead). Dev: `http://192.168.1.106:5173`; prod: the domain.
+  - Add redirect URLs for the accept page, e.g. `http://localhost:5173/accept-invite`
+    and `http://192.168.1.106:5173/accept-invite`.
+- Auth → Email Templates → Invite user: link to the accept page directly so the
+  token flow works (site-URL-based links hit a dead verify route):
+  `<a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=invite">Accept invitation</a>`.
 - Note: the built-in SMTP relay only sends to the organization's team-member
   email addresses (2 emails/hour) — use Mailpit locally or add test addresses to
   the org team for invite testing.

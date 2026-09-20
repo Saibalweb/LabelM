@@ -1,6 +1,6 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import type { Label, LabelInput } from '@/lib/types'
-import { labelRepository } from '@/lib/repositories/labelRepository'
+import { labelService } from '@/services/labels'
 
 interface LabelsState {
   items: Label[]
@@ -15,25 +15,25 @@ const initialState: LabelsState = {
 }
 
 export const fetchLabels = createAsyncThunk('labels/fetchLabels', async () => {
-  return labelRepository.list()
+  return labelService.list()
 })
 
 export const createLabel = createAsyncThunk(
   'labels/createLabel',
   async (input: LabelInput) => {
-    return labelRepository.create(input)
+    return labelService.create(input)
   }
 )
 
 export const updateLabel = createAsyncThunk(
   'labels/updateLabel',
-  async ({ id, patch }: { id: string; patch: Partial<Label> }) => {
-    return labelRepository.update(id, patch)
+  async ({ id, patch }: { id: number; patch: Partial<Label> }) => {
+    return labelService.update(id, patch)
   }
 )
 
-export const deleteLabel = createAsyncThunk('labels/deleteLabel', async (id: string) => {
-  await labelRepository.remove(id)
+export const deleteLabel = createAsyncThunk('labels/deleteLabel', async (id: number) => {
+  await labelService.remove(id)
   return id
 })
 

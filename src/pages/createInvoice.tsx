@@ -17,7 +17,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { fetchLabels, updateLabel } from '@/store/slices/labelsSlice'
 import { fetchCustomers } from '@/store/slices/customersSlice'
 import { createInvoice } from '@/store/slices/invoicesSlice'
-import { nextInvoiceId } from '@/lib/repositories/storage'
+import { nextInvoiceId } from '@/services/invoices'
 import type { Customer, InvoiceInput, Label } from '@/lib/types'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -57,10 +57,6 @@ function periodRange(value: string): string {
 
 function displayDate(date: Date): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
-}
-
-function round2(value: number): number {
-  return Math.round(value * 100) / 100
 }
 
 function toAmount(value: number): string {
@@ -146,12 +142,12 @@ export function CreateInvoice() {
   const customers = useAppSelector((state) => state.customers.items)
   const invoices = useAppSelector((state) => state.invoices.items)
 
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null)
   const [customerQuery, setCustomerQuery] = useState('')
   const [showCustomerList, setShowCustomerList] = useState(false)
   const [billingPeriod, setBillingPeriod] = useState(currentMonthValue())
   const [includeAll, setIncludeAll] = useState(false)
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [generating, setGenerating] = useState(false)
 
   useEffect(() => {
@@ -168,7 +164,7 @@ export function CreateInvoice() {
     const q = customerQuery.trim().toLowerCase()
     if (!q) return customers
     return customers.filter((customer) =>
-      [customer.name, customer.company, customer.email]
+      [customer.name, customer.email]
         .filter(Boolean)
         .some((field) => field!.toLowerCase().includes(q))
     )
@@ -200,17 +196,17 @@ export function CreateInvoice() {
 
   const subtotal = useMemo(
     () =>
-      selectedLabels.reduce((sum, label) => sum + round2(label.totalWeightKg * label.mrpPerKg), 0),
+      selectedLabels.reduce((sum, label) => sum + label.amount, 0),
     [selectedLabels]
   )
   const totalWeight = useMemo(
-    () => selectedLabels.reduce((sum, label) => sum + label.totalWeightKg, 0),
+    () => selectedLabels.reduce((sum, label) => sum + label.weight, 0),
     [selectedLabels]
   )
 
   const previewInvoiceId = useMemo(() => nextInvoiceId(invoices), [invoices])
 
-  const toggle = (id: string) => {
+  const toggle = (id: number) => {
     setSelectedIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
@@ -265,9 +261,9 @@ export function CreateInvoice() {
       lineItems: selectedLabels.map((label: Label, index) => ({
         slNo: String(index + 1).padStart(2, '0'),
         date: formatDate(label.date),
-        weightKg: label.totalWeightKg,
-        rate: label.mrpPerKg,
-        amount: round2(label.totalWeightKg * label.mrpPerKg),
+        weightKg: label.weight,
+        rate: label.rate,
+        amount: label.amount,
       })),
       payments: [],
     }
@@ -277,7 +273,7 @@ export function CreateInvoice() {
       await Promise.all(
         selectedLabels.map((label) =>
           dispatch(
-            updateLabel({ id: label.id, patch: { invoiceId: created.id, status: 'printed' } })
+            updateLabel({ id: label.id, patch: { invoiceId: (created.id as unknown) as number, status: 'printed' } })
           ).unwrap()
         )
       )
@@ -413,7 +409,7 @@ export function CreateInvoice() {
                                     {customer.name}
                                   </span>
                                   <span className="block truncate font-label-sm text-label-sm text-on-surface-variant">
-                                    {customer.company || customer.email || 'No details'}
+                                    {customer.email || customer.address || 'No details'}
                                   </span>
                                 </span>
                               </button>
@@ -455,14 +451,14 @@ export function CreateInvoice() {
                         <p className="pr-8 font-headline-md text-headline-md text-on-surface">
                           {selectedCustomer.name}
                         </p>
-                        {selectedCustomer.company || selectedCustomer.email ? (
+                        {selectedCustomer.email || selectedCustomer.address ? (
                           <p className="mt-1 font-label-sm text-label-sm text-on-surface-variant">
-                            {selectedCustomer.company || selectedCustomer.email}
+                            {selectedCustomer.email || selectedCustomer.address}
                           </p>
                         ) : null}
-                        {selectedCustomer.category ? (
+                        {selectedCustomer.currentRate != null ? (
                           <span className="mt-2.5 inline-block rounded-full bg-secondary-container px-2.5 py-0.5 font-label-sm text-label-sm text-on-secondary-container uppercase">
-                            {selectedCustomer.category}
+                            ₹{selectedCustomer.currentRate}/kg
                           </span>
                         ) : null}
                       </div>
@@ -567,7 +563,7 @@ export function CreateInvoice() {
                         </tr>
                       ) : (
                         filteredLabels.map((label) => {
-                          const amount = round2(label.totalWeightKg * label.mrpPerKg)
+                          const amount = label.amount
                           const checked = selectedIds.has(label.id)
                           return (
                             <tr
@@ -592,10 +588,10 @@ export function CreateInvoice() {
                                 {formatDate(label.date)}
                               </td>
                               <td className="p-4 text-right font-label-md text-label-md">
-                                {toAmount(label.totalWeightKg)}
+                                {toAmount(label.weight)}
                               </td>
                               <td className="p-4 text-right font-label-md text-label-md text-on-surface-variant">
-                                {toAmount(label.mrpPerKg)}
+                                {toAmount(label.rate)}
                               </td>
                               <td className="p-4 text-right font-label-md text-label-md font-bold">
                                 {formatCurrency(amount)}

@@ -2,27 +2,15 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import type { Customer } from '@/lib/types'
 
 export interface LabelDraft {
-  slNo: string
   date: string
   customer: Customer | null
-  productId: string
-  batch: string
-  expDate: string
-  description: string
-  totalWeightKg: string
-  mrpPerKg: string
+  weight: string
 }
 
 export const emptyDraft: LabelDraft = {
-  slNo: '',
   date: '',
   customer: null,
-  productId: '',
-  batch: '',
-  expDate: '',
-  description: '',
-  totalWeightKg: '',
-  mrpPerKg: '',
+  weight: '',
 }
 
 interface DraftState {

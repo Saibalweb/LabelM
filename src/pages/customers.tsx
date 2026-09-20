@@ -1,10 +1,21 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { CheckCircle2, ChevronLeft, ChevronRight, MoreVertical, PauseCircle, Plus, SlidersHorizontal, SortAsc, Users } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Users } from 'lucide-react'
 import { TopNav, MobileSearchBar } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { CustomerFormDialog } from '@/components/customers/CustomerFormDialog'
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -22,10 +33,10 @@ import {
   fetchCustomers,
   updateCustomer,
 } from '@/store/slices/customersSlice'
-import type { Customer, CustomerCategory } from '@/lib/types'
+import { pricesService } from '@/services/prices'
+import { formatCurrency } from '@/lib/format'
+import type { Customer, CustomerInput } from '@/lib/types'
 import { cn } from '@/lib/utils'
-
-const categories: Array<CustomerCategory | 'All'> = ['All', 'B2B', 'Retail', 'Wholesale']
 
 const avatarStyles = [
   'bg-primary-container text-on-primary-container',
@@ -38,22 +49,27 @@ export function Customers() {
   const dispatch = useAppDispatch()
   const { items, status } = useAppSelector((state) => state.customers)
   const [query, setQuery] = useState('')
-  const [activeCategory, setActiveCategory] = useState<CustomerCategory | 'All'>('All')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Customer | null>(null)
+  const [priceOpen, setPriceOpen] = useState(false)
+  const [priceCustomer, setPriceCustomer] = useState<Customer | null>(null)
+  const [priceValue, setPriceValue] = useState('')
+
+  useEffect(() => {
+    if (status === 'idle' || status === 'failed') {
+      dispatch(fetchCustomers())
+    }
+  }, [status, dispatch])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return items.filter((customer) => {
-      const matchesCategory = activeCategory === 'All' || customer.category === activeCategory
-      const matchesQuery =
-        !q ||
-        [customer.name, customer.company, customer.email, customer.phone, customer.address]
-          .filter(Boolean)
-          .some((field) => field!.toLowerCase().includes(q))
-      return matchesCategory && matchesQuery
-    })
-  }, [items, query, activeCategory])
+    if (!q) return items
+    return items.filter((customer) =>
+      [customer.name, customer.phone, customer.email, customer.address]
+        .filter(Boolean)
+        .some((field) => field!.toLowerCase().includes(q))
+    )
+  }, [items, query])
 
   const handleOpenAdd = () => {
     setEditing(null)
@@ -65,7 +81,7 @@ export function Customers() {
     setDialogOpen(true)
   }
 
-  const handleSubmit = async (input: Omit<Customer, 'id' | 'createdAt'>) => {
+  const handleSubmit = async (input: CustomerInput) => {
     try {
       if (editing) {
         await dispatch(updateCustomer({ id: editing.id, patch: input })).unwrap()
@@ -90,7 +106,30 @@ export function Customers() {
     }
   }
 
-  const loading = status === 'loading' || status === 'idle'
+  const handleOpenPrice = (customer: Customer) => {
+    setPriceCustomer(customer)
+    setPriceValue(customer.currentRate != null ? String(customer.currentRate) : '')
+    setPriceOpen(true)
+  }
+
+  const handleSavePrice = async () => {
+    if (!priceCustomer) return
+    const rate = Number(priceValue)
+    if (!priceValue.trim() || Number.isNaN(rate) || rate < 0) {
+      toast.error('Enter a valid rate.')
+      return
+    }
+    try {
+      await pricesService.setRate(priceCustomer.id, rate)
+      await dispatch(fetchCustomers())
+      toast.success('Rate updated')
+      setPriceOpen(false)
+    } catch {
+      toast.error('Could not update rate')
+    }
+  }
+
+  const loading = status === 'loading'
 
   return (
     <div className="flex h-full flex-col">
@@ -108,7 +147,7 @@ export function Customers() {
             <div>
               <h2 className="font-headline-lg text-headline-lg text-on-surface">Customers</h2>
               <p className="mt-1 font-body-md text-body-md text-on-surface-variant">
-                Manage client records, contacts, and categorization.
+                Manage clients and their per-kg rate. Press the number on the label screen to pick one.
               </p>
             </div>
             <Button
@@ -121,52 +160,11 @@ export function Customers() {
             </Button>
           </div>
 
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-surface-variant bg-surface-container-lowest p-4 shadow-sm">
-            <div className="flex flex-wrap gap-2">
-              {categories.map((category) => (
-                <Button
-                  key={category}
-                  type="button"
-                  variant="outline"
-                  onClick={() => setActiveCategory(category)}
-                  className={cn(
-                    'min-h-12 gap-2 rounded-full px-4 font-label-sm text-label-sm',
-                    activeCategory === category
-                      ? 'border-outline-variant bg-surface-container-high text-on-surface'
-                      : 'border-transparent bg-surface-container text-on-surface-variant hover:border-outline-variant'
-                  )}
-                >
-                  {category}
-                </Button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-lg"
-                className="min-h-12 min-w-12 rounded p-2 text-on-surface-variant hover:bg-surface-container"
-                aria-label="Filter"
-              >
-                <SlidersHorizontal className="size-5" />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-lg"
-                className="min-h-12 min-w-12 rounded p-2 text-on-surface-variant hover:bg-surface-container"
-                aria-label="Sort"
-              >
-                <SortAsc className="size-5" />
-              </Button>
-            </div>
-          </div>
-
           {!loading && items.length === 0 ? (
             <EmptyState
               icon={<Users className="size-9" />}
               title="No customers yet"
-              description="Add your first customer to attach details like company ID, contact, and category to your labels."
+              description="Add your first customer with their rate to start generating labels."
               actionLabel="Add your first customer"
               onAction={handleOpenAdd}
             />
@@ -176,11 +174,12 @@ export function Customers() {
               <table className="w-full border-collapse text-left">
                 <thead>
                   <tr className="border-b border-surface-variant bg-surface-container-low font-label-sm text-label-sm text-on-surface-variant">
+                    <th className="w-16 p-4 font-medium">#</th>
                     <th className="min-w-[200px] p-4 font-medium">Customer Name</th>
-                    <th className="min-w-[150px] p-4 font-medium">Company</th>
-                    <th className="min-w-[200px] p-4 font-medium">Contact Email</th>
-                    <th className="min-w-[120px] p-4 font-medium">Category</th>
-                    <th className="min-w-[120px] p-4 font-medium">Status</th>
+                    <th className="min-w-[140px] p-4 font-medium">Phone</th>
+                    <th className="min-w-[200px] p-4 font-medium">Email</th>
+                    <th className="min-w-[180px] p-4 font-medium">Address</th>
+                    <th className="min-w-[140px] p-4 font-medium">Rate (₹/kg)</th>
                     <th className="w-16 p-4 text-center font-medium">Actions</th>
                   </tr>
                 </thead>
@@ -188,20 +187,25 @@ export function Customers() {
                   {loading ? (
                     Array.from({ length: 3 }).map((_, i) => (
                       <tr key={i} className="h-16">
-                        <td className="p-4" colSpan={6}>
+                        <td className="p-4" colSpan={7}>
                           <div className="h-8 animate-pulse rounded bg-surface-container" />
                         </td>
                       </tr>
                     ))
                   ) : filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-on-surface-variant">
-                        No customers match your filters.
+                      <td colSpan={7} className="p-8 text-center text-on-surface-variant">
+                        No customers match your search.
                       </td>
                     </tr>
                   ) : (
                     filtered.map((customer, index) => (
                       <tr key={customer.id} className="group h-16 transition-colors hover:bg-surface-bright">
+                        <td className="p-4">
+                          <span className="inline-flex size-8 items-center justify-center rounded-full bg-primary-container font-label-md text-label-md font-bold text-on-primary-container">
+                            {customer.id}
+                          </span>
+                        </td>
                         <td className="p-4">
                           <div className="flex items-center gap-3">
                             <div
@@ -215,35 +219,21 @@ export function Customers() {
                             <span className="font-medium">{customer.name}</span>
                           </div>
                         </td>
-                        <td className="p-4 font-label-md text-label-md text-on-surface-variant">
-                          {customer.company || '—'}
-                        </td>
-                        <td className="p-4 text-on-surface-variant">
-                          {customer.email || '—'}
-                        </td>
+                        <td className="p-4 text-on-surface-variant">{customer.phone || '—'}</td>
+                        <td className="p-4 text-on-surface-variant">{customer.email || '—'}</td>
+                        <td className="p-4 text-on-surface-variant">{customer.address || '—'}</td>
                         <td className="p-4">
-                          {customer.category ? (
-                            <span className="rounded bg-surface-container-highest px-2 py-1 font-label-sm text-label-sm text-on-surface">
-                              {customer.category}
-                            </span>
-                          ) : (
-                            <span className="font-label-sm text-label-sm text-on-surface-variant">
-                              —
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-4">
-                          {customer.status === 'active' ? (
-                            <span className="flex items-center gap-1 text-secondary">
-                              <CheckCircle2 className="size-4" />
-                              <span className="font-label-sm text-label-sm">Active</span>
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1 text-outline">
-                              <PauseCircle className="size-4" />
-                              <span className="font-label-sm text-label-sm">Inactive</span>
-                            </span>
-                          )}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => handleOpenPrice(customer)}
+                            className="h-9 gap-2 rounded border-outline-variant bg-surface-container-lowest px-3 font-label-md text-label-md text-on-surface hover:bg-surface-container"
+                          >
+                            {customer.currentRate != null
+                              ? formatCurrency(customer.currentRate)
+                              : 'Set rate'}
+                            <Pencil className="size-3.5 text-on-surface-variant" />
+                          </Button>
                         </td>
                         <td className="p-4 text-center">
                           <AlertDialog>
@@ -298,7 +288,7 @@ export function Customers() {
 
             <div className="flex items-center justify-between border-t border-surface-variant bg-surface-container-lowest p-4">
               <span className="font-body-md text-body-md text-on-surface-variant">
-                Showing 1-{filtered.length} of {items.length}
+                Showing {filtered.length} of {items.length}
               </span>
               <div className="flex gap-2">
                 <Button
@@ -332,6 +322,47 @@ export function Customers() {
         onSubmit={handleSubmit}
         editing={editing}
       />
+
+      <Dialog open={priceOpen} onOpenChange={setPriceOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Edit Rate</DialogTitle>
+            <DialogDescription>
+              {priceCustomer ? `${priceCustomer.name} · ₹ per kg` : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2 py-2">
+            <Label htmlFor="price-rate">Rate (₹ per kg)</Label>
+            <div className="relative">
+              <span className="absolute top-1/2 left-3 -translate-y-1/2 text-sm text-on-surface-variant">
+                ₹
+              </span>
+              <Input
+                id="price-rate"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={priceValue}
+                onChange={(e) => setPriceValue(e.target.value)}
+                placeholder="e.g. 120.00"
+                className="pl-7"
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button type="button" onClick={handleSavePrice}>
+              Save Rate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
@@ -8,15 +8,16 @@ import {
   Eye,
   Filter,
   Package,
-  Layers,
   Printer,
+  Scale,
   Tag,
   TrendingUp,
 } from 'lucide-react'
 import { TopNav, MobileSearchBar } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
-import { useAppSelector } from '@/store/hooks'
+import { useAppDispatch, useAppSelector } from '@/store/hooks'
+import { fetchLabels } from '@/store/slices/labelsSlice'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -63,21 +64,28 @@ function StatCard({
 
 export function Dashboard() {
   const navigate = useNavigate()
+  const dispatch = useAppDispatch()
   const { items, status } = useAppSelector((state) => state.labels)
   const [query, setQuery] = useState('')
+
+  useEffect(() => {
+    if (status === 'idle' || status === 'failed') {
+      dispatch(fetchLabels())
+    }
+  }, [status, dispatch])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return items
     return items.filter((label) =>
-      [label.slNo, label.batch, label.productId, label.customerName]
+      [label.slNo, label.customerName, label.date]
         .filter(Boolean)
         .some((field) => field!.toLowerCase().includes(q))
     )
   }, [items, query])
 
-  const totalBatches = useMemo(
-    () => new Set(items.map((l) => l.batch).filter(Boolean)).size,
+  const totalWeight = useMemo(
+    () => items.reduce((sum, label) => sum + label.weight, 0),
     [items]
   )
   const uniqueCustomers = useMemo(
@@ -86,7 +94,7 @@ export function Dashboard() {
   )
   const printQueue = useMemo(() => items.filter((l) => l.status === 'draft').length, [items])
 
-  const loading = status === 'loading' || status === 'idle'
+  const loading = status === 'loading'
 
   return (
     <div className="flex h-full flex-col">
@@ -145,9 +153,9 @@ export function Dashboard() {
               footnoteClassName="text-secondary"
             />
             <StatCard
-              label="Active Batches"
-              value={totalBatches.toString()}
-              icon={<Layers className="size-6" />}
+              label="Total Weight"
+              value={`${totalWeight.toFixed(1)} kg`}
+              icon={<Scale className="size-6" />}
               iconClassName="text-secondary"
               decorClassName="bg-secondary-container/30"
               footnote={
@@ -182,9 +190,9 @@ export function Dashboard() {
           <div className="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm">
             <div className="hidden grid-cols-12 gap-4 border-b border-outline-variant bg-surface-container-low px-6 py-4 font-label-md text-label-md tracking-wider text-on-surface-variant uppercase md:grid">
               <div className="col-span-2">SL No</div>
-              <div className="col-span-4">Customer / Batch</div>
+              <div className="col-span-4">Customer / Rate</div>
               <div className="col-span-3">Date / Time</div>
-              <div className="col-span-2 text-right">Total Price</div>
+              <div className="col-span-2 text-right">Amount</div>
               <div className="col-span-1 text-center">Actions</div>
             </div>
 
@@ -229,7 +237,7 @@ export function Dashboard() {
                           {label.customerName || '—'}
                         </div>
                         <div className="mt-0.5 inline-block rounded bg-surface-container-high px-2 py-0.5 font-label-sm text-label-sm text-on-surface-variant">
-                          {label.batch || '—'}
+                          {formatCurrency(label.rate)}/kg
                         </div>
                       </div>
                     </div>
@@ -251,10 +259,10 @@ export function Dashboard() {
                     </div>
                     <div className="col-span-12 flex items-center justify-between md:col-span-2 md:justify-end">
                       <span className="font-label-sm text-label-sm text-on-surface-variant uppercase md:hidden">
-                        Total Price
+                        Amount
                       </span>
                       <span className="font-label-md text-label-md text-on-surface">
-                        {formatCurrency(label.totalPrice)}
+                        {formatCurrency(label.amount)}
                       </span>
                     </div>
                     <div className="col-span-12 flex items-center justify-end gap-2 transition-opacity md:col-span-1 md:opacity-0 md:group-hover:opacity-100">

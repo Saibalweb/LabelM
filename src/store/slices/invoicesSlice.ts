@@ -1,6 +1,6 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import type { Invoice, InvoiceInput } from '@/lib/types'
-import { invoiceRepository } from '@/lib/repositories/invoiceRepository'
+import { invoiceService } from '@/services/invoices'
 
 interface InvoicesState {
   items: Invoice[]
@@ -15,25 +15,25 @@ const initialState: InvoicesState = {
 }
 
 export const fetchInvoices = createAsyncThunk('invoices/fetchInvoices', async () => {
-  return invoiceRepository.list()
+  return invoiceService.list()
 })
 
 export const createInvoice = createAsyncThunk(
   'invoices/createInvoice',
   async (input: InvoiceInput) => {
-    return invoiceRepository.create(input)
+    return invoiceService.create(input)
   }
 )
 
 export const updateInvoice = createAsyncThunk(
   'invoices/updateInvoice',
   async ({ id, patch }: { id: string; patch: Partial<Invoice> }) => {
-    return invoiceRepository.update(id, patch)
+    return invoiceService.update(id, patch)
   }
 )
 
 export const deleteInvoice = createAsyncThunk('invoices/deleteInvoice', async (id: string) => {
-  await invoiceRepository.remove(id)
+  await invoiceService.remove(id)
   return id
 })
 

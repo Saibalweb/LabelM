@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Customer, CustomerCategory, CustomerStatus } from '@/lib/types'
+import type { Customer, CustomerInput } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -12,34 +12,30 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
 
 interface CustomerFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit: (input: Omit<Customer, 'id' | 'createdAt'>) => void
+  onSubmit: (input: CustomerInput) => void
   editing?: Customer | null
 }
 
 interface FormState {
   name: string
-  company: string
-  email: string
   phone: string
+  email: string
   address: string
-  category: CustomerCategory
-  status: CustomerStatus
+  gst_number: string
+  rate: string
 }
 
 const emptyForm: FormState = {
   name: '',
-  company: '',
-  email: '',
   phone: '',
+  email: '',
   address: '',
-  category: 'B2B',
-  status: 'active',
+  gst_number: '',
+  rate: '',
 }
 
 export function CustomerFormDialog({
@@ -57,12 +53,11 @@ export function CustomerFormDialog({
         editing
           ? {
               name: editing.name,
-              company: editing.company ?? '',
-              email: editing.email ?? '',
               phone: editing.phone ?? '',
+              email: editing.email ?? '',
               address: editing.address ?? '',
-              category: editing.category ?? 'B2B',
-              status: editing.status ?? 'active',
+              gst_number: editing.gst_number ?? '',
+              rate: editing.currentRate != null ? String(editing.currentRate) : '',
             }
           : emptyForm
       )
@@ -75,14 +70,14 @@ export function CustomerFormDialog({
       setError('Customer name is required.')
       return
     }
+    const rate = form.rate.trim()
     onSubmit({
       name: form.name.trim(),
-      company: form.company.trim() || undefined,
-      email: form.email.trim() || undefined,
-      phone: form.phone.trim() || undefined,
-      address: form.address.trim() || undefined,
-      category: form.category,
-      status: form.status,
+      phone: form.phone.trim() || null,
+      email: form.email.trim() || null,
+      address: form.address.trim() || null,
+      gst_number: form.gst_number.trim() || null,
+      rate: rate ? Number(rate) : null,
     })
     onOpenChange(false)
   }
@@ -94,7 +89,7 @@ export function CustomerFormDialog({
           <DialogTitle>{editing ? 'Edit Customer' : 'Add Customer'}</DialogTitle>
           <DialogDescription>
             {editing
-              ? 'Update the customer details below.'
+              ? 'Update the customer details and rate below.'
               : 'Add a new customer to use on labels.'}
           </DialogDescription>
         </DialogHeader>
@@ -109,30 +104,10 @@ export function CustomerFormDialog({
                 setForm((f) => ({ ...f, name: e.target.value }))
                 setError('')
               }}
-              placeholder="e.g. Acme Corp Logistics"
+              placeholder="e.g. Acme Corp"
               autoFocus
             />
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="customer-company">Company ID (optional)</Label>
-            <Input
-              id="customer-company"
-              value={form.company}
-              onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
-              placeholder="ACME-01"
-              className="font-mono"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="customer-email">Contact Email (optional)</Label>
-            <Input
-              id="customer-email"
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-              placeholder="billing@acmecorp.com"
-            />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="customer-phone">Phone (optional)</Label>
@@ -145,6 +120,16 @@ export function CustomerFormDialog({
             />
           </div>
           <div className="grid gap-2">
+            <Label htmlFor="customer-email">Email (optional)</Label>
+            <Input
+              id="customer-email"
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+              placeholder="billing@acmecorp.com"
+            />
+          </div>
+          <div className="grid gap-2">
             <Label htmlFor="customer-address">Address (optional)</Label>
             <Input
               id="customer-address"
@@ -153,36 +138,33 @@ export function CustomerFormDialog({
               placeholder="City, State"
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label>Category</Label>
-              <Select
-                value={form.category}
-                onValueChange={(value) =>
-                  setForm((f) => ({ ...f, category: value as CustomerCategory }))
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="B2B">B2B</SelectItem>
-                  <SelectItem value="Retail">Retail</SelectItem>
-                  <SelectItem value="Wholesale">Wholesale</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label>Status</Label>
-              <div className="flex h-10 items-center justify-between rounded-md border border-input px-3">
-                <span className="text-sm">{form.status === 'active' ? 'Active' : 'Inactive'}</span>
-                <Switch
-                  checked={form.status === 'active'}
-                  onCheckedChange={(checked) =>
-                    setForm((f) => ({ ...f, status: checked ? 'active' : 'inactive' }))
-                  }
-                />
-              </div>
+          <div className="grid gap-2">
+            <Label htmlFor="customer-gst">GST Number (optional)</Label>
+            <Input
+              id="customer-gst"
+              value={form.gst_number}
+              onChange={(e) => setForm((f) => ({ ...f, gst_number: e.target.value }))}
+              placeholder="22AAAAA0000A1Z5"
+              className="font-mono"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="customer-rate">Rate (₹ per kg)</Label>
+            <div className="relative">
+              <span className="absolute top-1/2 left-3 -translate-y-1/2 text-sm text-on-surface-variant">
+                ₹
+              </span>
+              <Input
+                id="customer-rate"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={form.rate}
+                onChange={(e) => setForm((f) => ({ ...f, rate: e.target.value }))}
+                placeholder="e.g. 120.00"
+                className="pl-7"
+              />
             </div>
           </div>
         </div>

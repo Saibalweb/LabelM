@@ -33,7 +33,7 @@ import {
 import { TextField } from '@/components/auth/TextField'
 import { useAppSelector } from '@/store/hooks'
 import { initialsOf, roleLabels } from '@/lib/roles'
-import { teamRepository, type TeamMember } from '@/lib/repositories/teamRepository'
+import { teamService, type TeamMember } from '@/services/team'
 import type { MemberStatus, Role } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -280,7 +280,7 @@ export function Team() {
 
   useEffect(() => {
     let active = true
-    teamRepository
+    teamService
       .list()
       .then((list) => {
         if (active) setMembers(list)
@@ -308,7 +308,7 @@ export function Team() {
 
   async function reload() {
     try {
-      setMembers(await teamRepository.list())
+      setMembers(await teamService.list())
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Unable to refresh the team')
     }
@@ -335,14 +335,14 @@ export function Team() {
   )
 
   async function handleInvite(email: string, role: Role) {
-    await teamRepository.invite({ email, role })
+    await teamService.invite({ email, role })
     await reload()
   }
 
   async function handleResend(member: TeamMember) {
     setOpenMenu(null)
     try {
-      await teamRepository.invite({ email: member.email, role: member.role })
+      await teamService.invite({ email: member.email, role: member.role })
       toast.success(`Invite resent to ${member.email}`)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Unable to resend the invite')
@@ -352,7 +352,7 @@ export function Team() {
   async function handleRevoke(member: TeamMember) {
     setOpenMenu(null)
     try {
-      await teamRepository.revokeInvite(member.id)
+      await teamService.revokeInvite(member.id)
       setMembers((prev) => prev.filter((m) => m.id !== member.id))
       toast.success('Invitation revoked')
     } catch (err) {
@@ -363,7 +363,7 @@ export function Team() {
   async function handleSetStatus(member: TeamMember, status: Exclude<MemberStatus, 'invited'>) {
     setOpenMenu(null)
     try {
-      await teamRepository.setStatus(member.id, status)
+      await teamService.setStatus(member.id, status)
       await reload()
       toast.success(status === 'suspended' ? 'Member suspended' : 'Member reactivated')
     } catch (err) {
@@ -374,7 +374,7 @@ export function Team() {
   async function handleSetRole(member: TeamMember, role: Role) {
     setOpenMenu(null)
     try {
-      await teamRepository.setRole(member.id, role)
+      await teamService.setRole(member.id, role)
       await reload()
       toast.success(`Role updated to ${roleLabels[role].toLowerCase()}`)
     } catch (err) {
@@ -386,11 +386,11 @@ export function Team() {
     setOpenMenu(null)
     try {
       if (isOwner) {
-        await teamRepository.purge(member.id)
+        await teamService.purge(member.id)
         setMembers((prev) => prev.filter((m) => m.id !== member.id))
         toast.success('Member removed')
       } else {
-        await teamRepository.setStatus(member.id, 'suspended')
+        await teamService.setStatus(member.id, 'suspended')
         await reload()
         toast.success('Member suspended')
       }

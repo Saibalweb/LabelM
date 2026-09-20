@@ -34,7 +34,7 @@ function toTeamMember(employee: Employee): TeamMember {
   }
 }
 
-export const teamRepository = {
+export const teamService = {
   async list(): Promise<TeamMember[]> {
     const { data, error } = await supabase
       .from('employees')

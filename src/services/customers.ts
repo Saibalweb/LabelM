@@ -1,0 +1,125 @@
+import { supabase } from '@/lib/supabase'
+import { pricesService } from '@/services/prices'
+import type { Customer, CustomerInput } from '@/lib/types'
+
+interface CustomerRow {
+  id: number
+  name: string
+  address: string | null
+  phone: string | null
+  email: string | null
+  gst_number: string | null
+  created_at: string
+  updated_at: string
+  customer_prices: Array<{ effective_from: string; effective_to: string | null; rate: number }>
+}
+
+function currentRateOf(row: CustomerRow): number | null {
+  const open = row.customer_prices.find((price) => price.effective_to === null)
+  if (open) return open.rate
+  const latest = row.customer_prices.reduce<CustomerRow['customer_prices'][number] | null>(
+    (best, price) =>
+      !best || price.effective_from > best.effective_from ? price : best,
+    null
+  )
+  return latest ? latest.rate : null
+}
+
+function toCustomer(row: CustomerRow): Customer {
+  return {
+    id: row.id,
+    name: row.name,
+    address: row.address,
+    phone: row.phone,
+    email: row.email,
+    gst_number: row.gst_number,
+    currentRate: currentRateOf(row),
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }
+}
+
+const CUSTOMER_COLUMNS = 'id, name, address, phone, email, gst_number, created_at, updated_at, customer_prices(effective_from, effective_to, rate)'
+
+export const customerService = {
+  async list(): Promise<Customer[]> {
+    const { data, error } = await supabase
+      .from('customers')
+      .select(CUSTOMER_COLUMNS)
+      .is('deleted_at', null)
+      .order('id', { ascending: true })
+    if (error) throw new Error(error.message)
+    return (data ?? []).map((row) => toCustomer(row as CustomerRow))
+  },
+
+  async getById(id: number): Promise<Customer | null> {
+    const { data, error } = await supabase
+      .from('customers')
+      .select(CUSTOMER_COLUMNS)
+      .eq('id', id)
+      .is('deleted_at', null)
+      .maybeSingle()
+    if (error) throw new Error(error.message)
+    return data ? toCustomer(data as CustomerRow) : null
+  },
+
+  async create(input: CustomerInput): Promise<Customer> {
+    const { rate, ...fields } = input
+    const { data, error } = await supabase
+      .from('customers')
+      .insert({
+        name: fields.name,
+        address: fields.address ?? null,
+        phone: fields.phone ?? null,
+        email: fields.email ?? null,
+        gst_number: fields.gst_number ?? null,
+      })
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+
+    if (rate != null) {
+      await pricesService.setRate(data.id, rate)
+    }
+    return (await this.getById(data.id)) as Customer
+  },
+
+  async update(id: number, patch: Partial<CustomerInput>): Promise<Customer | null> {
+    const { rate, ...fields } = patch
+    const updates: Record<string, string | null> = {}
+    if (fields.name !== undefined) updates.name = fields.name
+    if (fields.address !== undefined) updates.address = fields.address ?? null
+    if (fields.phone !== undefined) updates.phone = fields.phone ?? null
+    if (fields.email !== undefined) updates.email = fields.email ?? null
+    if (fields.gst_number !== undefined) updates.gst_number = fields.gst_number ?? null
+    if (Object.keys(updates).length > 0) {
+      const { error } = await supabase
+        .from('customers')
+        .update(updates)
+        .eq('id', id)
+        .is('deleted_at', null)
+      if (error) throw new Error(error.message)
+    }
+    if (rate != null) {
+      await pricesService.setRate(id, rate)
+    }
+    return this.getById(id)
+  },
+
+  async remove(id: number): Promise<void> {
+    const { error } = await supabase
+      .from('customers')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id)
+      .is('deleted_at', null)
+    if (error) throw new Error(error.message)
+  },
+
+  async restore(id: number): Promise<void> {
+    const { error } = await supabase
+      .from('customers')
+      .update({ deleted_at: null })
+      .eq('id', id)
+    if (error) throw new Error(error.message)
+  },
+}

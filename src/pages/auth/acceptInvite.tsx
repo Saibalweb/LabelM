@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Info, KeyRound, Mail, User } from 'lucide-react'
 import { toast } from 'sonner'
@@ -20,6 +20,12 @@ export function AcceptInvite() {
   const tokenHash = searchParams.get('token_hash')
   const type = searchParams.get('type')
   const invitedEmail = searchParams.get('email') ?? ''
+
+  // GoTrue can redirect here with the failure in the URL hash, e.g.
+  // #error=access_denied&error_code=otp_expired&error_description=...
+  const hashParams = useMemo(() => new URLSearchParams(window.location.hash.slice(1)), [])
+  const hashErrorCode = hashParams.get('error_code')
+  const hashErrorDescription = hashParams.get('error_description')
 
   const [name, setName] = useState('')
   const [email] = useState(invitedEmail)
@@ -52,13 +58,17 @@ export function AcceptInvite() {
   }
 
   if (!tokenHash || type !== 'invite') {
+    const invalidMessage =
+      hashErrorCode === 'otp_expired'
+        ? 'This invitation link has expired. Ask your workspace admin to resend your invitation, then open the new link.'
+        : hashErrorDescription
+          ? hashErrorDescription
+          : 'This invitation link is missing or invalid. Ask your workspace admin to resend your invitation.'
     return (
-      <AuthLayout title="Invitation link invalid" subtitle="This link is missing or expired.">
+      <AuthLayout title="Invitation link invalid" subtitle={invalidMessage}>
         <div className="flex items-start gap-2 rounded-lg bg-destructive/10 px-3.5 py-2.5 text-destructive">
           <Info className="mt-0.5 size-4 shrink-0" />
-          <p className="font-label-sm text-label-sm">
-            Ask your workspace admin to resend your invitation, then open the new link.
-          </p>
+          <p className="font-label-sm text-label-sm">{invalidMessage}</p>
         </div>
       </AuthLayout>
     )

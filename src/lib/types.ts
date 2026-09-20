@@ -19,40 +19,55 @@ export interface AuthUser {
   role: Role
 }
 
-export type CustomerCategory = 'B2B' | 'Retail' | 'Wholesale'
-export type CustomerStatus = 'active' | 'inactive'
+export type LabelStatus = 'draft' | 'printed'
 
 export interface Customer {
-  id: string
+  id: number
   name: string
-  company?: string
-  email?: string
-  phone?: string
-  address?: string
-  category?: CustomerCategory
-  status?: CustomerStatus
-  createdAt: string
+  address: string | null
+  phone: string | null
+  email: string | null
+  gst_number: string | null
+  currentRate: number | null
+  created_at: string
+  updated_at: string
+}
+
+export type CustomerInput = Omit<
+  Customer,
+  'id' | 'currentRate' | 'created_at' | 'updated_at'
+> & {
+  rate?: number | null
+}
+
+export interface CustomerPrice {
+  id: number
+  customerId: number
+  rate: number
+  effectiveFrom: string
+  effectiveTo: string | null
 }
 
 export interface Label {
-  id: string
+  id: number
   slNo: string
-  customerId: string | null
-  customerName?: string
+  customerId: number
+  customerName: string | null
   date: string
-  productId?: string
-  batch?: string
-  expDate?: string
-  description: string
-  totalWeightKg: number
-  mrpPerKg: number
-  totalPrice: number
-  status: 'draft' | 'printed'
-  invoiceId?: string
+  weight: number
+  rate: number
+  amount: number
+  status: LabelStatus
+  invoiceId: number | null
   createdAt: string
 }
 
-export type LabelInput = Omit<Label, 'id' | 'createdAt' | 'totalPrice'>
+export type LabelInput = {
+  customerId: number
+  date: string
+  weight: number
+  rate: number
+}
 
 export type InvoiceStatus = 'Paid' | 'Unpaid' | 'Partial'
 
@@ -74,7 +89,7 @@ export interface InvoicePayment {
 export interface Invoice {
   id: string
   customer: string
-  customerId?: string
+  customerId?: string | number
   tone: number
   invoiceId: string
   period: string

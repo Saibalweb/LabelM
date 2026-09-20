@@ -1,6 +1,6 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
-import type { Customer } from '@/lib/types'
-import { customerRepository } from '@/lib/repositories/customerRepository'
+import type { Customer, CustomerInput } from '@/lib/types'
+import { customerService } from '@/services/customers'
 
 interface CustomersState {
   items: Customer[]
@@ -15,27 +15,27 @@ const initialState: CustomersState = {
 }
 
 export const fetchCustomers = createAsyncThunk('customers/fetchCustomers', async () => {
-  return customerRepository.list()
+  return customerService.list()
 })
 
 export const addCustomer = createAsyncThunk(
   'customers/addCustomer',
-  async (input: Omit<Customer, 'id' | 'createdAt'>) => {
-    return customerRepository.create(input)
+  async (input: CustomerInput) => {
+    return customerService.create(input)
   }
 )
 
 export const updateCustomer = createAsyncThunk(
   'customers/updateCustomer',
-  async ({ id, patch }: { id: string; patch: Partial<Customer> }) => {
-    return customerRepository.update(id, patch)
+  async ({ id, patch }: { id: number; patch: Partial<CustomerInput> }) => {
+    return customerService.update(id, patch)
   }
 )
 
 export const deleteCustomer = createAsyncThunk(
   'customers/deleteCustomer',
-  async (id: string) => {
-    await customerRepository.remove(id)
+  async (id: number) => {
+    await customerService.remove(id)
     return id
   }
 )

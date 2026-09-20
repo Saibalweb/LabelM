@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { TopNav, MobileSearchBar } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { fetchInvoices } from '@/store/slices/invoicesSlice'
 import type { Invoice, InvoiceStatus } from '@/lib/types'
@@ -70,6 +71,26 @@ export function Invoices() {
 
   const handleGenerate = () => navigate('/invoice/new')
   const handleView = (invoice: Invoice) => navigate(`/invoice/${invoice.id}`)
+
+  const loading = status === 'loading'
+
+  if (!loading && invoices.length === 0) {
+    return (
+      <div className="flex h-full flex-col">
+        <TopNav title="Invoices" />
+        <MobileSearchBar value={query} onChange={setQuery} placeholder="Search customer or ID..." />
+        <main className="flex flex-1 items-center justify-center bg-background p-8">
+          <EmptyState
+            icon={<Plus className="size-9" />}
+            title="No invoices yet"
+            description="Invoices are generated from printed labels. Billing is coming soon."
+            actionLabel="Generate Invoice"
+            onAction={handleGenerate}
+          />
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-full flex-col">

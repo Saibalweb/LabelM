@@ -1,70 +1,85 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Phone, Printer, Save, Search, X } from 'lucide-react'
-import { TopNav, MobileSearchBar } from '@/components/layout/TopNav'
+import { CalendarDays, Phone, Printer, Search, X } from 'lucide-react'
+import { TopNav } from '@/components/layout/TopNav'
 import { Label as FormLabel } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { CustomerFormDialog } from '@/components/customers/CustomerFormDialog'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { setDraft, resetDraft } from '@/store/slices/draftSlice'
-import { createLabel, fetchLabels } from '@/store/slices/labelsSlice'
+import { createLabel } from '@/store/slices/labelsSlice'
 import { addCustomer, fetchCustomers } from '@/store/slices/customersSlice'
 import { formatCurrency } from '@/lib/format'
+import type { Customer, CustomerInput } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 const inputClasses =
   'w-full h-14 px-4 bg-surface-container-lowest border border-outline-variant rounded font-body-md text-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors placeholder:text-on-surface-variant'
 
+function todayISO(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
 export function Create() {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
   const { draft } = useAppSelector((state) => state.draft)
-  const { items } = useAppSelector((state) => state.labels)
   const customers = useAppSelector((state) => state.customers.items)
 
   const [customerQuery, setCustomerQuery] = useState('')
   const [showCustomerList, setShowCustomerList] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
 
-  const slNo = useMemo(() => {
-    if (draft.slNo) return draft.slNo
-    const max = items.reduce((acc, label) => {
-      const match = label.slNo.match(/(\d+)$/)
-      const num = match ? Number(match[1]) : 0
-      return Math.max(acc, num)
-    }, 0)
-    return `LBL-${String(max + 1).padStart(4, '0')}-AX`
-  }, [draft.slNo, items])
+  useEffect(() => {
+    if (!draft.date) dispatch(setDraft({ date: todayISO() }))
+  }, [draft.date, dispatch])
 
-  const weight = parseFloat(draft.totalWeightKg) || 0
-  const mrp = parseFloat(draft.mrpPerKg) || 0
-  const subtotal = weight * mrp
-  const tax = subtotal * 0.05
-  const total = subtotal + tax
+  useEffect(() => {
+    if (customers.length === 0) dispatch(fetchCustomers())
+  }, [customers.length, dispatch])
+
+  const customer = draft.customer
+  const rate = customer?.currentRate ?? null
+  const weight = parseFloat(draft.weight) || 0
+  const amount = rate != null ? weight * rate : 0
 
   const filteredCustomers = useMemo(() => {
     const q = customerQuery.trim().toLowerCase()
     if (!q) return customers
-    return customers.filter((c) =>
-      [c.name, c.company, c.email].filter(Boolean).some((f) => f!.toLowerCase().includes(q))
-    )
+    if (/^\d+$/.test(q)) {
+      return customers.filter((c) => String(c.id).startsWith(q))
+    }
+    return customers.filter((c) => c.name.toLowerCase().includes(q))
   }, [customers, customerQuery])
 
   const update = (patch: Parameters<typeof setDraft>[0]) => {
     dispatch(setDraft(patch))
   }
 
-  const pickCustomer = (customer: (typeof customers)[number]) => {
+  const pickCustomer = (customer: Customer) => {
     update({ customer })
-    setCustomerQuery(customer.name)
     setShowCustomerList(false)
   }
 
-  const handleAddCustomer = async (input: Parameters<typeof addCustomer>[0]) => {
+  const handleCustomerInput = (value: string) => {
+    setCustomerQuery(value)
+    setShowCustomerList(true)
+    const trimmed = value.trim()
+    if (/^\d+$/.test(trimmed)) {
+      const match = customers.find((c) => c.id === Number(trimmed))
+      if (match) {
+        update({ customer: match })
+        setShowCustomerList(false)
+      }
+    }
+  }
+
+  const handleAddCustomer = async (input: CustomerInput) => {
     try {
       const created = await dispatch(addCustomer(input)).unwrap()
       await dispatch(fetchCustomers())
+      setCustomerQuery(String(created.id))
       pickCustomer(created)
       toast.success('Customer added')
     } catch {
@@ -77,32 +92,28 @@ export function Create() {
       toast.error('Please pick a date.')
       return
     }
-    if (!draft.customer) {
-      toast.error('Please select a customer.')
+    if (!customer) {
+      toast.error('Select a customer by pressing their number.')
       return
     }
-    if (weight <= 0 || mrp <= 0) {
-      toast.error('Enter a valid weight and MRP.')
+    if (rate == null) {
+      toast.error('This customer has no rate. Set it in Customers.')
+      return
+    }
+    if (weight <= 0) {
+      toast.error('Enter a valid weight.')
       return
     }
 
-    const input: Parameters<typeof createLabel>[0] = {
-      slNo,
+    const input = {
+      customerId: customer.id,
       date: draft.date,
-      customerId: draft.customer.id,
-      customerName: draft.customer.name,
-      productId: draft.productId.trim() || undefined,
-      batch: draft.batch.trim() || undefined,
-      expDate: draft.expDate.trim() || undefined,
-      description: draft.description.trim(),
-      totalWeightKg: weight,
-      mrpPerKg: mrp,
-      status: 'draft',
+      weight,
+      rate,
     }
 
     try {
       const result = await dispatch(createLabel(input)).unwrap()
-      await dispatch(fetchLabels())
       dispatch(resetDraft())
       toast.success(`Label ${result.slNo} generated`)
       navigate(`/preview/${result.id}`)
@@ -113,56 +124,24 @@ export function Create() {
 
   return (
     <div className="flex h-full flex-col">
-      <TopNav
-        title="LabelMaster Pro"
-        titleClassName="text-primary font-bold"
-        searchable
-        searchPlaceholder="Search..."
-      />
-      <MobileSearchBar placeholder="Search..." />
+      <TopNav title="Create Label" backTo="/" />
 
       <main className="flex-1 overflow-y-auto bg-background p-4 lg:p-8">
         <div className="mx-auto max-w-5xl">
-          <div className="mb-8 flex items-center justify-between">
+          <div className="mb-8">
             <h2 className="font-headline-lg text-headline-lg text-on-background">
               Create New Label
             </h2>
-            <span className="rounded border border-outline-variant bg-surface-container-high px-3 py-1 font-label-md text-label-md text-on-surface-variant">
-              Draft Mode
-            </span>
+            <p className="mt-1 font-body-md text-body-md text-on-surface-variant">
+              Press a customer number, enter the weight — done. Rate and SL No are automatic.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
             <div className="space-y-6 rounded-xl border border-surface-container-highest bg-surface-container-lowest p-6 shadow-sm lg:col-span-2">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <FormLabel className="mb-2 block font-label-md text-label-md text-on-surface-variant">
-                    SL No
-                  </FormLabel>
-                  <input
-                    type="text"
-                    value={draft.slNo}
-                    onChange={(e) => update({ slNo: e.target.value })}
-                    placeholder="Enter SL No..."
-                    className={cn(inputClasses, 'font-label-md text-label-md')}
-                  />
-                </div>
-                <div>
-                  <FormLabel className="mb-2 block font-label-md text-label-md text-on-surface-variant">
-                    Date
-                  </FormLabel>
-                  <input
-                    type="date"
-                    value={draft.date}
-                    onChange={(e) => update({ date: e.target.value })}
-                    className={inputClasses}
-                  />
-                </div>
-              </div>
-
               <div className="relative">
                 <FormLabel className="mb-2 block font-label-md text-label-md text-on-surface-variant">
-                  Customer / Recipient
+                  Customer by number
                 </FormLabel>
                 <div className="relative">
                   <span className="absolute top-1/2 left-4 -translate-y-1/2 text-on-surface-variant">
@@ -170,19 +149,17 @@ export function Create() {
                   </span>
                   <input
                     type="text"
+                    inputMode="numeric"
                     value={customerQuery}
-                    onChange={(e) => {
-                      setCustomerQuery(e.target.value)
-                      setShowCustomerList(true)
-                    }}
+                    onChange={(e) => handleCustomerInput(e.target.value)}
                     onFocus={() => setShowCustomerList(true)}
                     onBlur={() => setTimeout(() => setShowCustomerList(false), 150)}
-                    placeholder="Search customer ID or name..."
+                    placeholder="Press customer number (e.g. 1)"
                     className={cn(inputClasses, 'pl-12')}
                   />
                 </div>
 
-                {draft.customer ? (
+                {customer ? (
                   <div className="relative mt-3 rounded-lg border border-outline-variant bg-surface-container-low p-4">
                     <Button
                       type="button"
@@ -197,37 +174,41 @@ export function Create() {
                     >
                       <X className="size-4" />
                     </Button>
-                    <p className="pr-8 font-headline-md text-headline-md text-on-surface">
-                      {draft.customer.name}
-                    </p>
-                    {draft.customer.address ? (
-                      <p className="mt-1 font-body-sm text-body-sm text-on-surface-variant">
-                        {draft.customer.address}
-                      </p>
-                    ) : null}
-                    <div className="mt-2.5 flex items-center gap-3">
-                      {draft.customer.phone ? (
-                        <span className="flex items-center gap-1.5 font-body-sm text-body-sm text-on-surface-variant">
-                          <Phone className="size-4" />
-                          {draft.customer.phone}
-                        </span>
-                      ) : null}
-                      {draft.customer.category ? (
-                        <span className="rounded-full bg-secondary-container px-2.5 py-0.5 font-label-sm text-label-sm text-on-secondary-container uppercase">
-                          {draft.customer.category}
-                        </span>
-                      ) : null}
-                      {!draft.customer.phone && !draft.customer.category ? (
-                        <span className="font-body-sm text-body-sm text-on-surface-variant">
-                          {draft.customer.company || draft.customer.email || 'No details'}
-                        </span>
-                      ) : null}
+                    <div className="flex items-center gap-3 pr-8">
+                      <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-container font-headline-md text-headline-md font-bold text-on-primary-container">
+                        {customer.id}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate font-headline-md text-headline-md text-on-surface">
+                          {customer.name}
+                        </p>
+                        <p className="mt-0.5 font-label-md text-label-md text-on-surface-variant">
+                          {rate != null
+                            ? `${formatCurrency(rate)}/kg`
+                            : 'No rate set — add one in Customers'}
+                        </p>
+                      </div>
                     </div>
+                    {customer.phone || customer.address ? (
+                      <div className="mt-2.5 flex items-center gap-3">
+                        {customer.phone ? (
+                          <span className="flex items-center gap-1.5 font-body-sm text-body-sm text-on-surface-variant">
+                            <Phone className="size-4" />
+                            {customer.phone}
+                          </span>
+                        ) : null}
+                        {customer.address ? (
+                          <span className="truncate font-body-sm text-body-sm text-on-surface-variant">
+                            {customer.address}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
 
                 {showCustomerList ? (
-                  <div className="absolute left-0 right-0 z-30 mt-2 flex flex-col overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-lg">
+                  <div className="absolute left-0 right-0 z-30 mt-2 flex max-h-72 flex-col overflow-y-auto rounded-xl border border-outline-variant bg-surface-container-lowest shadow-lg">
                     {filteredCustomers.length === 0 ? (
                       <Button
                         type="button"
@@ -237,32 +218,37 @@ export function Create() {
                           setShowCustomerList(false)
                           setDialogOpen(true)
                         }}
-                        className="flex h-auto w-full items-center justify-start gap-3 border-b border-outline-variant rounded-none px-4 py-3 text-left last:border-b-0 hover:bg-surface-container"
+                        className="flex h-auto w-full items-center justify-start gap-3 rounded-none border-b border-outline-variant px-4 py-3 text-left last:border-b-0 hover:bg-surface-container"
                       >
                         <span className="font-label-md text-label-md text-primary">+ Add new customer</span>
                       </Button>
                     ) : (
-                      filteredCustomers.map((customer) => (
+                      filteredCustomers.map((c) => (
                         <Button
-                          key={customer.id}
+                          key={c.id}
                           type="button"
                           variant="ghost"
                           onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => pickCustomer(customer)}
+                          onClick={() => {
+                            setCustomerQuery(String(c.id))
+                            pickCustomer(c)
+                          }}
                           className={cn(
-                            'flex h-auto w-full items-center justify-start gap-3 border-b border-outline-variant rounded-none px-4 py-3.5 text-left last:border-b-0 hover:bg-surface-container',
-                            draft.customer?.id === customer.id && 'bg-surface-container'
+                            'flex h-auto w-full items-center justify-start gap-3 rounded-none border-b border-outline-variant px-4 py-3 text-left last:border-b-0 hover:bg-surface-container',
+                            customer?.id === c.id && 'bg-surface-container'
                           )}
                         >
-                          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-container font-headline-md text-headline-md text-on-primary-container">
-                            {customer.name.charAt(0).toUpperCase()}
+                          <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-container font-headline-md text-headline-md font-bold text-on-primary-container">
+                            {c.id}
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="block truncate font-body-md text-body-md text-on-surface">
-                              {customer.name}
+                              {c.name}
                             </span>
                             <span className="block truncate font-label-sm text-label-sm text-on-surface-variant">
-                              {customer.company || customer.email || 'No details'}
+                              {c.currentRate != null
+                                ? `${formatCurrency(c.currentRate)}/kg`
+                                : 'No rate'}
                             </span>
                           </span>
                         </Button>
@@ -275,6 +261,22 @@ export function Create() {
               <div className="grid grid-cols-2 gap-4 border-t border-outline-variant pt-4">
                 <div>
                   <FormLabel className="mb-2 block font-label-md text-label-md text-on-surface-variant">
+                    Date
+                  </FormLabel>
+                  <div className="relative">
+                    <span className="absolute top-1/2 left-4 -translate-y-1/2 text-on-surface-variant">
+                      <CalendarDays className="size-5" />
+                    </span>
+                    <input
+                      type="date"
+                      value={draft.date}
+                      onChange={(e) => update({ date: e.target.value })}
+                      className={cn(inputClasses, 'pl-12')}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <FormLabel className="mb-2 block font-label-md text-label-md text-on-surface-variant">
                     Total Weight (kg)
                   </FormLabel>
                   <div className="relative">
@@ -283,8 +285,8 @@ export function Create() {
                       inputMode="decimal"
                       min="0"
                       step="0.01"
-                      value={draft.totalWeightKg}
-                      onChange={(e) => update({ totalWeightKg: e.target.value })}
+                      value={draft.weight}
+                      onChange={(e) => update({ weight: e.target.value })}
                       placeholder="0.00"
                       className={cn(inputClasses, 'pr-12 font-label-md text-label-md')}
                     />
@@ -293,39 +295,6 @@ export function Create() {
                     </span>
                   </div>
                 </div>
-                <div>
-                  <FormLabel className="mb-2 block font-label-md text-label-md text-on-surface-variant">
-                    MRP (per kg)
-                  </FormLabel>
-                  <div className="relative">
-                    <span className="absolute top-1/2 left-4 -translate-y-1/2 font-label-md text-label-md text-on-surface-variant">
-                      ₹
-                    </span>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      min="0"
-                      step="0.01"
-                      value={draft.mrpPerKg}
-                      onChange={(e) => update({ mrpPerKg: e.target.value })}
-                      placeholder="0.00"
-                      className={cn(inputClasses, 'pl-8 font-label-md text-label-md')}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-1.5">
-                <FormLabel className="font-label-md text-label-md text-on-surface-variant">
-                  Batch Notes (Optional)
-                </FormLabel>
-                <textarea
-                  rows={3}
-                  value={draft.description}
-                  onChange={(e) => update({ description: e.target.value })}
-                  placeholder="Enter specific batch instructions..."
-                  className="w-full resize-none rounded border border-outline-variant bg-surface-container-lowest p-4 font-body-md text-body-md text-on-surface transition-colors focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none placeholder:text-on-surface-variant"
-                />
               </div>
             </div>
 
@@ -336,61 +305,47 @@ export function Create() {
                 </h3>
                 <div className="space-y-4 font-body-md text-body-md">
                   <div className="flex items-center justify-between">
-                    <span className="text-on-surface-variant">Base Weight</span>
+                    <span className="text-on-surface-variant">SL No</span>
+                    <span className="font-label-md text-label-md text-on-surface">Auto (LBL-####)</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-on-surface-variant">Customer</span>
                     <span className="font-label-md text-label-md text-on-surface">
-                      {weight.toFixed(2)} kg
+                      {customer ? `#${customer.id} ${customer.name}` : '—'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-on-surface-variant">Rate</span>
                     <span className="font-label-md text-label-md text-on-surface">
-                      {formatCurrency(mrp)}/kg
+                      {rate != null ? `${formatCurrency(rate)}/kg` : '—'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-on-surface-variant">Tax (VAT 5%)</span>
+                    <span className="text-on-surface-variant">Weight</span>
                     <span className="font-label-md text-label-md text-on-surface">
-                      {formatCurrency(tax)}
+                      {weight > 0 ? `${weight.toFixed(2)} kg` : '—'}
                     </span>
                   </div>
                   <div className="mt-4 flex items-center justify-between border-t border-outline-variant pt-4">
                     <span className="font-headline-md text-headline-md text-on-surface">
-                      Total Price
+                      Amount
                     </span>
                     <span className="font-label-md text-headline-md text-primary">
-                      {formatCurrency(total)}
+                      {rate != null ? formatCurrency(amount) : '—'}
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-4">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="h-[52px] w-full gap-2 rounded font-body-md text-body-md"
-                  onClick={handleGenerate}
-                >
-                  <Printer className="size-5" />
-                  Generate Label
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-[52px] w-full gap-2 rounded border-outline-variant bg-surface-container-lowest font-body-md text-body-md text-primary hover:bg-surface-container-low hover:text-primary"
-                  onClick={() => toast.info('Saved as draft')}
-                >
-                  <Save className="size-5" />
-                  Save as Draft
-                </Button>
-              </div>
-
-              <div className="mt-4 flex h-48 flex-col items-center justify-center gap-2 rounded border border-dashed border-outline-variant bg-surface p-4 text-center">
-                <span className="text-4xl text-outline">◱</span>
-                <p className="font-body-md text-body-md text-on-surface-variant">
-                  Label preview will generate here
-                </p>
-              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                className="h-[52px] w-full gap-2 rounded font-body-md text-body-md"
+                onClick={handleGenerate}
+              >
+                <Printer className="size-5" />
+                Generate Label
+              </Button>
             </div>
           </div>
         </div>

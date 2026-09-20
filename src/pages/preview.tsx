@@ -6,7 +6,7 @@ import { TopNav } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { fetchLabels, updateLabel } from '@/store/slices/labelsSlice'
-import { formatDate } from '@/lib/format'
+import { formatCurrency, formatDate } from '@/lib/format'
 
 const LABEL_WIDTH_MM = 60
 const LABEL_HEIGHT_MM = 40
@@ -99,8 +99,7 @@ export function Preview() {
     }
   }, [status, dispatch])
 
-  const label = items.find((item) => item.id === id)
-  console.log('Preview label:', label)
+  const label = items.find((item) => item.id === Number(id))
 
   const handlePrint = () => {
     if (!label) return
@@ -152,6 +151,9 @@ export function Preview() {
               <p className="font-label-md font-semibold tracking-widest text-on-surface-variant uppercase">
                 {label.customerName ? label.customerName : 'Walk-in Customer'}
               </p>
+              <p className="font-label-md font-semibold tracking-widest text-on-surface-variant">
+                SL No: {label.slNo}
+              </p>
             </div>
             <div className="mt-8 space-y-3">
               <div className="flex items-baseline justify-center gap-2">
@@ -159,8 +161,12 @@ export function Preview() {
                 <span className="text-lg font-bold text-on-surface">{formatDate(label.date)}</span>
               </div>
               <div className="flex items-baseline justify-center gap-2">
-                <span className="font-label-md font-medium tracking-wider text-outline uppercase">WT (gm) -</span>
-                <span className="text-lg font-bold text-on-surface">{label.totalWeightKg}</span>
+                <span className="font-label-md font-medium tracking-wider text-outline uppercase">WT (kg) -</span>
+                <span className="text-lg font-bold text-on-surface">{label.weight}</span>
+              </div>
+              <div className="flex items-baseline justify-center gap-2">
+                <span className="font-label-md font-medium tracking-wider text-outline uppercase">AMOUNT -</span>
+                <span className="text-lg font-bold text-on-surface">{formatCurrency(label.amount)}</span>
               </div>
             </div>
           </div>

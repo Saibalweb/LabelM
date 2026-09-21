@@ -15,7 +15,11 @@ import { TopNav } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { createInvoice } from '@/store/slices/invoicesSlice'
-import { useCustomersQuery, useLabelsQuery, useUpdateLabel } from '@/hooks/queries'
+import {
+  useCustomersQuery,
+  useUnbilledLabelsQuery,
+  useUpdateLabel,
+} from '@/hooks/queries'
 import { nextInvoiceId } from '@/services/invoices'
 import type { Customer, InvoiceInput, Label } from '@/lib/types'
 import { formatCurrency, formatDate } from '@/lib/format'
@@ -52,6 +56,18 @@ function periodRange(value: string): string {
   const fmt = (date: Date) =>
     date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   return `${fmt(start)} - ${fmt(end)}`
+}
+
+function monthBounds(value: string): { from: string; to: string } | null {
+  const [year, month] = value.split('-').map(Number)
+  if (!year || !month) return null
+  const next = new Date(year, month, 1)
+  const fmt = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  return {
+    from: `${value}-01`,
+    to: fmt(next),
+  }
 }
 
 function displayDate(date: Date): string {
@@ -137,7 +153,6 @@ export function CreateInvoice() {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
 
-  const { data: labels = [] } = useLabelsQuery()
   const { data: customers = [] } = useCustomersQuery()
   const invoices = useAppSelector((state) => state.invoices.items)
   const updateLabel = useUpdateLabel()
@@ -165,16 +180,19 @@ export function CreateInvoice() {
     )
   }, [customers, customerQuery])
 
-  const filteredLabels = useMemo(() => {
-    const period = billingPeriod.trim()
-    return labels.filter((label) => {
-      if (label.invoiceId) return false
-      if (!includeAll && !selectedCustomerId) return false
-      if (!includeAll && label.customerId !== selectedCustomerId) return false
-      if (period && !label.date.startsWith(period)) return false
-      return true
-    })
-  }, [labels, includeAll, selectedCustomerId, billingPeriod])
+  const { data: labels = [] } = useUnbilledLabelsQuery(
+    {
+      from: monthBounds(billingPeriod)?.from ?? '',
+      to: monthBounds(billingPeriod)?.to ?? '',
+      customerId: includeAll ? undefined : selectedCustomerId,
+    },
+    monthBounds(billingPeriod) != null && (includeAll || selectedCustomerId != null)
+  )
+
+  const filteredLabels = useMemo(
+    () => (!includeAll && !selectedCustomerId ? [] : labels),
+    [includeAll, selectedCustomerId, labels]
+  )
 
   useEffect(() => {
     // oxlint-disable-next-line react/set-state-in-effect

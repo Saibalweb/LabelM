@@ -1,48 +1,109 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
+  ArrowRight,
+  ArrowUpDown,
+  BadgeCheck,
+  Bookmark,
+  CalendarDays,
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   Download,
+  Dumbbell,
   Eye,
-  Filter,
   Package,
   Printer,
+  ReceiptText,
+  RefreshCw,
+  RotateCcw,
   Scale,
   Search,
+  SlidersHorizontal,
   Tag,
   TrendingUp,
+  Users,
   X,
+  type LucideIcon,
 } from 'lucide-react'
 import { TopNav } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
-import { Label as FormLabel } from '@/components/ui/label'
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetDescription,
-  SheetFooter,
-  SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { useCustomersQuery, useLabelsQuery } from '@/hooks/queries'
+import {
+  useCustomersQuery,
+  useLabelCountsByCustomerQuery,
+  useLabelsQuery,
+  useLabelStatsQuery,
+} from '@/hooks/queries'
 import { formatCurrency, formatDate } from '@/lib/format'
-import type { Customer } from '@/lib/types'
+import type {
+  BillingFilter,
+  LabelFilters,
+  LabelSortKey,
+  LabelStatus,
+} from '@/lib/types'
 import { cn } from '@/lib/utils'
 
-type DurationFilter = 'all' | 'today' | 'week' | 'month' | '30d' | 'year' | 'custom'
+type DurationFilter = 'all' | 'today' | 'week' | 'month' | 'custom' | '48h'
+type PresetId = 'unprinted' | 'highweight' | '48h'
 
-const durationOptions: { value: DurationFilter; label: string }[] = [
-  { value: 'all', label: 'All time' },
+const PAGE_SIZE = 25
+
+function useDebouncedValue<T>(value: T, delay = 300): T {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+  return debounced
+}
+
+function toDateInput(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+const durationButtons: { value: DurationFilter; label: string }[] = [
+  { value: 'all', label: 'All Time' },
   { value: 'today', label: 'Today' },
   { value: 'week', label: 'This Week' },
   { value: 'month', label: 'This Month' },
-  { value: '30d', label: 'Last 30 Days' },
-  { value: 'year', label: 'This Year' },
-  { value: 'custom', label: 'Custom Range' },
+]
+
+const presetList: { id: PresetId; label: string; Icon: LucideIcon }[] = [
+  { id: 'unprinted', label: 'Unprinted Batches', Icon: Printer },
+  { id: 'highweight', label: 'High-weight (>5kg)', Icon: Dumbbell },
+  { id: '48h', label: 'Last 48 Hours', Icon: RefreshCw },
+]
+
+const statusOptions: { value: LabelStatus; label: string; dot: string }[] = [
+  { value: 'printed', label: 'Printed', dot: 'bg-secondary' },
+  { value: 'draft', label: 'In Queue', dot: 'bg-tertiary' },
+]
+
+const billingOptions: { value: BillingFilter; label: string; dot: string }[] = [
+  { value: 'billed', label: 'Billed', dot: 'bg-secondary' },
+  { value: 'unbilled', label: 'Unbilled', dot: 'bg-tertiary' },
+]
+
+const sortOptions: { value: LabelSortKey; label: string }[] = [
+  { value: 'newest', label: 'Newest First' },
+  { value: 'oldest', label: 'Oldest First' },
+  { value: 'amount-desc', label: 'Amount: High → Low' },
+  { value: 'amount-asc', label: 'Amount: Low → High' },
+  { value: 'weight-desc', label: 'Weight: High → Low' },
+  { value: 'customer-asc', label: 'Customer: A → Z' },
 ]
 
 function durationBounds(
@@ -71,14 +132,9 @@ function durationBounds(
       const to = new Date(now.getFullYear(), now.getMonth() + 1, 1)
       return { from, to }
     }
-    case '30d': {
-      const from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29)
-      const to = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
-      return { from, to }
-    }
-    case 'year': {
-      const from = new Date(now.getFullYear(), 0, 1)
-      const to = new Date(now.getFullYear() + 1, 0, 1)
+    case '48h': {
+      const from = new Date(Date.now() - 48 * 60 * 60 * 1000)
+      const to = new Date(Date.now())
       return { from, to }
     }
     case 'custom': {
@@ -134,16 +190,97 @@ function StatCard({
 
 export function Dashboard() {
   const navigate = useNavigate()
-  const { data: items = [], isPending: loading } = useLabelsQuery()
   const { data: customers = [] } = useCustomersQuery()
+  const { data: stats } = useLabelStatsQuery()
+  const { data: counts = [] } = useLabelCountsByCustomerQuery()
   const [query, setQuery] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
   const [duration, setDuration] = useState<DurationFilter>('all')
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
-  const [customerId, setCustomerId] = useState<'all' | number>('all')
+  const [customerIds, setCustomerIds] = useState<number[]>([])
   const [customerQuery, setCustomerQuery] = useState('')
-  const [showCustomerList, setShowCustomerList] = useState(false)
+  const [statuses, setStatuses] = useState<LabelStatus[]>([])
+  const [billing, setBilling] = useState<BillingFilter[]>([])
+  const [minWeight, setMinWeight] = useState('')
+  const [maxWeight, setMaxWeight] = useState('')
+  const [minAmount, setMinAmount] = useState('')
+  const [maxAmount, setMaxAmount] = useState('')
+  const [sortBy, setSortBy] = useState<LabelSortKey>('newest')
+  const [page, setPage] = useState(1)
+
+  const debouncedQuery = useDebouncedValue(query)
+  const debouncedMinWeight = useDebouncedValue(minWeight)
+  const debouncedMaxWeight = useDebouncedValue(maxWeight)
+  const debouncedMinAmount = useDebouncedValue(minAmount)
+  const debouncedMaxAmount = useDebouncedValue(maxAmount)
+
+  const filters = useMemo<LabelFilters>(() => {
+    const bounds = durationBounds(duration, fromDate, toDate)
+    return {
+      query: debouncedQuery.trim() || undefined,
+      customerIds,
+      statuses,
+      billing,
+      minWeight: debouncedMinWeight !== '' ? parseFloat(debouncedMinWeight) : null,
+      maxWeight: debouncedMaxWeight !== '' ? parseFloat(debouncedMaxWeight) : null,
+      minAmount: debouncedMinAmount !== '' ? parseFloat(debouncedMinAmount) : null,
+      maxAmount: debouncedMaxAmount !== '' ? parseFloat(debouncedMaxAmount) : null,
+      from: bounds ? toDateInput(bounds.from) : undefined,
+      to: bounds ? toDateInput(bounds.to) : undefined,
+    }
+  }, [
+    debouncedQuery,
+    customerIds,
+    statuses,
+    billing,
+    debouncedMinWeight,
+    debouncedMaxWeight,
+    debouncedMinAmount,
+    debouncedMaxAmount,
+    duration,
+    fromDate,
+    toDate,
+  ])
+
+  const {
+    data: result,
+    isPending: loading,
+    isFetching,
+  } = useLabelsQuery(filters, { page, pageSize: PAGE_SIZE, sortBy })
+  const items = result?.data ?? []
+  const total = result?.total ?? 0
+
+  useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect
+    setPage(1)
+  }, [filters, sortBy])
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  useEffect(() => {
+    if (page > totalPages) {
+      // oxlint-disable-next-line react/set-state-in-effect
+      setPage(totalPages)
+    }
+  }, [page, totalPages])
+
+  const customerLabelCounts = useMemo(() => {
+    const countsMap: Record<number, number> = {}
+    counts.forEach((c) => {
+      countsMap[c.customerId] = c.count
+    })
+    return countsMap
+  }, [counts])
+
+  const dataRanges = useMemo(
+    () => ({
+      minW: stats?.minWeight ?? 0,
+      maxW: stats?.maxWeight ?? 0,
+      minA: stats?.minAmount ?? 0,
+      maxA: stats?.maxAmount ?? 0,
+    }),
+    [stats]
+  )
 
   const filteredCustomers = useMemo(() => {
     const q = customerQuery.trim().toLowerCase()
@@ -153,60 +290,85 @@ export function Dashboard() {
     )
   }, [customers, customerQuery])
 
-  const selectedCustomer: Customer | null =
-    customerId === 'all' ? null : customers.find((c) => c.id === customerId) ?? null
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    const bounds = durationBounds(duration, fromDate, toDate)
-    return items.filter((label) => {
-      const matchesQuery =
-        !q ||
-        [label.slNo, label.customerName, label.date]
-          .filter(Boolean)
-          .some((field) => field!.toLowerCase().includes(q))
-      const matchesCustomer = customerId === 'all' || label.customerId === customerId
-      let matchesDate = true
-      if (bounds) {
-        const t = new Date(`${label.date}T00:00:00`).getTime()
-        matchesDate = t >= bounds.from.getTime() && t < bounds.to.getTime()
-      }
-      return matchesQuery && matchesCustomer && matchesDate
-    })
-  }, [items, query, customerId, duration, fromDate, toDate])
+  const selectedCustomerChips = useMemo(
+    () => customers.filter((c) => customerIds.includes(c.id)),
+    [customers, customerIds]
+  )
 
   const activeFilterCount = useMemo(() => {
     let count = 0
     if (duration !== 'all') count += 1
-    if (customerId !== 'all') count += 1
+    if (customerIds.length > 0) count += 1
+    if (statuses.length > 0) count += 1
+    if (billing.length > 0) count += 1
+    if (minWeight !== '' || maxWeight !== '') count += 1
+    if (minAmount !== '' || maxAmount !== '') count += 1
     return count
-  }, [duration, customerId])
+  }, [duration, customerIds, statuses, billing, minWeight, maxWeight, minAmount, maxAmount])
 
-  const selectCustomer = (id: 'all' | number) => {
-    setCustomerId(id)
-    setCustomerQuery('')
-    setShowCustomerList(false)
+  const toggleCustomer = (id: number) => {
+    setCustomerIds((prev) =>
+      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
+    )
   }
+
+  const toggleStatus = (s: LabelStatus) => {
+    setStatuses((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]))
+  }
+
+  const toggleBilling = (b: BillingFilter) => {
+    setBilling((prev) => (prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b]))
+  }
+
+  const isPresetActive = (id: PresetId): boolean => {
+    if (id === 'unprinted') return statuses.length === 1 && statuses[0] === 'draft'
+    if (id === 'highweight') {
+      return minWeight !== '' && parseFloat(minWeight) === 5 && maxWeight === ''
+    }
+    return duration === '48h'
+  }
+
+  const applyPreset = (id: PresetId) => {
+    if (isPresetActive(id)) {
+      if (id === 'unprinted') setStatuses([])
+      if (id === 'highweight') setMinWeight('')
+      if (id === '48h') setDuration('all')
+      return
+    }
+    if (id === 'unprinted') setStatuses(['draft'])
+    if (id === 'highweight') {
+      setMinWeight('5')
+      setMaxWeight('')
+    }
+    if (id === '48h') setDuration('48h')
+  }
+
+  const durationLabel =
+    duration === 'custom'
+      ? 'Custom Range'
+      : duration === '48h'
+        ? 'Last 48 Hours'
+        : durationButtons.find((o) => o.value === duration)?.label ?? 'All Time'
 
   const handleClearFilters = () => {
     setQuery('')
     setDuration('all')
     setFromDate('')
     setToDate('')
-    setCustomerId('all')
+    setCustomerIds([])
     setCustomerQuery('')
-    setShowCustomerList(false)
+    setStatuses([])
+    setBilling([])
+    setMinWeight('')
+    setMaxWeight('')
+    setMinAmount('')
+    setMaxAmount('')
+    setSortBy('newest')
   }
 
-  const totalWeight = useMemo(
-    () => items.reduce((sum, label) => sum + label.weight, 0),
-    [items]
-  )
-  const uniqueCustomers = useMemo(
-    () => new Set(items.map((l) => l.customerName).filter(Boolean)).size,
-    [items]
-  )
-  const printQueue = useMemo(() => items.filter((l) => l.status === 'draft').length, [items])
+  const listStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
+  const listEnd = total === 0 ? 0 : Math.min(page * PAGE_SIZE, total)
+  const hasNoLabels = !loading && total === 0 && activeFilterCount === 0 && query.trim() === ''
 
   return (
     <div className="flex h-full flex-col">
@@ -236,7 +398,7 @@ export function Dashboard() {
           <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3">
             <StatCard
               label="Total Labels"
-              value={items.length.toLocaleString()}
+              value={(stats?.totalLabels ?? 0).toLocaleString()}
               icon={<Package className="size-6" />}
               iconClassName="text-primary"
               decorClassName="bg-primary/5"
@@ -250,20 +412,20 @@ export function Dashboard() {
             />
             <StatCard
               label="Total Weight"
-              value={`${totalWeight.toFixed(1)} kg`}
+              value={`${(stats?.totalWeight ?? 0).toFixed(1)} kg`}
               icon={<Scale className="size-6" />}
               iconClassName="text-secondary"
               decorClassName="bg-secondary-container/30"
               footnote={
                 <span className="font-label-sm text-label-sm">
-                  Across {uniqueCustomers} customers
+                  Across {counts.length} customers
                 </span>
               }
               footnoteClassName="text-on-surface-variant"
             />
             <StatCard
               label="Print Queue"
-              value={printQueue.toString()}
+              value={(stats?.printQueue ?? 0).toString()}
               icon={<Printer className="size-6" />}
               iconClassName="text-tertiary"
               decorClassName="bg-tertiary-container/10"
@@ -292,19 +454,19 @@ export function Dashboard() {
               type="button"
               variant="outline"
               onClick={() => setFilterOpen(true)}
-              className="relative h-12 gap-2 rounded-lg border-outline-variant bg-surface px-5 font-label-md text-label-md text-on-surface hover:bg-surface-container-high"
+              className="h-12 gap-2 rounded-lg border-transparent bg-surface-container-high px-5 font-label-md text-label-md text-on-surface shadow-sm hover:bg-surface-container-highest"
             >
-              <Filter className="size-[18px]" />
-              Filter
+              <SlidersHorizontal className="size-[18px]" />
+              Filters
               {activeFilterCount > 0 ? (
-                <span className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-primary font-label-sm text-label-sm font-bold text-on-primary">
+                <span className="flex size-5 items-center justify-center rounded-full bg-primary font-label-sm text-label-sm font-bold text-on-primary">
                   {activeFilterCount}
                 </span>
               ) : null}
             </Button>
           </div>
 
-          {!loading && items.length === 0 ? (
+          {hasNoLabels ? (
             <EmptyState
               icon={<Tag className="size-9" />}
               title="No labels yet"
@@ -327,12 +489,12 @@ export function Dashboard() {
                 Array.from({ length: 3 }).map((_, i) => (
                   <div key={i} className="h-16 animate-pulse border-b border-outline-variant bg-surface-container-lowest px-6 py-4" />
                 ))
-              ) : filtered.length === 0 ? (
+              ) : items.length === 0 ? (
                 <div className="px-6 py-10 text-center font-body-md text-body-md text-on-surface-variant">
                   No labels match your search.
                 </div>
               ) : (
-                filtered.map((label) => (
+                items.map((label) => (
                   <div
                     key={label.id}
                     role="button"
@@ -426,23 +588,35 @@ export function Dashboard() {
 
             <div className="flex items-center justify-between border-t border-outline-variant bg-surface-container-low px-6 py-3">
               <span className="font-label-sm text-label-sm text-on-surface-variant">
-                Showing 1-{filtered.length} of {items.length}
+                {isFetching && page > 1 ? (
+                  'Loading...'
+                ) : (
+                  <>
+                    Showing {listStart}-{listEnd} of {total.toLocaleString()}
+                  </>
+                )}
               </span>
               <div className="flex items-center gap-2">
                 <Button
                   type="button"
                   variant="outline"
                   size="icon-lg"
-                  disabled
+                  disabled={page <= 1 || isFetching}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
                   className="size-10 rounded border-outline-variant text-on-surface-variant hover:bg-surface-container-high"
                   aria-label="Previous page"
                 >
                   <ChevronLeft className="size-[18px]" />
                 </Button>
+                <span className="min-w-14 text-center font-label-sm text-label-sm text-on-surface-variant">
+                  Page {page} / {totalPages}
+                </span>
                 <Button
                   type="button"
                   variant="outline"
                   size="icon-lg"
+                  disabled={page >= totalPages || isFetching}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   className="size-10 rounded border-outline-variant text-on-surface-variant hover:bg-surface-container-high"
                   aria-label="Next page"
                 >
@@ -460,180 +634,422 @@ export function Dashboard() {
       <Sheet open={filterOpen} onOpenChange={setFilterOpen}>
         <SheetContent
           side="right"
-          className="w-full border-l border-outline-variant bg-surface-container-lowest sm:max-w-sm"
+          showCloseButton={false}
+          className="w-full gap-0 border-l border-outline-variant bg-surface-container-lowest sm:max-w-[440px]"
         >
-          <SheetHeader className="border-b border-outline-variant bg-surface-container-lowest">
-            <SheetTitle className="font-headline-md text-headline-md text-on-surface">
-              Filters
-            </SheetTitle>
-            <SheetDescription className="font-body-md text-body-md text-on-surface-variant">
-              Narrow down your labels.
-            </SheetDescription>
-          </SheetHeader>
+          <div className="flex items-start justify-between gap-3 border-b border-outline-variant bg-surface-container-low px-6 py-5">
+            <div className="flex items-start gap-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <SlidersHorizontal className="size-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <SheetTitle className="font-headline-md text-headline-md font-bold text-on-surface">
+                    Filter Labels
+                  </SheetTitle>
+                  {activeFilterCount > 0 ? (
+                    <span className="rounded-full bg-primary-fixed px-2 py-0.5 font-label-sm text-label-sm font-semibold text-on-primary-fixed">
+                      {activeFilterCount} active
+                    </span>
+                  ) : null}
+                </div>
+                <SheetDescription className="mt-0.5 font-body-md text-body-md text-on-surface-variant">
+                  Refine records by timeframe, customer, status, and value.
+                </SheetDescription>
+              </div>
+            </div>
+            <SheetClose asChild>
+              <Button
+                variant="ghost"
+                size="icon-lg"
+                aria-label="Close"
+                className="size-9 shrink-0 rounded-lg bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
+              >
+                <X className="size-5" />
+              </Button>
+            </SheetClose>
+          </div>
 
-          <div className="flex-1 space-y-6 overflow-y-auto px-4 py-2">
-            <div>
-              <FormLabel className="mb-2 block font-label-md text-label-md text-on-surface-variant">
-                Duration
-              </FormLabel>
+          <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
+                  <Bookmark className="size-4 text-primary" />
+                  Saved Filter Presets
+                </span>
+                <button
+                  type="button"
+                  onClick={() => toast.info('Saved filter presets coming soon')}
+                  className="cursor-pointer font-label-sm text-label-sm text-primary hover:underline"
+                >
+                  Manage
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {presetList.map((preset) => {
+                  const active = isPresetActive(preset.id)
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => applyPreset(preset.id)}
+                      className={cn(
+                        'flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-label-sm text-label-sm transition-colors',
+                        active
+                          ? 'bg-primary-fixed font-semibold text-on-primary-fixed'
+                          : 'bg-surface-container text-on-surface hover:bg-surface-container-high'
+                      )}
+                    >
+                      <preset.Icon className="size-3.5" />
+                      {preset.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="h-px w-full bg-surface-container-high" />
+
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
+                  <CalendarDays className="size-4 text-primary" />
+                  Timeframe &amp; Duration
+                </span>
+                <span className="font-label-sm text-label-sm text-on-surface-variant">
+                  {durationLabel}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {durationButtons.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setDuration(option.value)}
+                    className={cn(
+                      'rounded-lg px-3 py-2 text-center font-headline-md text-label-sm transition-colors',
+                      duration === option.value
+                        ? 'bg-primary text-on-primary shadow-sm'
+                        : 'bg-surface-container text-on-surface hover:bg-surface-container-high'
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setDuration('custom')}
+                  className={cn(
+                    'col-span-2 rounded-lg px-3 py-2 text-center font-headline-md text-label-sm transition-colors',
+                    duration === 'custom'
+                      ? 'bg-primary text-on-primary shadow-sm'
+                      : 'bg-surface-container text-on-surface hover:bg-surface-container-high'
+                  )}
+                >
+                  Custom Date Range
+                </button>
+              </div>
+              {duration === 'custom' ? (
+                <div className="mt-1 grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="font-label-sm text-label-sm text-on-surface-variant">
+                      From Date
+                    </label>
+                    <input
+                      type="date"
+                      value={fromDate}
+                      onChange={(e) => setFromDate(e.target.value)}
+                      className="h-10 rounded-lg bg-surface-container-low px-3 font-label-sm text-label-sm text-on-surface outline-none transition-colors focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-label-sm text-label-sm text-on-surface-variant">
+                      To Date
+                    </label>
+                    <input
+                      type="date"
+                      value={toDate}
+                      onChange={(e) => setToDate(e.target.value)}
+                      className="h-10 rounded-lg bg-surface-container-low px-3 font-label-sm text-label-sm text-on-surface outline-none transition-colors focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="h-px w-full bg-surface-container-high" />
+
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
+                  <Users className="size-4 text-primary" />
+                  Customer &amp; Account
+                </span>
+                {customerIds.length > 0 ? (
+                  <span className="font-label-sm text-label-sm font-semibold text-secondary">
+                    {customerIds.length} Selected
+                  </span>
+                ) : null}
+              </div>
+              <div className="flex h-10 items-center gap-2 rounded-lg bg-surface-container-low px-3 transition-all focus-within:bg-surface-container-lowest focus-within:ring-2 focus-within:ring-primary">
+                <Search className="size-4 shrink-0 text-outline" />
+                <input
+                  type="text"
+                  value={customerQuery}
+                  onChange={(e) => setCustomerQuery(e.target.value)}
+                  placeholder="Search customer name or ID..."
+                  className="w-full bg-transparent font-body-md text-label-sm text-on-surface outline-none placeholder:text-outline"
+                />
+                {customerQuery ? (
+                  <button
+                    type="button"
+                    onClick={() => setCustomerQuery('')}
+                    className="text-outline hover:text-on-surface"
+                    aria-label="Clear customer search"
+                  >
+                    <X className="size-4" />
+                  </button>
+                ) : null}
+              </div>
+              {selectedCustomerChips.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {selectedCustomerChips.map((c) => (
+                    <span
+                      key={c.id}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 font-headline-md text-label-sm text-primary"
+                    >
+                      <CheckCircle2 className="size-3.5" />
+                      {c.name}
+                      <button
+                        type="button"
+                        onClick={() => toggleCustomer(c.id)}
+                        className="flex items-center hover:opacity-75"
+                        aria-label={`Remove ${c.name}`}
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              <div className="flex max-h-36 flex-col gap-1 overflow-y-auto rounded-lg bg-surface-container-low p-2">
+                {filteredCustomers.length === 0 ? (
+                  <div className="px-2 py-4 text-center font-body-md text-body-md text-on-surface-variant">
+                    No customers found.
+                  </div>
+                ) : (
+                  filteredCustomers.map((c) => (
+                    <label
+                      key={c.id}
+                      className="flex cursor-pointer items-center gap-2.5 rounded px-2 py-1.5 hover:bg-surface-container"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={customerIds.includes(c.id)}
+                        onChange={() => toggleCustomer(c.id)}
+                        className="size-4 rounded accent-primary"
+                      />
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate font-headline-md text-label-sm text-on-surface">
+                          {c.name}
+                        </span>
+                        <span className="font-label-sm text-[10px] text-on-surface-variant">
+                          ID: #{c.id} • {customerLabelCounts[c.id] ?? 0} labels
+                        </span>
+                      </div>
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="h-px w-full bg-surface-container-high" />
+
+            <div className="flex flex-col gap-3">
+              <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
+                <BadgeCheck className="size-4 text-primary" />
+                Label Status
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                {statusOptions.map((option) => (
+                  <label
+                    key={option.value}
+                    className="flex cursor-pointer items-center gap-2 rounded-lg bg-surface-container-low p-2.5 hover:bg-surface-container"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={statuses.includes(option.value)}
+                      onChange={() => toggleStatus(option.value)}
+                      className="size-4 accent-primary"
+                    />
+                    <span className={cn('size-2.5 rounded-full', option.dot)} />
+                    <span className="font-headline-md text-label-sm text-on-surface">
+                      {option.label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="h-px w-full bg-surface-container-high" />
+
+            <div className="flex flex-col gap-3">
+              <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
+                <ReceiptText className="size-4 text-primary" />
+                Billing &amp; Invoices
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                {billingOptions.map((option) => (
+                  <label
+                    key={option.value}
+                    className="flex cursor-pointer items-center gap-2 rounded-lg bg-surface-container-low p-2.5 hover:bg-surface-container"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={billing.includes(option.value)}
+                      onChange={() => toggleBilling(option.value)}
+                      className="size-4 accent-primary"
+                    />
+                    <span className={cn('size-2.5 rounded-full', option.dot)} />
+                    <span className="font-headline-md text-label-sm text-on-surface">
+                      {option.label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="h-px w-full bg-surface-container-high" />
+
+            <div className="flex flex-col gap-3">
+              <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
+                <Scale className="size-4 text-primary" />
+                Weight (KG) &amp; Total Value
+              </span>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-label-sm text-label-sm text-on-surface-variant">
+                    Weight Range
+                  </span>
+                  <span className="font-label-sm text-label-sm font-semibold text-on-surface">
+                    {minWeight || dataRanges.minW.toFixed(1)} kg —{' '}
+                    {maxWeight || dataRanges.maxW.toFixed(1)} kg
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex h-10 items-center gap-2 rounded-lg bg-surface-container-low px-3">
+                    <span className="font-label-sm text-label-sm text-on-surface-variant">Min:</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={minWeight}
+                      onChange={(e) => setMinWeight(e.target.value)}
+                      placeholder="0"
+                      className="w-full bg-transparent text-right font-label-sm text-label-sm text-on-surface outline-none"
+                    />
+                    <span className="font-label-sm text-label-sm text-on-surface-variant">kg</span>
+                  </div>
+                  <div className="flex h-10 items-center gap-2 rounded-lg bg-surface-container-low px-3">
+                    <span className="font-label-sm text-label-sm text-on-surface-variant">Max:</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={maxWeight}
+                      onChange={(e) => setMaxWeight(e.target.value)}
+                      placeholder="∞"
+                      className="w-full bg-transparent text-right font-label-sm text-label-sm text-on-surface outline-none"
+                    />
+                    <span className="font-label-sm text-label-sm text-on-surface-variant">kg</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 pt-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-label-sm text-label-sm text-on-surface-variant">
+                    Price / Value Range
+                  </span>
+                  <span className="font-label-sm text-label-sm font-semibold text-on-surface">
+                    {formatCurrency(minAmount ? Number(minAmount) : dataRanges.minA)} —{' '}
+                    {formatCurrency(maxAmount ? Number(maxAmount) : dataRanges.maxA)}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex h-10 items-center gap-2 rounded-lg bg-surface-container-low px-3">
+                    <span className="font-label-sm text-label-sm text-on-surface-variant">₹</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={minAmount}
+                      onChange={(e) => setMinAmount(e.target.value)}
+                      placeholder="0"
+                      className="w-full bg-transparent font-label-sm text-label-sm text-on-surface outline-none"
+                    />
+                  </div>
+                  <div className="flex h-10 items-center gap-2 rounded-lg bg-surface-container-low px-3">
+                    <span className="font-label-sm text-label-sm text-on-surface-variant">₹</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={maxAmount}
+                      onChange={(e) => setMaxAmount(e.target.value)}
+                      placeholder="∞"
+                      className="w-full bg-transparent font-label-sm text-label-sm text-on-surface outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="h-px w-full bg-surface-container-high" />
+
+            <div className="flex flex-col gap-3">
+              <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
+                <ArrowUpDown className="size-4 text-primary" />
+                Sort By
+              </span>
               <div className="relative">
                 <select
-                  value={duration}
-                  onChange={(e) => setDuration(e.target.value as DurationFilter)}
-                  className="h-12 w-full cursor-pointer appearance-none rounded-lg border border-outline-variant bg-surface pr-10 pl-4 font-label-md text-label-md text-on-surface transition-shadow focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as LabelSortKey)}
+                  className="h-10 w-full cursor-pointer appearance-none rounded-lg bg-surface-container-low pr-8 pl-3 font-headline-md text-label-sm text-on-surface outline-none transition-colors focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary"
                 >
-                  {durationOptions.map((option) => (
+                  {sortOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
                   ))}
                 </select>
-                <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-on-surface-variant">
-                  <ChevronDown className="size-5" />
-                </span>
+                <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-outline" />
               </div>
-
-              {duration === 'custom' ? (
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <div>
-                    <FormLabel className="mb-1.5 block font-label-sm text-label-sm text-on-surface-variant">
-                      From
-                    </FormLabel>
-                    <input
-                      type="date"
-                      value={fromDate}
-                      onChange={(e) => setFromDate(e.target.value)}
-                      className="h-12 w-full rounded-lg border border-outline-variant bg-surface px-3 font-label-md text-label-md text-on-surface transition-shadow focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <FormLabel className="mb-1.5 block font-label-sm text-label-sm text-on-surface-variant">
-                      To
-                    </FormLabel>
-                    <input
-                      type="date"
-                      value={toDate}
-                      onChange={(e) => setToDate(e.target.value)}
-                      className="h-12 w-full rounded-lg border border-outline-variant bg-surface px-3 font-label-md text-label-md text-on-surface transition-shadow focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
-                    />
-                  </div>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="relative">
-              <FormLabel className="mb-2 block font-label-md text-label-md text-on-surface-variant">
-                Customer
-              </FormLabel>
-              <div className="relative">
-                <span className="absolute top-1/2 left-3 -translate-y-1/2 text-on-surface-variant">
-                  <Search className="size-5" />
-                </span>
-                <input
-                  type="text"
-                  value={customerQuery}
-                  onChange={(e) => setCustomerQuery(e.target.value)}
-                  onFocus={() => setShowCustomerList(true)}
-                  onBlur={() => setTimeout(() => setShowCustomerList(false), 150)}
-                  placeholder="Search customer..."
-                  className="h-12 w-full rounded-lg border border-outline-variant bg-surface pr-4 pl-10 font-label-md text-label-md text-on-surface transition-shadow placeholder:text-on-surface-variant focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
-                />
-              </div>
-
-              {selectedCustomer ? (
-                <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-outline-variant bg-surface-container-low p-3">
-                  <div className="min-w-0">
-                    <span className="block truncate font-body-md text-body-md font-medium text-on-surface">
-                      {selectedCustomer.name}
-                    </span>
-                    <span className="font-label-sm text-label-sm text-on-surface-variant">
-                      #{selectedCustomer.id}
-                    </span>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Clear customer filter"
-                    onClick={() => selectCustomer('all')}
-                    className="shrink-0 rounded-full text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
-                  >
-                    <X className="size-4" />
-                  </Button>
-                </div>
-              ) : null}
-
-              {showCustomerList ? (
-                <div className="absolute left-0 right-0 z-30 mt-2 flex max-h-64 flex-col overflow-y-auto rounded-xl border border-outline-variant bg-surface-container-lowest shadow-lg">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => selectCustomer('all')}
-                    className={cn(
-                      'flex h-auto w-full items-center justify-start gap-3 rounded-none border-b border-outline-variant px-4 py-3 text-left last:border-b-0 hover:bg-surface-container',
-                      customerId === 'all' && 'bg-surface-container'
-                    )}
-                  >
-                    <span className="font-label-md text-label-md text-on-surface">
-                      All Customers
-                    </span>
-                  </Button>
-                  {filteredCustomers.length === 0 ? (
-                    <div className="px-4 py-6 text-center font-body-md text-body-md text-on-surface-variant">
-                      No customers found.
-                    </div>
-                  ) : (
-                    filteredCustomers.map((c) => (
-                      <Button
-                        key={c.id}
-                        type="button"
-                        variant="ghost"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => selectCustomer(c.id)}
-                        className={cn(
-                          'flex h-auto w-full items-center justify-start gap-3 rounded-none border-b border-outline-variant px-4 py-3 text-left last:border-b-0 hover:bg-surface-container',
-                          customerId === c.id && 'bg-surface-container'
-                        )}
-                      >
-                        <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-container font-headline-md text-headline-md font-bold text-on-primary-container">
-                          {c.id}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate font-body-md text-body-md text-on-surface">
-                            {c.name}
-                          </span>
-                          <span className="block truncate font-label-sm text-label-sm text-on-surface-variant">
-                            {c.currentRate != null
-                              ? `${formatCurrency(c.currentRate)}/kg`
-                              : 'No rate'}
-                          </span>
-                        </span>
-                      </Button>
-                    ))
-                  )}
-                </div>
-              ) : null}
             </div>
           </div>
 
-          <SheetFooter className="border-t border-outline-variant bg-surface-container-lowest">
+          <div className="flex items-center justify-between gap-3 border-t border-outline-variant bg-surface-container-lowest px-6 py-4 shadow-lg">
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               onClick={handleClearFilters}
-              className="h-12 w-full gap-2 rounded-lg font-label-md text-label-md"
+              className="h-11 gap-2 rounded-lg bg-surface-container px-4 font-headline-md text-label-md text-on-surface hover:bg-surface-container-high"
             >
-              Clear all
+              <RotateCcw className="size-4" />
+              Reset All
             </Button>
             <Button
               type="button"
               onClick={() => setFilterOpen(false)}
-              className="h-12 w-full gap-2 rounded-lg font-label-md text-label-md"
+              className="h-11 flex-1 gap-2 rounded-lg bg-primary px-5 font-headline-md text-label-md font-semibold text-on-primary shadow-sm hover:bg-primary-container hover:text-on-primary-container"
             >
-              Done
+              Apply Filters
+              <span className="rounded-full bg-primary-container px-2 py-0.5 font-label-sm text-label-sm text-on-primary-container">
+                {total.toLocaleString()} Results
+              </span>
+              <ArrowRight className="size-4" />
             </Button>
-          </SheetFooter>
+          </div>
         </SheetContent>
       </Sheet>
     </div>

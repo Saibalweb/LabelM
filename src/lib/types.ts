@@ -21,6 +21,55 @@ export interface AuthUser {
 
 export type LabelStatus = 'draft' | 'printed'
 
+export type LabelSortKey =
+  | 'newest'
+  | 'oldest'
+  | 'amount-desc'
+  | 'amount-asc'
+  | 'weight-desc'
+  | 'customer-asc'
+
+export type BillingFilter = 'billed' | 'unbilled'
+
+export interface LabelFilters {
+  query?: string
+  customerIds?: number[]
+  statuses?: LabelStatus[]
+  billing?: BillingFilter[]
+  minWeight?: number | null
+  maxWeight?: number | null
+  minAmount?: number | null
+  maxAmount?: number | null
+  from?: string
+  to?: string
+}
+
+export interface LabelListParams {
+  page: number
+  pageSize: number
+  sortBy: LabelSortKey
+}
+
+export interface LabelListResult {
+  data: Label[]
+  total: number
+}
+
+export interface LabelStats {
+  totalLabels: number
+  totalWeight: number
+  minWeight: number
+  maxWeight: number
+  minAmount: number
+  maxAmount: number
+  printQueue: number
+}
+
+export interface CustomerLabelCount {
+  customerId: number
+  count: number
+}
+
 export interface Customer {
   id: number
   name: string

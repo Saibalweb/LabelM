@@ -1,8 +1,19 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { customerService } from '@/services/customers'
 import { labelService } from '@/services/labels'
 import { pricesService } from '@/services/prices'
-import type { CustomerInput, Label, LabelInput } from '@/lib/types'
+import type {
+  CustomerInput,
+  Label,
+  LabelFilters,
+  LabelInput,
+  LabelListParams,
+} from '@/lib/types'
 
 export const queryKeys = {
   customers: ['customers'] as const,
@@ -19,10 +30,62 @@ export function useCustomersQuery() {
   })
 }
 
-export function useLabelsQuery() {
+export function useLabelQuery(id: number | undefined) {
   return useQuery({
-    queryKey: queryKeys.labels,
-    queryFn: () => labelService.list(),
+    queryKey: [...queryKeys.labels, 'detail', id],
+    queryFn: () => (id != null ? labelService.getById(id) : null),
+    enabled: id != null,
+    staleTime: LIST_STALE_TIME,
+  })
+}
+
+export function useLabelsQuery(
+  filters: LabelFilters = {},
+  params: LabelListParams
+) {
+  return useQuery({
+    queryKey: [
+      ...queryKeys.labels,
+      'list',
+      filters,
+      params.page,
+      params.pageSize,
+      params.sortBy,
+    ],
+    queryFn: () => labelService.list(filters, params),
+    staleTime: LIST_STALE_TIME,
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useUnbilledLabelsQuery(
+  opts: {
+    from: string
+    to: string
+    customerId?: number | null
+  },
+  enabled = true
+) {
+  return useQuery({
+    queryKey: [...queryKeys.labels, 'unbilled', opts.from, opts.to, opts.customerId],
+    queryFn: () => labelService.listUnbilled(opts),
+    enabled,
+    staleTime: LIST_STALE_TIME,
+  })
+}
+
+export function useLabelStatsQuery() {
+  return useQuery({
+    queryKey: [...queryKeys.labels, 'stats'],
+    queryFn: () => labelService.stats(),
+    staleTime: LIST_STALE_TIME,
+  })
+}
+
+export function useLabelCountsByCustomerQuery() {
+  return useQuery({
+    queryKey: [...queryKeys.labels, 'counts'],
+    queryFn: () => labelService.countsByCustomer(),
     staleTime: LIST_STALE_TIME,
   })
 }
@@ -85,4 +148,3 @@ export function useDeleteLabel() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.labels }),
   })
 }
-

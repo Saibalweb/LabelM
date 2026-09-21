@@ -1,5 +1,15 @@
 import { supabase } from '@/lib/supabase'
-import type { Label, LabelInput, LabelStatus } from '@/lib/types'
+import type {
+  CustomerLabelCount,
+  Label,
+  LabelFilters,
+  LabelInput,
+  LabelListParams,
+  LabelListResult,
+  LabelSortKey,
+  LabelStats,
+  LabelStatus,
+} from '@/lib/types'
 
 interface LabelRow {
   id: number
@@ -38,13 +48,110 @@ function round2(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100
 }
 
+const sortColumn: Record<LabelSortKey, { column: string; ascending: boolean }> = {
+  newest: { column: 'label_date', ascending: false },
+  oldest: { column: 'label_date', ascending: true },
+  'amount-desc': { column: 'amount', ascending: false },
+  'amount-asc': { column: 'amount', ascending: true },
+  'weight-desc': { column: 'weight', ascending: false },
+  'customer-asc': { column: 'customers(name)', ascending: true },
+}
+
+function buildListQuery(filters: LabelFilters = {}) {
+  let query = supabase.from('labels').select(LABEL_COLUMNS, { count: 'exact' })
+
+  const q = filters.query?.trim()
+  if (q) {
+    query = query.or(`sl_no.ilike.%${q}%,customers.name.ilike.%${q}%`)
+  }
+
+  if (filters.customerIds && filters.customerIds.length > 0) {
+    query = query.in('customer_id', filters.customerIds)
+  }
+
+  if (filters.statuses && filters.statuses.length > 0) {
+    query = query.in('status', filters.statuses)
+  }
+
+  const billing = filters.billing ?? []
+  const hasBilled = billing.includes('billed')
+  const hasUnbilled = billing.includes('unbilled')
+  if (hasBilled && !hasUnbilled) {
+    query = query.not('invoice_id', 'is', null)
+  } else if (hasUnbilled && !hasBilled) {
+    query = query.is('invoice_id', null)
+  }
+
+  if (filters.minWeight != null) query = query.gte('weight', filters.minWeight)
+  if (filters.maxWeight != null) query = query.lte('weight', filters.maxWeight)
+  if (filters.minAmount != null) query = query.gte('amount', filters.minAmount)
+  if (filters.maxAmount != null) query = query.lte('amount', filters.maxAmount)
+  if (filters.from) query = query.gte('label_date', filters.from)
+  if (filters.to) query = query.lt('label_date', filters.to)
+
+  return query
+}
+
 export const labelService = {
-  async list(): Promise<Label[]> {
-    const { data, error } = await supabase
+  async list(
+    filters: LabelFilters = {},
+    { page = 1, pageSize = 25, sortBy = 'newest' }: Partial<LabelListParams> = {}
+  ): Promise<LabelListResult> {
+    const sort = sortColumn[sortBy]
+    let query = buildListQuery(filters)
+    query = query.order(sort.column, { ascending: sort.ascending })
+    if (sort.column !== 'id') query = query.order('id', { ascending: false })
+    query = query.range((page - 1) * pageSize, page * pageSize - 1)
+
+    const { data, error, count } = await query
+    if (error) throw new Error(error.message)
+    return {
+      data: (data ?? []).map((row) => toLabel(row as unknown as LabelRow)),
+      total: count ?? 0,
+    }
+  },
+
+  async stats(): Promise<LabelStats> {
+    const { data, error } = await supabase.rpc('label_stats')
+    if (error) throw new Error(error.message)
+    const row = data?.[0]
+    return {
+      totalLabels: row?.total_labels ?? 0,
+      totalWeight: Number(row?.total_weight ?? 0),
+      minWeight: Number(row?.min_weight ?? 0),
+      maxWeight: Number(row?.max_weight ?? 0),
+      minAmount: Number(row?.min_amount ?? 0),
+      maxAmount: Number(row?.max_amount ?? 0),
+      printQueue: row?.print_queue ?? 0,
+    }
+  },
+
+  async countsByCustomer(): Promise<CustomerLabelCount[]> {
+    const { data, error } = await supabase.rpc('label_counts_by_customer')
+    if (error) throw new Error(error.message)
+    return (data ?? []).map(
+      (row: { customer_id: number; label_count: number }) => ({
+        customerId: row.customer_id,
+        count: row.label_count,
+      })
+    )
+  },
+
+  async listUnbilled(opts: {
+    from: string
+    to: string
+    customerId?: number | null
+  }): Promise<Label[]> {
+    let query = supabase
       .from('labels')
       .select(LABEL_COLUMNS)
-      .order('label_date', { ascending: false })
-      .order('id', { ascending: false })
+      .is('invoice_id', null)
+      .order('label_date', { ascending: true })
+      .order('id', { ascending: true })
+    if (opts.customerId != null) query = query.eq('customer_id', opts.customerId)
+    query = query.gte('label_date', opts.from).lt('label_date', opts.to)
+
+    const { data, error } = await query
     if (error) throw new Error(error.message)
     return (data ?? []).map((row) => toLabel(row as unknown as LabelRow))
   },

@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import { Download, FileText, Printer, Share2 } from 'lucide-react'
 import { TopNav } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
-import { useLabelsQuery, useUpdateLabel } from '@/hooks/queries'
+import { useLabelQuery, useUpdateLabel } from '@/hooks/queries'
 import { formatCurrency, formatDate } from '@/lib/format'
 
 const LABEL_WIDTH_MM = 60
@@ -88,10 +88,8 @@ const LABEL_PRINT_CSS = `
 
 export function Preview() {
   const { id } = useParams<{ id: string }>()
-  const { data: items = [], isPending: loading } = useLabelsQuery()
+  const { data: label, isPending: loading } = useLabelQuery(Number(id))
   const updateLabel = useUpdateLabel()
-
-  const label = items.find((item) => item.id === Number(id))
 
   const handlePrint = () => {
     if (!label) return

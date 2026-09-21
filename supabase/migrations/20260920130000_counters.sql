@@ -20,13 +20,21 @@ create table if not exists public.counters (
 alter table public.counters enable row level security;
 
 -- ---------------------------------------------------------------------------
--- RPC: next_document_number(kind, prefix, digits)
---   Returns e.g. 'LBL-0001'. prefix and digits default to label conventions.
+-- RPC: next_document_number(p_kind, p_prefix, p_digits)
+--   Returns e.g. 'LBL-0001'. p_prefix and p_digits default to label conventions.
+--   Parameters are prefixed with p_ so they never collide with the `kind` /
+--   `last_value` columns — a bare `kind` reference is what caused the 42702
+--   "column reference is ambiguous" error before.
+--   DROP is required (not just OR REPLACE) so this migration is re-runnable
+--   after the earlier broken version that used `kind` as a parameter name —
+--   Postgres refuses to rename input parameters via CREATE OR REPLACE.
 -- ---------------------------------------------------------------------------
-create or replace function public.next_document_number(
-  kind text,
-  prefix text default 'LBL',
-  digits integer default 4
+drop function if exists public.next_document_number(text, text, integer);
+
+create function public.next_document_number(
+  p_kind text,
+  p_prefix text default 'LBL',
+  p_digits integer default 4
 )
 returns text
 language plpgsql
@@ -37,12 +45,12 @@ declare
   next_value bigint;
 begin
   insert into public.counters (kind, last_value)
-  values (next_document_number.kind, 1)
+  values (p_kind, 1)
   on conflict (kind)
   do update set last_value = public.counters.last_value + 1
   returning last_value into next_value;
 
-  return next_document_number.prefix || '-' || lpad(next_value::text, next_document_number.digits, '0');
+  return p_prefix || '-' || lpad(next_value::text, p_digits, '0');
 end;
 $$;
 

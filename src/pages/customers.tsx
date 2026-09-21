@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Users } from 'lucide-react'
 import { TopNav, MobileSearchBar } from '@/components/layout/TopNav'
@@ -26,14 +26,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import {
-  addCustomer,
-  deleteCustomer,
-  fetchCustomers,
-  updateCustomer,
-} from '@/store/slices/customersSlice'
-import { pricesService } from '@/services/prices'
+  useAddCustomer,
+  useCustomersQuery,
+  useDeleteCustomer,
+  useSetCustomerRate,
+  useUpdateCustomer,
+} from '@/hooks/queries'
 import { formatCurrency } from '@/lib/format'
 import type { Customer, CustomerInput } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -46,20 +45,17 @@ const avatarStyles = [
 ]
 
 export function Customers() {
-  const dispatch = useAppDispatch()
-  const { items, status } = useAppSelector((state) => state.customers)
+  const { data: items = [], isPending: loading } = useCustomersQuery()
+  const addCustomer = useAddCustomer()
+  const updateCustomer = useUpdateCustomer()
+  const deleteCustomer = useDeleteCustomer()
+  const setCustomerRate = useSetCustomerRate()
   const [query, setQuery] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Customer | null>(null)
   const [priceOpen, setPriceOpen] = useState(false)
   const [priceCustomer, setPriceCustomer] = useState<Customer | null>(null)
   const [priceValue, setPriceValue] = useState('')
-
-  useEffect(() => {
-    if (status === 'idle' || status === 'failed') {
-      dispatch(fetchCustomers())
-    }
-  }, [status, dispatch])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -84,13 +80,12 @@ export function Customers() {
   const handleSubmit = async (input: CustomerInput) => {
     try {
       if (editing) {
-        await dispatch(updateCustomer({ id: editing.id, patch: input })).unwrap()
+        await updateCustomer.mutateAsync({ id: editing.id, patch: input })
         toast.success('Customer updated')
       } else {
-        await dispatch(addCustomer(input)).unwrap()
+        await addCustomer.mutateAsync(input)
         toast.success('Customer added')
       }
-      await dispatch(fetchCustomers())
     } catch {
       toast.error('Something went wrong')
     }
@@ -98,8 +93,7 @@ export function Customers() {
 
   const handleDelete = async (customer: Customer) => {
     try {
-      await dispatch(deleteCustomer(customer.id)).unwrap()
-      await dispatch(fetchCustomers())
+      await deleteCustomer.mutateAsync(customer.id)
       toast.success('Customer deleted')
     } catch {
       toast.error('Something went wrong')
@@ -120,16 +114,13 @@ export function Customers() {
       return
     }
     try {
-      await pricesService.setRate(priceCustomer.id, rate)
-      await dispatch(fetchCustomers())
+      await setCustomerRate.mutateAsync({ customerId: priceCustomer.id, rate })
       toast.success('Rate updated')
       setPriceOpen(false)
     } catch {
       toast.error('Could not update rate')
     }
   }
-
-  const loading = status === 'loading'
 
   return (
     <div className="flex h-full flex-col">

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
@@ -16,8 +16,7 @@ import {
 import { TopNav, MobileSearchBar } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
-import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { fetchLabels } from '@/store/slices/labelsSlice'
+import { useLabelsQuery } from '@/hooks/queries'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -64,15 +63,8 @@ function StatCard({
 
 export function Dashboard() {
   const navigate = useNavigate()
-  const dispatch = useAppDispatch()
-  const { items, status } = useAppSelector((state) => state.labels)
+  const { data: items = [], isPending: loading } = useLabelsQuery()
   const [query, setQuery] = useState('')
-
-  useEffect(() => {
-    if (status === 'idle' || status === 'failed') {
-      dispatch(fetchLabels())
-    }
-  }, [status, dispatch])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -93,8 +85,6 @@ export function Dashboard() {
     [items]
   )
   const printQueue = useMemo(() => items.filter((l) => l.status === 'draft').length, [items])
-
-  const loading = status === 'loading'
 
   return (
     <div className="flex h-full flex-col">

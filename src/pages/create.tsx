@@ -8,8 +8,7 @@ import { Button } from '@/components/ui/button'
 import { CustomerFormDialog } from '@/components/customers/CustomerFormDialog'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { setDraft, resetDraft } from '@/store/slices/draftSlice'
-import { createLabel } from '@/store/slices/labelsSlice'
-import { addCustomer, fetchCustomers } from '@/store/slices/customersSlice'
+import { useAddCustomer, useCreateLabel, useCustomersQuery } from '@/hooks/queries'
 import { formatCurrency } from '@/lib/format'
 import type { Customer, CustomerInput } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -25,7 +24,9 @@ export function Create() {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
   const { draft } = useAppSelector((state) => state.draft)
-  const customers = useAppSelector((state) => state.customers.items)
+  const { data: customers = [] } = useCustomersQuery()
+  const addCustomer = useAddCustomer()
+  const createLabel = useCreateLabel()
 
   const [customerQuery, setCustomerQuery] = useState('')
   const [showCustomerList, setShowCustomerList] = useState(false)
@@ -34,10 +35,6 @@ export function Create() {
   useEffect(() => {
     if (!draft.date) dispatch(setDraft({ date: todayISO() }))
   }, [draft.date, dispatch])
-
-  useEffect(() => {
-    if (customers.length === 0) dispatch(fetchCustomers())
-  }, [customers.length, dispatch])
 
   const customer = draft.customer
   const rate = customer?.currentRate ?? null
@@ -77,8 +74,7 @@ export function Create() {
 
   const handleAddCustomer = async (input: CustomerInput) => {
     try {
-      const created = await dispatch(addCustomer(input)).unwrap()
-      await dispatch(fetchCustomers())
+      const created = await addCustomer.mutateAsync(input)
       setCustomerQuery(String(created.id))
       pickCustomer(created)
       toast.success('Customer added')
@@ -113,7 +109,7 @@ export function Create() {
     }
 
     try {
-      const result = await dispatch(createLabel(input)).unwrap()
+      const result = await createLabel.mutateAsync(input)
       dispatch(resetDraft())
       toast.success(`Label ${result.slNo} generated`)
       navigate(`/preview/${result.id}`)

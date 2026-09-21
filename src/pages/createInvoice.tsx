@@ -14,9 +14,8 @@ import {
 import { TopNav } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { fetchLabels, updateLabel } from '@/store/slices/labelsSlice'
-import { fetchCustomers } from '@/store/slices/customersSlice'
 import { createInvoice } from '@/store/slices/invoicesSlice'
+import { useCustomersQuery, useLabelsQuery, useUpdateLabel } from '@/hooks/queries'
 import { nextInvoiceId } from '@/services/invoices'
 import type { Customer, InvoiceInput, Label } from '@/lib/types'
 import { formatCurrency, formatDate } from '@/lib/format'
@@ -138,9 +137,10 @@ export function CreateInvoice() {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
 
-  const labels = useAppSelector((state) => state.labels.items)
-  const customers = useAppSelector((state) => state.customers.items)
+  const { data: labels = [] } = useLabelsQuery()
+  const { data: customers = [] } = useCustomersQuery()
   const invoices = useAppSelector((state) => state.invoices.items)
+  const updateLabel = useUpdateLabel()
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null)
   const [customerQuery, setCustomerQuery] = useState('')
@@ -149,11 +149,6 @@ export function CreateInvoice() {
   const [includeAll, setIncludeAll] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [generating, setGenerating] = useState(false)
-
-  useEffect(() => {
-    dispatch(fetchLabels())
-    dispatch(fetchCustomers())
-  }, [dispatch])
 
   const selectedCustomer = useMemo(
     () => customers.find((customer) => customer.id === selectedCustomerId) ?? null,
@@ -272,12 +267,12 @@ export function CreateInvoice() {
       const created = await dispatch(createInvoice(invoiceInput)).unwrap()
       await Promise.all(
         selectedLabels.map((label) =>
-          dispatch(
-            updateLabel({ id: label.id, patch: { invoiceId: (created.id as unknown) as number, status: 'printed' } })
-          ).unwrap()
+          updateLabel.mutateAsync({
+            id: label.id,
+            patch: { invoiceId: (created.id as unknown) as number, status: 'printed' },
+          })
         )
       )
-      await dispatch(fetchLabels())
       toast.success(`Invoice ${created.invoiceId} generated`)
       navigate(`/invoice/${created.id}`)
     } catch {

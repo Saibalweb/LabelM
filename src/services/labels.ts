@@ -61,9 +61,9 @@ export const labelService = {
 
   async create(input: LabelInput): Promise<Label> {
     const { data: slNo, error: slErr } = await supabase.rpc('next_document_number', {
-      kind: 'label',
-      prefix: 'LBL',
-      digits: 4,
+      p_kind: 'label',
+      p_prefix: 'LBL',
+      p_digits: 4,
     })
     if (slErr) throw new Error(slErr.message)
 

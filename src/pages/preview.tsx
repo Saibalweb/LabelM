@@ -1,11 +1,9 @@
-import { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Download, FileText, Printer, Share2 } from 'lucide-react'
 import { TopNav } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
-import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { fetchLabels, updateLabel } from '@/store/slices/labelsSlice'
+import { useLabelsQuery, useUpdateLabel } from '@/hooks/queries'
 import { formatCurrency, formatDate } from '@/lib/format'
 
 const LABEL_WIDTH_MM = 60
@@ -89,22 +87,16 @@ const LABEL_PRINT_CSS = `
 `
 
 export function Preview() {
-  const dispatch = useAppDispatch()
   const { id } = useParams<{ id: string }>()
-  const { items, status } = useAppSelector((state) => state.labels)
-
-  useEffect(() => {
-    if (status === 'idle' || status === 'failed') {
-      dispatch(fetchLabels())
-    }
-  }, [status, dispatch])
+  const { data: items = [], isPending: loading } = useLabelsQuery()
+  const updateLabel = useUpdateLabel()
 
   const label = items.find((item) => item.id === Number(id))
 
   const handlePrint = () => {
     if (!label) return
     if (label.status === 'draft') {
-      dispatch(updateLabel({ id: label.id, patch: { status: 'printed' } }))
+      updateLabel.mutate({ id: label.id, patch: { status: 'printed' } })
     }
 
     const cleanup = () => {
@@ -130,7 +122,7 @@ export function Preview() {
         <TopNav title="Label Preview" backTo="/" />
         <main className="flex flex-1 items-center justify-center bg-surface-bright p-8">
           <p className="font-body-md text-body-md text-on-surface-variant">
-            {status === 'loading' ? 'Loading label...' : 'Label not found.'}
+            {loading ? 'Loading label...' : 'Label not found.'}
           </p>
         </main>
       </div>

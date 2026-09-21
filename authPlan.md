@@ -95,8 +95,12 @@ Notes:
 ## 8. Frontend Architecture
 - Add `@supabase/supabase-js`; client at `src/lib/supabase.ts`.
 - `authSlice` — session, user, profile, role, status.
+- `draftSlice` — transient create-label form state.
+- Customers / labels / invoices: **TanStack Query** (see `src/hooks/queries.ts`) with
+  30s list `staleTime`; mutations invalidate their query keys. Invoices still use
+  `invoicesSlice` until the Supabase invoice backend lands (separate task).
 - Bootstrap: `supabase.auth.getSession()` + `onAuthStateChange`.
-- On sign-out: clear `customers` / `labels` / `invoices` / `draft` slices.
+- On sign-out: `queryClient.clear()` (server cache) + `clearAuth()`.
 - `RequireAuth` wraps existing routes in `src/App.tsx`.
 - Public routes: `/login`, `/forgot-password`, `/reset-password`, `/accept-invite`,
   `/unauthorized`.

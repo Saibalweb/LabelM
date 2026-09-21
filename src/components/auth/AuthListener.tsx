@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { authService } from '@/services/auth'
@@ -8,6 +9,7 @@ import type { Employee } from '@/lib/types'
 
 export function AuthListener() {
   const dispatch = useAppDispatch()
+  const queryClient = useQueryClient()
   const loadedUserId = useRef<string | null>(null)
 
   useEffect(() => {
@@ -35,6 +37,7 @@ export function AuthListener() {
     const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         loadedUserId.current = null
+        queryClient.clear()
         dispatch(clearAuth())
         return
       }
@@ -53,7 +56,7 @@ export function AuthListener() {
       active = false
       subscription.subscription.unsubscribe()
     }
-  }, [dispatch])
+  }, [dispatch, queryClient])
 
   return null
 }

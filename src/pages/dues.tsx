@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   CalendarClock,
@@ -12,8 +12,7 @@ import {
 } from 'lucide-react'
 import { TopNav, MobileSearchBar } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
-import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { fetchInvoices } from '@/store/slices/invoicesSlice'
+import { useInvoicesQuery } from '@/hooks/queries'
 import type { Invoice, InvoiceStatus } from '@/lib/types'
 import { formatCurrency, formatCurrencyWhole } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -52,8 +51,8 @@ interface DuesCustomer {
 
 const DAY_MS = 86_400_000
 
-function parseDate(value: string): Date {
-  return new Date(`${value} 00:00:00`)
+function parseDate(value: string | null): Date {
+  return new Date(`${value ?? '1970-01-01'} 00:00:00`)
 }
 
 function initials(name: string): string {
@@ -106,17 +105,10 @@ function StatCard({
 
 export function Dues() {
   const navigate = useNavigate()
-  const dispatch = useAppDispatch()
-  const { items: invoices, status } = useAppSelector((state) => state.invoices)
+  const { data: invoices = [] } = useInvoicesQuery()
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<SortKey>('Highest Due First')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
-
-  useEffect(() => {
-    if (status === 'idle' || status === 'failed') {
-      dispatch(fetchInvoices())
-    }
-  }, [status, dispatch])
 
   const referenceNow = useMemo(() => {
     if (invoices.length === 0) return 0
@@ -131,11 +123,11 @@ export function Dues() {
       const daysOverdue = Math.max(0, Math.floor((referenceNow - dueDate) / DAY_MS))
       const statusLabel =
         invoice.status === 'Partial'
-          ? `Partial (${Math.round((invoice.paid / invoice.total) * 100)}%)`
+          ? `Partial (${Math.round((invoice.paid / invoice.totalAmount) * 100)}%)`
           : 'Unpaid'
-      const entry = byCustomer.get(invoice.customer) ?? {
-        customer: invoice.customer,
-        tone: invoice.tone,
+      const entry = byCustomer.get(invoice.customerName) ?? {
+        customer: invoice.customerName,
+        tone: invoice.id,
         totalDue: 0,
         oldestDays: 0,
         overdue: false,
@@ -145,7 +137,7 @@ export function Dues() {
       entry.oldestDays = Math.max(entry.oldestDays, daysOverdue)
       if (daysOverdue > 0) entry.overdue = true
       entry.invoices.push({ invoice, daysOverdue, statusLabel })
-      byCustomer.set(invoice.customer, entry)
+      byCustomer.set(invoice.customerName, entry)
     }
     return Array.from(byCustomer.values())
   }, [invoices, referenceNow])
@@ -157,7 +149,7 @@ export function Dues() {
         !q ||
         c.customer.toLowerCase().includes(q) ||
         c.invoices.some(({ invoice }) =>
-          invoice.invoiceId.toLowerCase().includes(q)
+          invoice.invoiceNumber.toLowerCase().includes(q)
         )
     )
     const sorted = [...list]
@@ -383,7 +375,7 @@ export function Dues() {
                               <div className="col-span-12 flex items-center justify-between gap-3 md:col-span-5 md:justify-start md:pl-2">
                                 <div className="flex min-w-0 flex-col gap-1">
                                   <span className="font-label-md text-label-md font-bold text-on-surface">
-                                    #{invoice.invoiceId}
+                                    #{invoice.invoiceNumber}
                                   </span>
                                   <span className="font-label-sm text-label-sm text-on-surface-variant">
                                     {invoice.period}
@@ -454,6 +446,7 @@ export function Dues() {
                   type="button"
                   variant="outline"
                   size="icon-lg"
+                  disabled
                   className="size-10 rounded border-outline-variant text-on-surface-variant hover:bg-surface-container-high"
                   aria-label="Next page"
                 >

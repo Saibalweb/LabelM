@@ -195,6 +195,7 @@ export const labelService = {
     const updates: Record<string, unknown> = {}
     if (patch.status !== undefined) updates.status = patch.status
     if (patch.date !== undefined) updates.label_date = patch.date
+    if (patch.customerId !== undefined) updates.customer_id = patch.customerId
     if (patch.weight !== undefined) {
       updates.weight = patch.weight
       const rate = patch.rate ?? (await this.getById(id))?.rate

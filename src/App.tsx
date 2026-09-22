@@ -40,7 +40,14 @@ function App() {
         <Route path="/preview/:id" element={<Preview />} />
         <Route path="/customers" element={<Customers />} />
         <Route path="/invoice" element={<Invoices />} />
-        <Route path="/invoice/new" element={<CreateInvoice />} />
+        <Route
+          path="/invoice/new"
+          element={
+            <RequireRole role="admin">
+              <CreateInvoice />
+            </RequireRole>
+          }
+        />
         <Route path="/dues" element={<Dues />} />
         <Route path="/invoice/:id" element={<InvoiceDetails />} />
         <Route path="/settings" element={<Settings />} />

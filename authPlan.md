@@ -20,7 +20,10 @@ invited company members can authenticate. Backend: Supabase (Auth + Postgres + R
 ## 3. Roles & Permission Matrix
 | Capability | Owner | Admin | Staff |
 |---|---|---|---|
-| Create/edit labels, customers, invoices | ✓ | ✓ | ✓ |
+| Create/edit customers | ✓ | ✓ | ✓ |
+| Create labels (from printed batches) | ✓ | ✓ | ✓ |
+| Edit labels (uninvoiced only) | ✓ | ✓ | ✗ |
+| Generate invoices (single + bulk) | ✓ | ✓ | ✗ |
 | View all invoices | ✓ | ✓ | ✓ |
 | Record payments / view dues & totals | ✓ | ✓ | ✓ |
 | Soft-delete (archive) records | ✓ | ✓ | ✓ |
@@ -30,6 +33,12 @@ invited company members can authenticate. Backend: Supabase (Auth + Postgres + R
 | Invite/remove staff | ✓ | ✓ | ✗ |
 | Invite/promote admins | ✓ | ✗ | ✗ |
 | Transfer ownership / delete workspace | ✓ | ✗ | ✗ |
+
+> **Note:** Label editing is only allowed while a label is **uninvoiced**
+> (`invoice_id IS NULL`). The DB enforces this via the `labels_lock_billed`
+> trigger; once billed, labels are immutable. Invoice generation runs
+> server-side (`generate_invoice_for_customer` / `generate_invoices_for_period`)
+> as owner/admin-only transactions.
 
 ## 4. Auth Model
 - Supabase Auth, `Enable sign ups = OFF`.
@@ -97,8 +106,9 @@ Notes:
 - `authSlice` — session, user, profile, role, status.
 - `draftSlice` — transient create-label form state.
 - Customers / labels / invoices: **TanStack Query** (see `src/hooks/queries.ts`) with
-  30s list `staleTime`; mutations invalidate their query keys. Invoices still use
-  `invoicesSlice` until the Supabase invoice backend lands (separate task).
+  30s list `staleTime`; mutations invalidate their query keys. Invoice generation is
+  server-side via `generate_invoices_for_period` / `generate_invoice_for_customer`
+  RPCs (see `supabase/migrations/20260922120000_invoices_generate.sql`).
 - Bootstrap: `supabase.auth.getSession()` + `onAuthStateChange`.
 - On sign-out: `queryClient.clear()` (server cache) + `clearAuth()`.
 - `RequireAuth` wraps existing routes in `src/App.tsx`.

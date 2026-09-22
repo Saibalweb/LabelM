@@ -1,20 +1,21 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Eye,
   Plus,
   Search,
+  Users,
 } from 'lucide-react'
 import { TopNav, MobileSearchBar } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
-import { EmptyState } from '@/components/ui/empty-state'
-import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { fetchInvoices } from '@/store/slices/invoicesSlice'
+import { BulkInvoiceDialog } from '@/components/invoices/BulkInvoiceDialog'
+import { useAppSelector } from '@/store/hooks'
+import { useInvoicesQuery } from '@/hooks/queries'
+import { hasRole } from '@/lib/roles'
 import type { Invoice, InvoiceStatus } from '@/lib/types'
-import { formatCurrency } from '@/lib/format'
+import { formatCurrency, formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 type StatusFilter = 'All' | InvoiceStatus
@@ -45,49 +46,86 @@ function initials(name: string): string {
 
 export function Invoices() {
   const navigate = useNavigate()
-  const dispatch = useAppDispatch()
-  const { items: invoices, status } = useAppSelector((state) => state.invoices)
+  const role = useAppSelector((state) => state.auth.user?.role)
+  const canManage = hasRole(role, 'admin')
+
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('All')
+  const [bulkOpen, setBulkOpen] = useState(false)
 
-  useEffect(() => {
-    if (status === 'idle' || status === 'failed') {
-      dispatch(fetchInvoices())
-    }
-  }, [status, dispatch])
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return invoices.filter((invoice) => {
-      const matchesStatus =
-        statusFilter === 'All' || invoice.status === statusFilter
-      const matchesQuery =
-        !q ||
-        invoice.customer.toLowerCase().includes(q) ||
-        invoice.invoiceId.toLowerCase().includes(q)
-      return matchesStatus && matchesQuery
-    })
-  }, [invoices, query, statusFilter])
+  const { data: invoices = [], isPending: loading } = useInvoicesQuery({
+    query: query.trim() || undefined,
+    statuses: statusFilter === 'All' ? undefined : [statusFilter],
+  })
 
   const handleGenerate = () => navigate('/invoice/new')
   const handleView = (invoice: Invoice) => navigate(`/invoice/${invoice.id}`)
-
-  const loading = status === 'loading'
 
   if (!loading && invoices.length === 0) {
     return (
       <div className="flex h-full flex-col">
         <TopNav title="Invoices" />
-        <MobileSearchBar value={query} onChange={setQuery} placeholder="Search customer or ID..." />
-        <main className="flex flex-1 items-center justify-center bg-background p-8">
-          <EmptyState
-            icon={<Plus className="size-9" />}
-            title="No invoices yet"
-            description="Invoices are generated from printed labels. Billing is coming soon."
-            actionLabel="Generate Invoice"
-            onAction={handleGenerate}
-          />
+        <main className="no-scrollbar flex flex-1 items-center justify-center overflow-y-auto bg-surface-bright p-4 lg:p-8">
+          <div className="w-full max-w-2xl">
+            <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+              <div>
+                <h2 className="font-headline-lg text-headline-lg text-on-surface">Invoices</h2>
+                <p className="mt-1 font-body-md text-body-md text-on-surface-variant">
+                  Track billing, payments, and outstanding dues for your customers.
+                </p>
+              </div>
+              {canManage ? (
+                <Button
+                  type="button"
+                  onClick={handleGenerate}
+                  className="h-[52px] min-h-[52px] gap-2 rounded-lg px-6 font-label-md text-label-md"
+                >
+                  <Plus className="size-5" />
+                  Generate Invoice
+                </Button>
+              ) : null}
+            </div>
+            <div className="rounded-xl border border-dashed border-outline-variant bg-surface-container-lowest px-6 py-16 text-center">
+              <div className="relative mx-auto mb-5 flex size-20 items-center justify-center rounded-2xl border border-outline-variant bg-surface-container text-primary">
+                <Users className="size-9" />
+              </div>
+              <h3 className="font-headline-md text-headline-md text-on-surface">
+                No invoices yet
+              </h3>
+              <p className="mx-auto mt-2 max-w-sm font-body-md text-body-md text-on-surface-variant">
+                Invoices are generated from uninvoiced labels. Pick a billing period and
+                create them one by one, or generate them for all active customers at once.
+              </p>
+              {canManage ? (
+                <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                  <Button
+                    type="button"
+                    onClick={handleGenerate}
+                    className="h-12 w-full gap-2 rounded-full px-6 font-label-md text-label-md text-white sm:w-auto"
+                  >
+                    <Plus className="size-4" />
+                    Generate Invoice
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setBulkOpen(true)}
+                    className="h-12 w-full gap-2 rounded-full border-outline-variant px-6 font-label-md text-label-md text-primary hover:bg-surface-container-low sm:w-auto"
+                  >
+                    <Users className="size-4" />
+                    Generate for All Customers
+                  </Button>
+                </div>
+              ) : (
+                <p className="mt-6 font-label-sm text-label-sm text-on-surface-variant">
+                  Only owners and admins can generate invoices.
+                </p>
+              )}
+            </div>
+          </div>
         </main>
+
+        <BulkInvoiceDialog open={bulkOpen} onOpenChange={setBulkOpen} />
       </div>
     )
   }
@@ -106,14 +144,27 @@ export function Invoices() {
                 Track billing, payments, and outstanding dues for your customers.
               </p>
             </div>
-            <Button
-              type="button"
-              onClick={handleGenerate}
-              className="h-[52px] min-h-[52px] gap-2 rounded-lg px-6 font-label-md text-label-md"
-            >
-              <Plus className="size-5" />
-              Generate Invoice
-            </Button>
+            {canManage ? (
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setBulkOpen(true)}
+                  className="h-[52px] min-h-[52px] gap-2 rounded-lg border-outline-variant bg-surface-container-lowest px-5 font-label-md text-label-md text-primary hover:bg-surface-container-low hover:text-primary"
+                >
+                  <Users className="size-5" />
+                  Generate for All
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleGenerate}
+                  className="h-[52px] min-h-[52px] gap-2 rounded-lg px-6 font-label-md text-label-md"
+                >
+                  <Plus className="size-5" />
+                  Generate Invoice
+                </Button>
+              </div>
+            ) : null}
           </div>
 
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-outline-variant bg-surface-container-lowest p-4 shadow-sm">
@@ -131,21 +182,6 @@ export function Invoices() {
             </div>
 
             <div className="flex flex-wrap items-center gap-4">
-              <div className="relative min-w-[180px]">
-                <select
-                  className="h-12 w-full cursor-pointer appearance-none rounded-lg border border-outline-variant bg-surface pr-10 pl-4 font-label-md text-label-md text-on-surface transition-shadow focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
-                  defaultValue="This Month"
-                >
-                  <option>This Month</option>
-                  <option>Last Month</option>
-                  <option>Last 3 Months</option>
-                  <option>This Year</option>
-                </select>
-                <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-on-surface-variant">
-                  <ChevronDown className="size-5" />
-                </span>
-              </div>
-
               <div className="no-scrollbar flex overflow-x-auto rounded-lg bg-surface-container-high p-1">
                 {filters.map((filter) => (
                   <button
@@ -183,14 +219,14 @@ export function Invoices() {
                   </tr>
                 </thead>
                 <tbody className="font-body-md text-body-md text-on-surface">
-                  {filtered.length === 0 ? (
+                  {invoices.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="p-10 text-center font-body-md text-body-md text-on-surface-variant">
                         No invoices match your filters.
                       </td>
                     </tr>
                   ) : (
-                    filtered.map((invoice) => (
+                    invoices.map((invoice) => (
                       <tr
                         key={invoice.id}
                         onClick={() => handleView(invoice)}
@@ -201,22 +237,22 @@ export function Invoices() {
                             <div
                               className={cn(
                                 'flex size-10 shrink-0 items-center justify-center rounded-full border border-outline-variant text-sm font-bold',
-                                avatarStyles[invoice.tone % avatarStyles.length]
+                                avatarStyles[invoice.id % avatarStyles.length]
                               )}
                             >
-                              {initials(invoice.customer)}
+                              {initials(invoice.customerName)}
                             </div>
                             <span className="font-semibold text-on-background">
-                              {invoice.customer}
+                              {invoice.customerName}
                             </span>
                           </div>
                         </td>
                         <td className="p-6 font-label-md text-label-md text-on-surface-variant">
-                          {invoice.invoiceId}
+                          {invoice.invoiceNumber}
                         </td>
                         <td className="p-6 text-on-surface-variant">{invoice.period}</td>
                         <td className="p-6 text-right font-label-md text-label-md font-medium text-on-background">
-                          {formatCurrency(invoice.total)}
+                          {formatCurrency(invoice.totalAmount)}
                         </td>
                         <td className="p-6 text-right font-label-md text-label-md text-on-surface-variant">
                           {formatCurrency(invoice.paid)}
@@ -240,7 +276,7 @@ export function Invoices() {
                           </span>
                         </td>
                         <td className="p-6 font-label-md text-label-md text-on-surface-variant">
-                          {invoice.generatedOn}
+                          {formatDate(invoice.createdAt)}
                         </td>
                         <td className="p-6 text-center">
                           <Button
@@ -248,7 +284,7 @@ export function Invoices() {
                             variant="ghost"
                             size="icon-lg"
                             className="size-10 rounded-full text-on-surface-variant hover:bg-primary-fixed hover:text-primary"
-                            aria-label={`View ${invoice.invoiceId}`}
+                            aria-label={`View ${invoice.invoiceNumber}`}
                             onClick={() => handleView(invoice)}
                           >
                             <Eye className="size-5" />
@@ -262,44 +298,35 @@ export function Invoices() {
             </div>
 
             <div className="flex items-center justify-between border-t border-outline-variant bg-surface-container-lowest px-6 py-4 font-label-md text-label-md text-on-surface-variant">
+              <span>Showing {invoices.length} invoice{invoices.length === 1 ? '' : 's'}</span>
               <div className="flex items-center gap-2">
-                <span>Items per page:</span>
-                <select className="cursor-pointer appearance-none rounded border border-outline-variant bg-surface py-1 pr-6 pl-2 font-label-sm text-label-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none">
-                  <option>10</option>
-                  <option>25</option>
-                  <option>50</option>
-                </select>
-              </div>
-              <div className="flex items-center gap-6">
-                <span>
-                  Showing 1-{filtered.length} of {filtered.length}
-                </span>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-lg"
-                    disabled
-                    className="size-9 rounded p-2 text-outline hover:bg-surface-container-high disabled:opacity-50"
-                    aria-label="Previous page"
-                  >
-                    <ChevronLeft className="size-5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-lg"
-                    className="size-9 rounded p-2 text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
-                    aria-label="Next page"
-                  >
-                    <ChevronRight className="size-5" />
-                  </Button>
-                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-lg"
+                  disabled
+                  className="size-9 rounded p-2 text-outline hover:bg-surface-container-high disabled:opacity-50"
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="size-5" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-lg"
+                  disabled
+                  className="size-9 rounded p-2 text-outline hover:bg-surface-container-high disabled:opacity-50"
+                  aria-label="Next page"
+                >
+                  <ChevronRight className="size-5" />
+                </Button>
               </div>
             </div>
           </div>
         </div>
       </main>
+
+      <BulkInvoiceDialog open={bulkOpen} onOpenChange={setBulkOpen} />
     </div>
   )
 }

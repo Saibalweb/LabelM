@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
@@ -20,10 +20,9 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { fetchInvoices, updateInvoice } from '@/store/slices/invoicesSlice'
-import type { InvoicePayment, InvoiceStatus } from '@/lib/types'
-import { formatCurrency, todayInputValue } from '@/lib/format'
+import { useInvoiceQuery, useRecordPayment } from '@/hooks/queries'
+import type { InvoiceStatus, PaymentMode } from '@/lib/types'
+import { formatCurrency, formatDate, todayInputValue } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 const statusPillStyles: Record<InvoiceStatus, string> = {
@@ -52,14 +51,23 @@ function toAmount(value: number): string {
   })
 }
 
-const paymentModes = ['Cash', 'UPI', 'Bank Transfer', 'Cheque'] as const
-type PaymentMode = (typeof paymentModes)[number]
+const paymentModes: { label: string; value: PaymentMode }[] = [
+  { label: 'Cash', value: 'cash' },
+  { label: 'UPI', value: 'upi' },
+  { label: 'Bank Transfer', value: 'bank_transfer' },
+  { label: 'Cheque', value: 'cheque' },
+]
 
 interface RecordPaymentDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   dueAmount: number
-  onSave: (payment: InvoicePayment) => void
+  onSave: (payment: {
+    amount: number
+    date: string
+    mode: PaymentMode
+    notes: string | null
+  }) => void
 }
 
 function RecordPaymentDialog({
@@ -70,14 +78,14 @@ function RecordPaymentDialog({
 }: RecordPaymentDialogProps) {
   const [amount, setAmount] = useState<string>(String(Math.round(dueAmount)))
   const [date, setDate] = useState<string>(todayInputValue())
-  const [mode, setMode] = useState<PaymentMode>('Bank Transfer')
+  const [mode, setMode] = useState<PaymentMode>('bank_transfer')
   const [notes, setNotes] = useState('')
   const [error, setError] = useState('')
 
   const reset = () => {
     setAmount(String(Math.round(dueAmount)))
     setDate(todayInputValue())
-    setMode('Bank Transfer')
+    setMode('bank_transfer')
     setNotes('')
     setError('')
   }
@@ -94,17 +102,12 @@ function RecordPaymentDialog({
     }
     onSave({
       amount: value,
-      date: new Date(date).toLocaleDateString('en-US', {
-        month: 'short',
-        day: '2-digit',
-        year: 'numeric',
-      }),
-      method: mode,
-      receivedBy: 'Admin',
+      date,
+      mode,
+      notes: notes.trim() || null,
     })
     onOpenChange(false)
     setNotes('')
-    toast.success('Payment recorded')
   }
 
   return (
@@ -156,17 +159,17 @@ function RecordPaymentDialog({
             <div className="grid grid-cols-2 gap-2">
               {paymentModes.map((item) => (
                 <button
-                  key={item}
+                  key={item.value}
                   type="button"
-                  onClick={() => setMode(item)}
+                  onClick={() => setMode(item.value)}
                   className={cn(
                     'h-10 rounded-lg border font-label-sm text-label-sm transition-colors',
-                    mode === item
+                    mode === item.value
                       ? 'border-primary bg-primary-container text-on-primary-container'
                       : 'border-outline-variant hover:bg-surface-container-low'
                   )}
                 >
-                  {item}
+                  {item.label}
                 </button>
               ))}
             </div>
@@ -201,39 +204,38 @@ function RecordPaymentDialog({
 
 export function InvoiceDetails() {
   const navigate = useNavigate()
-  const dispatch = useAppDispatch()
   const { id } = useParams<{ id: string }>()
-  const { items, status } = useAppSelector((state) => state.invoices)
+  const invoiceId = Number(id)
+  const { data: invoice, isPending: loading } = useInvoiceQuery(
+    Number.isFinite(invoiceId) ? invoiceId : undefined
+  )
+  const recordPayment = useRecordPayment()
   const [paymentOpen, setPaymentOpen] = useState(false)
-
-  useEffect(() => {
-    if (status === 'idle' || status === 'failed') {
-      dispatch(fetchInvoices())
-    }
-  }, [status, dispatch])
-
-  const invoice = items.find((item) => item.id === id) ?? null
 
   const handleShare = () => toast.info('Sharing coming soon')
   const handleExportPdf = () => toast.info('PDF export coming soon')
 
-  const handleRecordPayment = async (payment: InvoicePayment) => {
+  const handleRecordPayment = async (payment: {
+    amount: number
+    date: string
+    mode: PaymentMode
+    notes: string | null
+  }) => {
     if (!invoice) return
-    const newPaid = invoice.paid + payment.amount
-    const newDue = Math.max(0, invoice.total - newPaid)
-    const newStatus: InvoiceStatus =
-      newDue <= 0 ? 'Paid' : newPaid > 0 ? 'Partial' : 'Unpaid'
-    await dispatch(
-      updateInvoice({
-        id: invoice.id,
-        patch: {
-          paid: newPaid,
-          due: newDue,
-          status: newStatus,
-          payments: [...invoice.payments, payment],
+    try {
+      await recordPayment.mutateAsync({
+        invoiceId: invoice.id,
+        payment: {
+          amount: payment.amount,
+          date: payment.date,
+          mode: payment.mode,
+          notes: payment.notes,
         },
       })
-    )
+      toast.success('Payment recorded')
+    } catch {
+      toast.error('Failed to record payment.')
+    }
   }
 
   if (!invoice) {
@@ -242,7 +244,7 @@ export function InvoiceDetails() {
         <TopNav title="Invoice Details" backTo="/invoice" />
         <main className="flex flex-1 items-center justify-center bg-surface-bright p-8">
           <p className="font-body-md text-body-md text-on-surface-variant">
-            {status === 'loading' ? 'Loading invoice...' : 'Invoice not found.'}
+            {loading ? 'Loading invoice...' : 'Invoice not found.'}
           </p>
         </main>
       </div>
@@ -251,7 +253,7 @@ export function InvoiceDetails() {
 
   return (
     <div className="flex h-full flex-col">
-      <TopNav title={invoice.invoiceId} backTo="/invoice" />
+      <TopNav title={invoice.invoiceNumber} backTo="/invoice" />
 
       <main className="flex-1 overflow-y-auto bg-surface-bright">
         <div className="mx-auto w-full max-w-[1600px] p-4 lg:p-8">
@@ -269,7 +271,7 @@ export function InvoiceDetails() {
                 <ArrowLeft className="size-5" />
               </Button>
               <h1 className="font-headline-lg text-headline-lg text-on-surface">
-                {invoice.invoiceId}
+                {invoice.invoiceNumber}
               </h1>
             </div>
             <div className="flex gap-4">
@@ -315,9 +317,9 @@ export function InvoiceDetails() {
                   </div>
                   <div className="sm:text-right">
                     <div className="grid grid-cols-2 gap-x-8 gap-y-2">
-                      <MetaRow label="Invoice No:" value={`#${invoice.invoiceId}`} />
-                      <MetaRow label="Date Issued:" value={invoice.dateIssued} />
-                      <MetaRow label="Due Date:" value={invoice.dueDate} />
+                      <MetaRow label="Invoice No:" value={`#${invoice.invoiceNumber}`} />
+                      <MetaRow label="Date Issued:" value={formatDate(invoice.createdAt)} />
+                      <MetaRow label="Due Date:" value={invoice.dueDate ? formatDate(invoice.dueDate) : '—'} />
                       <MetaRow label="Billing Period:" value={invoice.billingPeriod} />
                     </div>
                   </div>
@@ -329,19 +331,21 @@ export function InvoiceDetails() {
                     Bill To
                   </h3>
                   <div className="mb-1 font-headline-md text-headline-md text-on-surface">
-                    {invoice.customer}
+                    {invoice.customerName}
                   </div>
-                  <p className="font-body-md text-body-md text-on-surface">
-                    {invoice.address.split('\n').map((line) => (
-                      <span key={line} className="block">
-                        {line}
-                      </span>
-                    ))}
-                  </p>
+                  {invoice.customerAddress ? (
+                    <p className="font-body-md text-body-md text-on-surface">
+                      {invoice.customerAddress.split('\n').map((line) => (
+                        <span key={line} className="block">
+                          {line}
+                        </span>
+                      ))}
+                    </p>
+                  ) : null}
                   <p className="mt-2 font-label-md text-label-md text-on-surface-variant">
-                    {invoice.email}
+                    {invoice.customerEmail}
                     <br />
-                    {invoice.phone}
+                    {invoice.customerPhone}
                   </p>
                 </div>
 
@@ -370,11 +374,11 @@ export function InvoiceDetails() {
                     <tbody className="font-label-md text-label-md text-on-surface">
                       {invoice.lineItems.map((item) => (
                         <tr
-                          key={item.slNo}
+                          key={item.id}
                           className="border-b border-surface-variant transition-colors hover:bg-surface-container-low"
                         >
                           <td className="px-2 py-4">{item.slNo}</td>
-                          <td className="px-2 py-4">{item.date}</td>
+                          <td className="px-2 py-4">{formatDate(item.date)}</td>
                           <td className="px-2 py-4 text-right">{toAmount(item.weightKg)}</td>
                           <td className="px-2 py-4 text-right">{toAmount(item.rate)}</td>
                           <td className="px-2 py-4 text-right font-bold">
@@ -389,22 +393,16 @@ export function InvoiceDetails() {
                 {/* Footer Totals */}
                 <div className="flex justify-end">
                   <div className="w-64 border-t-2 border-outline-variant pt-4">
-                    <div className="mb-2 flex justify-between font-label-md text-label-md">
-                      <span className="text-on-surface-variant">Subtotal</span>
-                      <span className="text-on-surface">{toAmount(invoice.subtotal)}</span>
-                    </div>
                     <div className="mb-4 flex justify-between font-label-md text-label-md">
-                      <span className="text-on-surface-variant">
-                        Tax ({invoice.taxRate}%)
-                      </span>
-                      <span className="text-on-surface">{toAmount(invoice.tax)}</span>
+                      <span className="text-on-surface-variant">Total Weight</span>
+                      <span className="text-on-surface">{toAmount(invoice.totalWeight)} kg</span>
                     </div>
                     <div className="flex items-center justify-between border-t border-surface-variant pt-4">
                       <span className="font-headline-md text-headline-md text-on-surface">
                         Total
                       </span>
                       <span className="text-[20px] font-bold text-primary">
-                        {formatCurrency(invoice.total)}
+                        {formatCurrency(invoice.totalAmount)}
                       </span>
                     </div>
                   </div>
@@ -448,14 +446,20 @@ export function InvoiceDetails() {
                   </div>
                 </div>
 
-                <Button
-                  type="button"
-                  onClick={() => setPaymentOpen(true)}
-                  className="mb-8 flex h-[52px] w-full items-center justify-center gap-2 rounded font-label-md text-label-md shadow-sm"
-                >
-                  <Wallet className="size-5" />
-                  Record Payment
-                </Button>
+                {invoice.due > 0 ? (
+                  <Button
+                    type="button"
+                    onClick={() => setPaymentOpen(true)}
+                    className="mb-8 flex h-[52px] w-full items-center justify-center gap-2 rounded font-label-md text-label-md shadow-sm"
+                  >
+                    <Wallet className="size-5" />
+                    Record Payment
+                  </Button>
+                ) : (
+                  <div className="mb-8 flex h-[52px] items-center justify-center rounded font-label-md text-label-md text-secondary">
+                    Fully paid
+                  </div>
+                )}
 
                 <div>
                   <h4 className="mb-4 border-b border-surface-variant pb-2 font-label-sm text-label-sm tracking-wider text-on-surface-variant uppercase">
@@ -467,9 +471,9 @@ export function InvoiceDetails() {
                     </p>
                   ) : (
                     <ul className="space-y-4">
-                      {invoice.payments.map((payment, index) => (
+                      {invoice.payments.map((payment) => (
                         <li
-                          key={index}
+                          key={payment.id}
                           className="rounded border border-outline-variant bg-surface-container-lowest p-4 text-sm"
                         >
                           <div className="mb-1 flex justify-between">
@@ -477,12 +481,15 @@ export function InvoiceDetails() {
                               {formatCurrency(payment.amount)}
                             </span>
                             <span className="font-label-sm text-label-sm text-on-surface-variant">
-                              {payment.date}
+                              {formatDate(payment.date)}
                             </span>
                           </div>
                           <div className="flex justify-between text-xs text-on-surface-variant">
-                            <span>{payment.method}</span>
-                            <span>Rcvd by: {payment.receivedBy}</span>
+                            <span>
+                              {paymentModes.find((item) => item.value === payment.mode)?.label ??
+                                payment.mode}
+                            </span>
+                            {payment.notes ? <span>{payment.notes}</span> : null}
                           </div>
                         </li>
                       ))}

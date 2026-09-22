@@ -14,7 +14,9 @@ import {
   Download,
   Dumbbell,
   Eye,
+  Lock,
   Package,
+  Pencil,
   Printer,
   ReceiptText,
   RefreshCw,
@@ -44,9 +46,13 @@ import {
   useLabelsQuery,
   useLabelStatsQuery,
 } from '@/hooks/queries'
+import { LabelEditDialog } from '@/components/labels/LabelEditDialog'
+import { useAppSelector } from '@/store/hooks'
+import { hasRole } from '@/lib/roles'
 import { formatCurrency, formatDate } from '@/lib/format'
 import type {
   BillingFilter,
+  Label,
   LabelFilters,
   LabelSortKey,
   LabelStatus,
@@ -190,11 +196,14 @@ function StatCard({
 
 export function Dashboard() {
   const navigate = useNavigate()
+  const role = useAppSelector((state) => state.auth.user?.role)
+  const canEditLabels = hasRole(role, 'admin')
   const { data: customers = [] } = useCustomersQuery()
   const { data: stats } = useLabelStatsQuery()
   const { data: counts = [] } = useLabelCountsByCustomerQuery()
   const [query, setQuery] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
+  const [editLabel, setEditLabel] = useState<Label | null>(null)
   const [duration, setDuration] = useState<DurationFilter>('all')
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
@@ -567,6 +576,36 @@ export function Dashboard() {
                       >
                         <Eye className="size-5" />
                       </Button>
+                      {label.invoiceId != null ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-lg"
+                          className="size-10 rounded-full text-outline"
+                          title="Invoiced label — locked"
+                          aria-label="Invoiced label — locked"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toast.info('This label is billed to an invoice and cannot be edited.')
+                          }}
+                        >
+                          <Lock className="size-5" />
+                        </Button>
+                      ) : canEditLabels ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-lg"
+                          className="size-10 rounded-full text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
+                          title="Edit Label"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setEditLabel(label)
+                          }}
+                        >
+                          <Pencil className="size-5" />
+                        </Button>
+                      ) : null}
                       <Button
                         type="button"
                         variant="ghost"
@@ -1052,6 +1091,14 @@ export function Dashboard() {
           </div>
         </SheetContent>
       </Sheet>
+
+      <LabelEditDialog
+        open={editLabel != null}
+        onOpenChange={(open) => {
+          if (!open) setEditLabel(null)
+        }}
+        label={editLabel}
+      />
     </div>
   )
 }

@@ -1,8 +1,12 @@
+import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Download, FileText, Printer, Share2 } from 'lucide-react'
+import { Download, FileText, Lock, Pencil, Printer, Share2 } from 'lucide-react'
 import { TopNav } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
+import { LabelEditDialog } from '@/components/labels/LabelEditDialog'
+import { useAppSelector } from '@/store/hooks'
+import { hasRole } from '@/lib/roles'
 import { useLabelQuery, useUpdateLabel } from '@/hooks/queries'
 import { formatCurrency, formatDate } from '@/lib/format'
 
@@ -88,8 +92,13 @@ const LABEL_PRINT_CSS = `
 
 export function Preview() {
   const { id } = useParams<{ id: string }>()
+  const role = useAppSelector((state) => state.auth.user?.role)
+  const canEdit = hasRole(role, 'admin')
   const { data: label, isPending: loading } = useLabelQuery(Number(id))
   const updateLabel = useUpdateLabel()
+  const [editOpen, setEditOpen] = useState(false)
+
+  const billed = label?.invoiceId != null
 
   const handlePrint = () => {
     if (!label) return
@@ -177,6 +186,27 @@ export function Preview() {
                 <Printer className="size-5" />
                 Print Label
               </Button>
+              {billed ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled
+                  className="min-h-[52px] w-full gap-3 rounded-xl border-outline-variant font-label-md text-label-md text-on-surface-variant"
+                >
+                  <Lock className="size-5" />
+                  Invoiced — Locked
+                </Button>
+              ) : canEdit ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditOpen(true)}
+                  className="min-h-[52px] w-full gap-3 rounded-xl border-outline-variant bg-surface-container-lowest font-label-md text-label-md text-primary hover:bg-surface-container-low hover:text-primary"
+                >
+                  <Pencil className="size-5" />
+                  Edit Label
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 variant="outline"
@@ -220,6 +250,12 @@ export function Preview() {
           </div>
         </div>
       </main>
+
+      <LabelEditDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        label={label}
+      />
     </div>
   )
 }

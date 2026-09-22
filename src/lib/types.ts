@@ -120,7 +120,10 @@ export type LabelInput = {
 
 export type InvoiceStatus = 'Paid' | 'Unpaid' | 'Partial'
 
+export type PaymentMode = 'cash' | 'upi' | 'bank_transfer' | 'cheque'
+
 export interface InvoiceLineItem {
+  id: number
   slNo: string
   date: string
   weightKg: number
@@ -129,35 +132,69 @@ export interface InvoiceLineItem {
 }
 
 export interface InvoicePayment {
+  id: number
   amount: number
   date: string
-  method: string
-  receivedBy: string
+  mode: PaymentMode
+  notes: string | null
+  receivedBy: string | null
 }
 
 export interface Invoice {
-  id: string
-  customer: string
-  customerId?: string | number
-  tone: number
-  invoiceId: string
-  period: string
+  id: number
+  invoiceNumber: string
+  customerId: number
+  customerName: string
+  customerAddress: string | null
+  customerEmail: string | null
+  customerPhone: string | null
+  periodStart: string
+  periodEnd: string
   billingPeriod: string
-  dateIssued: string
-  dueDate: string
-  address: string
-  email: string
-  phone: string
-  total: number
-  subtotal: number
-  taxRate: number
-  tax: number
+  period: string
+  totalAmount: number
+  totalWeight: number
+  status: InvoiceStatus
+  dueDate: string | null
+  createdAt: string
   paid: number
   due: number
-  status: InvoiceStatus
-  generatedOn: string
   lineItems: InvoiceLineItem[]
   payments: InvoicePayment[]
 }
 
-export type InvoiceInput = Omit<Invoice, 'id' | 'invoiceId' | 'generatedOn'>
+export interface InvoicePreviewRow {
+  customerId: number
+  customerName: string
+  labelCount: number
+  totalWeight: number
+  totalAmount: number
+  hasOverlap: boolean
+}
+
+export interface InvoiceGenerationResult {
+  customerId: number
+  customerName: string
+  invoiceId: number | null
+  invoiceNumber: string | null
+  labelCount: number
+  totalAmount: number
+  totalWeight: number
+  skipped: 'overlap' | 'no_labels' | null
+}
+
+export type InvoiceSortKey = 'newest' | 'oldest' | 'amount-desc' | 'amount-asc'
+
+export interface InvoiceFilters {
+  query?: string
+  statuses?: InvoiceStatus[]
+  from?: string
+  to?: string
+}
+
+export interface InvoicePaymentInput {
+  amount: number
+  date: string
+  mode: PaymentMode
+  notes?: string | null
+}

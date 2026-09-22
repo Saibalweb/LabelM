@@ -13,15 +13,21 @@ import {
 } from 'lucide-react'
 import { TopNav } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
-import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { createInvoice } from '@/store/slices/invoicesSlice'
+import { BulkInvoiceDialog } from '@/components/invoices/BulkInvoiceDialog'
 import {
   useCustomersQuery,
+  useGenerateInvoice,
   useUnbilledLabelsQuery,
-  useUpdateLabel,
 } from '@/hooks/queries'
-import { nextInvoiceId } from '@/services/invoices'
-import type { Customer, InvoiceInput, Label } from '@/lib/types'
+import {
+  isValidRange,
+  monthBounds,
+  monthLabel,
+  monthRangeLabel,
+  previousMonthValue,
+  rangeLabel,
+} from '@/lib/period'
+import type { Customer } from '@/lib/types'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -34,59 +40,11 @@ const steps = [
   { n: 3, label: 'Confirm' },
 ]
 
-function currentMonthValue(): string {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-}
-
-function monthLabel(value: string): string {
-  const [year, month] = value.split('-').map(Number)
-  if (!year || !month) return '—'
-  return new Date(year, month - 1, 1).toLocaleDateString('en-US', {
-    month: 'short',
-    year: 'numeric',
-  })
-}
-
-function periodRange(value: string): string {
-  const [year, month] = value.split('-').map(Number)
-  if (!year || !month) return ''
-  const start = new Date(year, month - 1, 1)
-  const end = new Date(year, month, 0)
-  const fmt = (date: Date) =>
-    date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  return `${fmt(start)} - ${fmt(end)}`
-}
-
-function monthBounds(value: string): { from: string; to: string } | null {
-  const [year, month] = value.split('-').map(Number)
-  if (!year || !month) return null
-  const next = new Date(year, month, 1)
-  const fmt = (date: Date) =>
-    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-  return {
-    from: `${value}-01`,
-    to: fmt(next),
-  }
-}
-
-function displayDate(date: Date): string {
-  return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
-}
-
 function toAmount(value: number): string {
   return value.toLocaleString('en-IN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })
-}
-
-function toneFrom(value: string): number {
-  let hash = 0
-  for (let i = 0; i < value.length; i += 1) {
-    hash = (hash * 31 + value.charCodeAt(i)) % 997
-  }
-  return hash % 4
 }
 
 function CheckBox({
@@ -151,19 +109,34 @@ function SummaryRow({
 
 export function CreateInvoice() {
   const navigate = useNavigate()
-  const dispatch = useAppDispatch()
 
   const { data: customers = [] } = useCustomersQuery()
-  const invoices = useAppSelector((state) => state.invoices.items)
-  const updateLabel = useUpdateLabel()
+  const generate = useGenerateInvoice()
+
+  const [periodMode, setPeriodMode] = useState<'month' | 'custom'>('month')
+  const [monthValue, setMonthValue] = useState(previousMonthValue())
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null)
   const [customerQuery, setCustomerQuery] = useState('')
   const [showCustomerList, setShowCustomerList] = useState(false)
-  const [billingPeriod, setBillingPeriod] = useState(currentMonthValue())
   const [includeAll, setIncludeAll] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [generating, setGenerating] = useState(false)
+  const [bulkOpen, setBulkOpen] = useState(false)
+
+  const bounds = useMemo(() => {
+    if (periodMode === 'month') return monthBounds(monthValue)
+    return isValidRange(customFrom, customTo) ? { from: customFrom, to: customTo } : null
+  }, [periodMode, monthValue, customFrom, customTo])
+
+  const periodLabel =
+    periodMode === 'month'
+      ? monthLabel(monthValue)
+      : bounds
+        ? rangeLabel(bounds.from, bounds.to)
+        : '—'
 
   const selectedCustomer = useMemo(
     () => customers.find((customer) => customer.id === selectedCustomerId) ?? null,
@@ -182,15 +155,15 @@ export function CreateInvoice() {
 
   const { data: labels = [] } = useUnbilledLabelsQuery(
     {
-      from: monthBounds(billingPeriod)?.from ?? '',
-      to: monthBounds(billingPeriod)?.to ?? '',
-      customerId: includeAll ? undefined : selectedCustomerId,
+      from: bounds?.from ?? '',
+      to: bounds?.to ?? '',
+      customerId: selectedCustomerId,
     },
-    monthBounds(billingPeriod) != null && (includeAll || selectedCustomerId != null)
+    !includeAll && bounds != null && selectedCustomerId != null
   )
 
   const filteredLabels = useMemo(
-    () => (!includeAll && !selectedCustomerId ? [] : labels),
+    () => (includeAll || !selectedCustomerId ? [] : labels),
     [includeAll, selectedCustomerId, labels]
   )
 
@@ -208,16 +181,13 @@ export function CreateInvoice() {
   )
 
   const subtotal = useMemo(
-    () =>
-      selectedLabels.reduce((sum, label) => sum + label.amount, 0),
+    () => selectedLabels.reduce((sum, label) => sum + label.amount, 0),
     [selectedLabels]
   )
   const totalWeight = useMemo(
     () => selectedLabels.reduce((sum, label) => sum + label.weight, 0),
     [selectedLabels]
   )
-
-  const previewInvoiceId = useMemo(() => nextInvoiceId(invoices), [invoices])
 
   const toggle = (id: number) => {
     setSelectedIds((prev) => {
@@ -246,53 +216,25 @@ export function CreateInvoice() {
     setShowCustomerList(false)
   }
 
-  const canGenerate = (includeAll || !!selectedCustomer) && !!billingPeriod && selectedLabels.length > 0
+  const canGenerate = !includeAll && !!selectedCustomer && bounds != null && selectedLabels.length > 0
 
   const handleGenerate = async () => {
-    if (!canGenerate || generating) return
+    if (!canGenerate || generating || !selectedCustomerId || !bounds) return
     setGenerating(true)
-
-    const customer = selectedCustomer
-    const invoiceInput: InvoiceInput = {
-      customer: includeAll ? 'All Active Customers' : customer?.name ?? 'Walk-in Customer',
-      customerId: includeAll ? undefined : customer?.id,
-      tone: toneFrom(includeAll ? 'all-active-customers' : customer?.name ?? 'walk-in'),
-      period: periodRange(billingPeriod),
-      billingPeriod: monthLabel(billingPeriod),
-      dateIssued: displayDate(new Date()),
-      dueDate: displayDate(new Date(Date.now() + 30 * 86_400_000)),
-      address: includeAll ? '' : (customer?.address ?? ''),
-      email: includeAll ? '' : (customer?.email ?? ''),
-      phone: includeAll ? '' : (customer?.phone ?? ''),
-      subtotal,
-      taxRate: 0,
-      tax: 0,
-      total: subtotal,
-      paid: 0,
-      due: subtotal,
-      status: 'Unpaid',
-      lineItems: selectedLabels.map((label: Label, index) => ({
-        slNo: String(index + 1).padStart(2, '0'),
-        date: formatDate(label.date),
-        weightKg: label.weight,
-        rate: label.rate,
-        amount: label.amount,
-      })),
-      payments: [],
-    }
-
     try {
-      const created = await dispatch(createInvoice(invoiceInput)).unwrap()
-      await Promise.all(
-        selectedLabels.map((label) =>
-          updateLabel.mutateAsync({
-            id: label.id,
-            patch: { invoiceId: (created.id as unknown) as number, status: 'printed' },
-          })
-        )
-      )
-      toast.success(`Invoice ${created.invoiceId} generated`)
-      navigate(`/invoice/${created.id}`)
+      const result = await generate.mutateAsync({
+        customerId: selectedCustomerId,
+        from: bounds.from,
+        to: bounds.to,
+      })
+      if (result.invoiceId != null) {
+        toast.success(`Invoice ${result.invoiceNumber} generated`)
+        navigate(`/invoice/${result.invoiceId}`)
+      } else if (result.skipped === 'overlap') {
+        toast.info('This customer already has an invoice for this period.')
+      } else {
+        toast.info('No uninvoiced labels found for this customer and period.')
+      }
     } catch {
       toast.error('Failed to generate invoice.')
     } finally {
@@ -442,7 +384,7 @@ export function CreateInvoice() {
                             All active customers
                           </p>
                           <p className="font-label-sm text-label-sm text-on-surface-variant">
-                            {customers.length} customers · all uninvoiced labels in the period
+                            One invoice per customer with uninvoiced labels in the period
                           </p>
                         </div>
                       </div>
@@ -482,22 +424,79 @@ export function CreateInvoice() {
                     <label className="mb-2 block font-label-sm text-label-sm tracking-wider text-on-surface-variant uppercase">
                       Billing Period
                     </label>
-                    <div className="relative">
-                      <span className="absolute top-1/2 left-4 -translate-y-1/2 text-on-surface-variant">
-                        <Calendar className="size-5" />
-                      </span>
-                      <input
-                        type="month"
-                        value={billingPeriod}
-                        onChange={(e) => setBillingPeriod(e.target.value)}
-                        className={cn(inputClasses, 'pl-12 font-label-md text-label-md')}
-                      />
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPeriodMode('month')}
+                        className={cn(
+                          'h-11 rounded-lg border font-label-md text-label-md transition-colors',
+                          periodMode === 'month'
+                            ? 'border-primary bg-primary-container text-on-primary-container'
+                            : 'border-outline-variant hover:bg-surface-container-low'
+                        )}
+                      >
+                        Monthly
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPeriodMode('custom')}
+                        className={cn(
+                          'h-11 rounded-lg border font-label-md text-label-md transition-colors',
+                          periodMode === 'custom'
+                            ? 'border-primary bg-primary-container text-on-primary-container'
+                            : 'border-outline-variant hover:bg-surface-container-low'
+                        )}
+                      >
+                        Custom Range
+                      </button>
                     </div>
-                    {billingPeriod ? (
-                      <p className="mt-2 font-label-sm text-label-sm text-on-surface-variant">
-                        {periodRange(billingPeriod)}
-                      </p>
-                    ) : null}
+
+                    {periodMode === 'month' ? (
+                      <div className="relative mt-3">
+                        <span className="absolute top-1/2 left-4 -translate-y-1/2 text-on-surface-variant">
+                          <Calendar className="size-5" />
+                        </span>
+                        <input
+                          type="month"
+                          value={monthValue}
+                          onChange={(e) => setMonthValue(e.target.value)}
+                          className={cn(inputClasses, 'pl-12 font-label-md text-label-md')}
+                        />
+                        {monthValue ? (
+                          <p className="mt-2 font-label-sm text-label-sm text-on-surface-variant">
+                            {monthRangeLabel(monthValue)}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div className="mt-3 grid grid-cols-2 gap-3">
+                        <div className="relative">
+                          <span className="absolute top-1/2 left-4 -translate-y-1/2 text-on-surface-variant">
+                            <Calendar className="size-5" />
+                          </span>
+                          <input
+                            type="date"
+                            value={customFrom}
+                            onChange={(e) => setCustomFrom(e.target.value)}
+                            className={cn(inputClasses, 'pl-12 font-label-md text-label-md')}
+                          />
+                        </div>
+                        <div className="relative">
+                          <span className="absolute top-1/2 left-4 -translate-y-1/2 text-on-surface-variant">
+                            <Calendar className="size-5" />
+                          </span>
+                          <input
+                            type="date"
+                            value={customTo}
+                            onChange={(e) => setCustomTo(e.target.value)}
+                            className={cn(inputClasses, 'pl-12 font-label-md text-label-md')}
+                          />
+                        </div>
+                        <p className="col-span-2 font-label-sm text-label-sm text-on-surface-variant">
+                          End date is exclusive — labels on or before this day are included.
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <label className="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border border-outline-variant bg-surface-container-low px-4">
@@ -514,119 +513,142 @@ export function CreateInvoice() {
               </section>
 
               {/* Step 2 — Review Labels */}
-              <section className="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm">
-                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-outline-variant p-6">
-                  <div className="flex items-center gap-3">
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary font-label-md text-label-md font-bold text-on-primary">
-                      2
-                    </span>
-                    <div>
-                      <h3 className="font-headline-md text-headline-md text-on-surface">
-                        Review Labels
-                      </h3>
-                      <p className="font-body-md text-body-md text-on-surface-variant">
-                        Select the labels to include in this invoice.
-                      </p>
+              {includeAll ? (
+                <section className="rounded-xl border border-outline-variant bg-surface-container-lowest p-8 text-center shadow-sm">
+                  <span className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary-container text-on-primary-container">
+                    <Users className="size-7" />
+                  </span>
+                  <h3 className="font-headline-md text-headline-md text-on-surface">
+                    Bulk generation for all active customers
+                  </h3>
+                  <p className="mx-auto mt-2 max-w-md font-body-md text-body-md text-on-surface-variant">
+                    Instead of reviewing every label, you'll preview a per-customer
+                    summary (labels, weight, amount), then generate one invoice per
+                    customer in a single run.
+                  </p>
+                  <Button
+                    type="button"
+                    onClick={() => setBulkOpen(true)}
+                    className="mt-6 h-12 gap-2 rounded-lg px-6 font-label-md text-label-md"
+                  >
+                    <ReceiptText className="size-5" />
+                    Start Bulk Generation
+                  </Button>
+                </section>
+              ) : (
+                <section className="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-4 border-b border-outline-variant p-6">
+                    <div className="flex items-center gap-3">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary font-label-md text-label-md font-bold text-on-primary">
+                        2
+                      </span>
+                      <div>
+                        <h3 className="font-headline-md text-headline-md text-on-surface">
+                          Review Labels
+                        </h3>
+                        <p className="font-body-md text-body-md text-on-surface-variant">
+                          Select the labels to include in this invoice.
+                        </p>
+                      </div>
                     </div>
+                    {filteredLabels.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={toggleAll}
+                        className="flex items-center gap-2 font-label-md text-label-md text-primary hover:underline"
+                      >
+                        <CheckBox
+                          checked={allSelected}
+                          onChange={toggleAll}
+                          label="Select all labels"
+                        />
+                        {allSelected ? 'Clear all' : 'Select all'}
+                      </button>
+                    ) : null}
                   </div>
-                  {filteredLabels.length > 0 ? (
-                    <button
-                      type="button"
-                      onClick={toggleAll}
-                      className="flex items-center gap-2 font-label-md text-label-md text-primary hover:underline"
-                    >
-                      <CheckBox
-                        checked={allSelected}
-                        onChange={toggleAll}
-                        label="Select all labels"
-                      />
-                      {allSelected ? 'Clear all' : 'Select all'}
-                    </button>
-                  ) : null}
-                </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[680px] border-collapse text-left">
-                    <thead>
-                      <tr className="border-b border-outline-variant bg-surface-container-low font-label-sm text-label-sm tracking-wider text-on-surface-variant uppercase">
-                        <th className="w-14 p-4 text-center">
-                          <CheckBox
-                            checked={allSelected}
-                            onChange={toggleAll}
-                            label="Select all labels"
-                          />
-                        </th>
-                        <th className="p-4 font-semibold">Sl No</th>
-                        <th className="p-4 font-semibold">Date</th>
-                        <th className="p-4 text-right font-semibold">Weight (kg)</th>
-                        <th className="p-4 text-right font-semibold">Rate (₹)</th>
-                        <th className="p-4 text-right font-semibold">Amount (₹)</th>
-                      </tr>
-                    </thead>
-                    <tbody className="font-body-md text-body-md text-on-surface">
-                      {filteredLabels.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} className="p-10 text-center">
-                            <p className="font-body-md text-body-md text-on-surface-variant">
-                              {!includeAll && !selectedCustomer
-                                ? 'Select a customer above to load their uninvoiced labels.'
-                                : 'No uninvoiced labels found for the selected customer and billing period.'}
-                            </p>
-                          </td>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[680px] border-collapse text-left">
+                      <thead>
+                        <tr className="border-b border-outline-variant bg-surface-container-low font-label-sm text-label-sm tracking-wider text-on-surface-variant uppercase">
+                          <th className="w-14 p-4 text-center">
+                            <CheckBox
+                              checked={allSelected}
+                              onChange={toggleAll}
+                              label="Select all labels"
+                            />
+                          </th>
+                          <th className="p-4 font-semibold">Sl No</th>
+                          <th className="p-4 font-semibold">Date</th>
+                          <th className="p-4 text-right font-semibold">Weight (kg)</th>
+                          <th className="p-4 text-right font-semibold">Rate (₹)</th>
+                          <th className="p-4 text-right font-semibold">Amount (₹)</th>
                         </tr>
-                      ) : (
-                        filteredLabels.map((label) => {
-                          const amount = label.amount
-                          const checked = selectedIds.has(label.id)
-                          return (
-                            <tr
-                              key={label.id}
-                              onClick={() => toggle(label.id)}
-                              className={cn(
-                                'cursor-pointer border-b border-outline-variant transition-colors last:border-b-0',
-                                checked ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-surface-container-low'
-                              )}
-                            >
-                              <td className="p-4 text-center">
-                                <CheckBox
-                                  checked={checked}
-                                  onChange={() => toggle(label.id)}
-                                  label={`Select label ${label.slNo}`}
-                                />
-                              </td>
-                              <td className="p-4 font-label-md text-label-md font-medium text-on-surface">
-                                {label.slNo}
-                              </td>
-                              <td className="p-4 text-on-surface-variant">
-                                {formatDate(label.date)}
-                              </td>
-                              <td className="p-4 text-right font-label-md text-label-md">
-                                {toAmount(label.weight)}
-                              </td>
-                              <td className="p-4 text-right font-label-md text-label-md text-on-surface-variant">
-                                {toAmount(label.rate)}
-                              </td>
-                              <td className="p-4 text-right font-label-md text-label-md font-bold">
-                                {formatCurrency(amount)}
-                              </td>
-                            </tr>
-                          )
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="font-body-md text-body-md text-on-surface">
+                        {filteredLabels.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="p-10 text-center">
+                              <p className="font-body-md text-body-md text-on-surface-variant">
+                                {!selectedCustomerId
+                                  ? 'Select a customer above to load their uninvoiced labels.'
+                                  : 'No uninvoiced labels found for the selected customer and billing period.'}
+                              </p>
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredLabels.map((label) => {
+                            const checked = selectedIds.has(label.id)
+                            return (
+                              <tr
+                                key={label.id}
+                                onClick={() => toggle(label.id)}
+                                className={cn(
+                                  'cursor-pointer border-b border-outline-variant transition-colors last:border-b-0',
+                                  checked ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-surface-container-low'
+                                )}
+                              >
+                                <td className="p-4 text-center">
+                                  <CheckBox
+                                    checked={checked}
+                                    onChange={() => toggle(label.id)}
+                                    label={`Select label ${label.slNo}`}
+                                  />
+                                </td>
+                                <td className="p-4 font-label-md text-label-md font-medium text-on-surface">
+                                  {label.slNo}
+                                </td>
+                                <td className="p-4 text-on-surface-variant">
+                                  {formatDate(label.date)}
+                                </td>
+                                <td className="p-4 text-right font-label-md text-label-md">
+                                  {toAmount(label.weight)}
+                                </td>
+                                <td className="p-4 text-right font-label-md text-label-md text-on-surface-variant">
+                                  {toAmount(label.rate)}
+                                </td>
+                                <td className="p-4 text-right font-label-md text-label-md font-bold">
+                                  {formatCurrency(label.amount)}
+                                </td>
+                              </tr>
+                            )
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-outline-variant bg-surface-container-low px-6 py-3 font-label-md text-label-md text-on-surface-variant">
-                  <span>
-                    {selectedLabels.length} of {filteredLabels.length} labels selected
-                  </span>
-                  <span>
-                    Total Weight:{' '}
-                    <span className="font-bold text-on-surface">{toAmount(totalWeight)} kg</span>
-                  </span>
-                </div>
-              </section>
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-outline-variant bg-surface-container-low px-6 py-3 font-label-md text-label-md text-on-surface-variant">
+                    <span>
+                      {selectedLabels.length} of {filteredLabels.length} labels selected
+                    </span>
+                    <span>
+                      Total Weight:{' '}
+                      <span className="font-bold text-on-surface">{toAmount(totalWeight)} kg</span>
+                    </span>
+                  </div>
+                </section>
+              )}
             </div>
 
             {/* Step 3 — Confirm */}
@@ -647,48 +669,69 @@ export function CreateInvoice() {
                 <div className="space-y-4 p-6">
                   <SummaryRow
                     label="Customer"
-                    value={
-                      includeAll ? 'All Active Customers' : (selectedCustomer?.name ?? '—')
-                    }
+                    value={includeAll ? 'All Active Customers' : (selectedCustomer?.name ?? '—')}
                   />
-                  <SummaryRow label="Billing Period" value={monthLabel(billingPeriod)} mono />
-                  <SummaryRow label="Labels Included" value={String(selectedLabels.length)} mono bold />
-                  <SummaryRow label="Invoice ID" value={previewInvoiceId} mono />
+                  <SummaryRow label="Billing Period" value={periodLabel} mono />
+                  {!includeAll ? (
+                    <SummaryRow label="Labels Included" value={String(selectedLabels.length)} mono bold />
+                  ) : null}
                 </div>
 
-                <div className="flex items-end justify-between border-t border-outline-variant bg-surface-container-low p-6">
-                  <div>
-                    <p className="font-label-sm text-label-sm tracking-wider text-on-surface-variant uppercase">
-                      Total Amount Due
-                    </p>
-                    <p className="mt-1 font-body-md text-body-md text-on-surface-variant">
-                      Due Net 30
+                {includeAll ? (
+                  <div className="border-t border-outline-variant bg-surface-container-low p-6">
+                    <p className="font-body-md text-body-md text-on-surface-variant">
+                      Open bulk generation to preview the per-customer summary and
+                      generate one invoice per active customer.
                     </p>
                   </div>
-                  <p className="font-headline-lg text-headline-lg font-bold text-primary">
-                    {formatCurrency(subtotal)}
-                  </p>
-                </div>
+                ) : (
+                  <div className="flex items-end justify-between border-t border-outline-variant bg-surface-container-low p-6">
+                    <div>
+                      <p className="font-label-sm text-label-sm tracking-wider text-on-surface-variant uppercase">
+                        Total Amount Due
+                      </p>
+                      <p className="mt-1 font-body-md text-body-md text-on-surface-variant">
+                        Due Net 30
+                      </p>
+                    </div>
+                    <p className="font-headline-lg text-headline-lg font-bold text-primary">
+                      {formatCurrency(subtotal)}
+                    </p>
+                  </div>
+                )}
 
                 <div className="p-6 pt-4">
-                  <div className="flex items-start gap-3 rounded-lg border border-tertiary/30 bg-tertiary-container/40 p-4">
-                    <Info className="mt-0.5 size-5 shrink-0 text-tertiary" />
-                    <p className="font-body-md text-body-md text-on-tertiary-container">
-                      <strong>Notice:</strong> Generating this invoice locks the selected labels to
-                      the invoice and cannot be undone.
-                    </p>
-                  </div>
+                  {!includeAll ? (
+                    <div className="flex items-start gap-3 rounded-lg border border-tertiary/30 bg-tertiary-container/40 p-4">
+                      <Info className="mt-0.5 size-5 shrink-0 text-tertiary" />
+                      <p className="font-body-md text-body-md text-on-tertiary-container">
+                        <strong>Notice:</strong> Generating this invoice locks the selected labels to
+                        the invoice and cannot be undone.
+                      </p>
+                    </div>
+                  ) : null}
 
                   <div className="mt-4 flex flex-col gap-3">
-                    <Button
-                      type="button"
-                      onClick={handleGenerate}
-                      disabled={!canGenerate || generating}
-                      className="h-[52px] w-full gap-2 rounded-lg font-label-md text-label-md"
-                    >
-                      <ReceiptText className="size-5" />
-                      {generating ? 'Generating...' : 'Generate Invoice'}
-                    </Button>
+                    {includeAll ? (
+                      <Button
+                        type="button"
+                        onClick={() => setBulkOpen(true)}
+                        className="h-[52px] w-full gap-2 rounded-lg font-label-md text-label-md"
+                      >
+                        <Users className="size-5" />
+                        Generate for All Customers
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        onClick={handleGenerate}
+                        disabled={!canGenerate || generating}
+                        className="h-[52px] w-full gap-2 rounded-lg font-label-md text-label-md"
+                      >
+                        <ReceiptText className="size-5" />
+                        {generating ? 'Generating...' : 'Generate Invoice'}
+                      </Button>
+                    )}
                     <Button
                       type="button"
                       variant="outline"
@@ -699,13 +742,13 @@ export function CreateInvoice() {
                     </Button>
                   </div>
 
-                  {!canGenerate ? (
+                  {!canGenerate && !includeAll ? (
                     <p className="mt-3 text-center font-label-sm text-label-sm text-on-surface-variant">
-                      {!includeAll && !selectedCustomer
+                      {!selectedCustomerId
                         ? 'Select a customer to continue.'
                         : selectedLabels.length === 0
                           ? 'Select at least one label.'
-                          : 'Select a billing period to continue.'}
+                          : 'Select a valid billing period to continue.'}
                     </p>
                   ) : null}
                 </div>
@@ -714,6 +757,8 @@ export function CreateInvoice() {
           </div>
         </div>
       </main>
+
+      <BulkInvoiceDialog open={bulkOpen} onOpenChange={setBulkOpen} />
     </div>
   )
 }

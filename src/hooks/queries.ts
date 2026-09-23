@@ -11,6 +11,7 @@ import { pricesService } from '@/services/prices'
 import type {
   CustomerInput,
   InvoiceFilters,
+  InvoiceListParams,
   InvoicePaymentInput,
   Label,
   LabelFilters,
@@ -157,6 +158,25 @@ export function useInvoicesQuery(filters: InvoiceFilters = {}) {
   return useQuery({
     queryKey: [...queryKeys.invoices, 'list', filters],
     queryFn: () => invoiceService.list(filters),
+    staleTime: LIST_STALE_TIME,
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useInvoiceListQuery(
+  filters: InvoiceFilters = {},
+  params: InvoiceListParams
+) {
+  return useQuery({
+    queryKey: [
+      ...queryKeys.invoices,
+      'list',
+      filters,
+      params.page,
+      params.pageSize,
+      params.sortBy,
+    ],
+    queryFn: () => invoiceService.listPage(filters, params),
     staleTime: LIST_STALE_TIME,
     placeholderData: keepPreviousData,
   })

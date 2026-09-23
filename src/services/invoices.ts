@@ -4,9 +4,12 @@ import type {
   InvoiceFilters,
   InvoiceGenerationResult,
   InvoiceLineItem,
+  InvoiceListParams,
+  InvoiceListResult,
   InvoicePayment,
   InvoicePaymentInput,
   InvoicePreviewRow,
+  InvoiceSortKey,
   InvoiceStatus,
   PaymentMode,
 } from '@/lib/types'
@@ -156,27 +159,71 @@ function toGenerationResult(row: {
   }
 }
 
+function todayISO(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+const sortColumn: Record<InvoiceSortKey, { column: string; ascending: boolean }> = {
+  newest: { column: 'created_at', ascending: false },
+  oldest: { column: 'created_at', ascending: true },
+  'amount-desc': { column: 'total_amount', ascending: false },
+  'amount-asc': { column: 'total_amount', ascending: true },
+}
+
+function buildListQuery(filters: InvoiceFilters = {}) {
+  let query = supabase.from('invoices').select(LIST_COLUMNS, { count: 'exact' })
+
+  const q = filters.query?.trim()
+  if (q) {
+    query = query.or(`invoice_number.ilike.%${q}%,customers.name.ilike.%${q}%`)
+  }
+
+  if (filters.statuses && filters.statuses.length > 0) {
+    query = query.in('status', filters.statuses)
+  }
+
+  if (filters.customerIds && filters.customerIds.length > 0) {
+    query = query.in('customer_id', filters.customerIds)
+  }
+
+  if (filters.from) query = query.gte('period_start', filters.from)
+  if (filters.to) query = query.lt('period_start', filters.to)
+
+  if (filters.minAmount != null) query = query.gte('total_amount', filters.minAmount)
+  if (filters.maxAmount != null) query = query.lte('total_amount', filters.maxAmount)
+
+  if (filters.overdue) {
+    query = query.in('status', ['Unpaid', 'Partial']).lt('due_date', todayISO())
+  }
+
+  return query
+}
+
 export const invoiceService = {
   async list(filters: InvoiceFilters = {}): Promise<Invoice[]> {
-    let query = supabase
-      .from('invoices')
-      .select(LIST_COLUMNS)
-      .order('created_at', { ascending: false })
-
-    if (filters.statuses && filters.statuses.length > 0) {
-      query = query.in('status', filters.statuses)
-    }
-    if (filters.from) query = query.gte('period_start', filters.from)
-    if (filters.to) query = query.lt('period_start', filters.to)
-
-    const q = filters.query?.trim()
-    if (q) {
-      query = query.or(`invoice_number.ilike.%${q}%,customers.name.ilike.%${q}%`)
-    }
+    let query = buildListQuery(filters).order('created_at', { ascending: false })
 
     const { data, error } = await query
     if (error) throw new Error(error.message)
     return (data ?? []).map((row) => toInvoice(row as unknown as InvoiceRow))
+  },
+
+  async listPage(
+    filters: InvoiceFilters = {},
+    { page = 1, pageSize = 25, sortBy = 'newest' }: Partial<InvoiceListParams> = {}
+  ): Promise<InvoiceListResult> {
+    const sort = sortColumn[sortBy]
+    let query = buildListQuery(filters)
+    query = query.order(sort.column, { ascending: sort.ascending })
+    if (sort.column !== 'id') query = query.order('id', { ascending: false })
+    query = query.range((page - 1) * pageSize, page * pageSize - 1)
+
+    const { data, error, count } = await query
+    if (error) throw new Error(error.message)
+    return {
+      data: (data ?? []).map((row) => toInvoice(row as unknown as InvoiceRow)),
+      total: count ?? 0,
+    }
   },
 
   async getById(id: number): Promise<Invoice | null> {

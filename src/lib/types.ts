@@ -188,8 +188,23 @@ export type InvoiceSortKey = 'newest' | 'oldest' | 'amount-desc' | 'amount-asc'
 export interface InvoiceFilters {
   query?: string
   statuses?: InvoiceStatus[]
+  customerIds?: number[]
   from?: string
   to?: string
+  minAmount?: number | null
+  maxAmount?: number | null
+  overdue?: boolean
+}
+
+export interface InvoiceListParams {
+  page: number
+  pageSize: number
+  sortBy: InvoiceSortKey
+}
+
+export interface InvoiceListResult {
+  data: Invoice[]
+  total: number
 }
 
 export interface InvoicePaymentInput {

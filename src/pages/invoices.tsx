@@ -1,26 +1,57 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
+  ArrowRight,
+  ArrowUpDown,
+  BadgeCheck,
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Eye,
   Plus,
+  RotateCcw,
   Search,
+  SlidersHorizontal,
   Users,
+  Wallet,
+  X,
 } from 'lucide-react'
 import { TopNav, MobileSearchBar } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { BulkInvoiceDialog } from '@/components/invoices/BulkInvoiceDialog'
 import { useAppSelector } from '@/store/hooks'
-import { useInvoicesQuery } from '@/hooks/queries'
+import { useCustomersQuery, useInvoiceListQuery } from '@/hooks/queries'
 import { hasRole } from '@/lib/roles'
-import type { Invoice, InvoiceStatus } from '@/lib/types'
+import {
+  currentMonthValue,
+  isoDate,
+  monthBounds,
+  previousMonthValue,
+} from '@/lib/period'
+import type {
+  Invoice,
+  InvoiceFilters,
+  InvoiceSortKey,
+  InvoiceStatus,
+} from '@/lib/types'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-type StatusFilter = 'All' | InvoiceStatus
+type StatusFilter = 'All' | InvoiceStatus | 'Overdue'
+type DurationFilter = 'all' | 'month' | 'last-month' | 'custom'
 
-const filters: StatusFilter[] = ['All', 'Unpaid', 'Partial', 'Paid']
+const PAGE_SIZE = 25
+
+const statusPills: StatusFilter[] = ['All', 'Unpaid', 'Partial', 'Paid', 'Overdue']
 
 const avatarStyles = [
   'bg-primary-container text-on-primary-container',
@@ -33,6 +64,51 @@ const statusPillStyles: Record<InvoiceStatus, string> = {
   Paid: 'bg-secondary-container text-on-secondary-container',
   Unpaid: 'bg-destructive/10 text-destructive',
   Partial: 'bg-tertiary-container text-on-tertiary-container',
+}
+
+const durationButtons: { value: DurationFilter; label: string }[] = [
+  { value: 'all', label: 'All Time' },
+  { value: 'month', label: 'This Month' },
+  { value: 'last-month', label: 'Last Month' },
+]
+
+const statusOptions: { value: InvoiceStatus; label: string; dot: string }[] = [
+  { value: 'Unpaid', label: 'Unpaid', dot: 'bg-destructive' },
+  { value: 'Partial', label: 'Partial', dot: 'bg-tertiary' },
+  { value: 'Paid', label: 'Paid', dot: 'bg-secondary' },
+]
+
+const sortOptions: { value: InvoiceSortKey; label: string }[] = [
+  { value: 'newest', label: 'Newest First' },
+  { value: 'oldest', label: 'Oldest First' },
+  { value: 'amount-desc', label: 'Amount: High → Low' },
+  { value: 'amount-asc', label: 'Amount: Low → High' },
+]
+
+function useDebouncedValue<T>(value: T, delay = 300): T {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+  return debounced
+}
+
+function durationBounds(
+  duration: DurationFilter,
+  fromDate: string,
+  toDate: string
+): { from: string; to: string } | null {
+  if (duration === 'month') return monthBounds(currentMonthValue())
+  if (duration === 'last-month') return monthBounds(previousMonthValue())
+  if (duration === 'custom') {
+    if (!fromDate || !toDate) return null
+    const from = new Date(`${fromDate}T00:00:00`)
+    const to = new Date(`${toDate}T00:00:00`)
+    to.setDate(to.getDate() + 1)
+    return { from: isoDate(from), to: isoDate(to) }
+  }
+  return null
 }
 
 function initials(name: string): string {
@@ -48,20 +124,159 @@ export function Invoices() {
   const navigate = useNavigate()
   const role = useAppSelector((state) => state.auth.user?.role)
   const canManage = hasRole(role, 'admin')
+  const { data: customers = [] } = useCustomersQuery()
 
   const [query, setQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('All')
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [duration, setDuration] = useState<DurationFilter>('all')
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
+  const [customerIds, setCustomerIds] = useState<number[]>([])
+  const [customerQuery, setCustomerQuery] = useState('')
+  const [statuses, setStatuses] = useState<InvoiceStatus[]>([])
+  const [overdue, setOverdue] = useState(false)
+  const [minAmount, setMinAmount] = useState('')
+  const [maxAmount, setMaxAmount] = useState('')
+  const [sortBy, setSortBy] = useState<InvoiceSortKey>('newest')
+  const [page, setPage] = useState(1)
   const [bulkOpen, setBulkOpen] = useState(false)
 
-  const { data: invoices = [], isPending: loading } = useInvoicesQuery({
-    query: query.trim() || undefined,
-    statuses: statusFilter === 'All' ? undefined : [statusFilter],
-  })
+  const debouncedQuery = useDebouncedValue(query)
+  const debouncedMinAmount = useDebouncedValue(minAmount)
+  const debouncedMaxAmount = useDebouncedValue(maxAmount)
+
+  const filters = useMemo<InvoiceFilters>(() => {
+    const bounds = durationBounds(duration, fromDate, toDate)
+    return {
+      query: debouncedQuery.trim() || undefined,
+      statuses: overdue ? ['Unpaid', 'Partial'] : statuses,
+      customerIds,
+      from: bounds?.from,
+      to: bounds?.to,
+      minAmount: debouncedMinAmount !== '' ? parseFloat(debouncedMinAmount) : null,
+      maxAmount: debouncedMaxAmount !== '' ? parseFloat(debouncedMaxAmount) : null,
+      overdue: overdue || undefined,
+    }
+  }, [
+    debouncedQuery,
+    overdue,
+    statuses,
+    customerIds,
+    duration,
+    fromDate,
+    toDate,
+    debouncedMinAmount,
+    debouncedMaxAmount,
+  ])
+
+  const {
+    data: result,
+    isPending: loading,
+    isFetching,
+  } = useInvoiceListQuery(filters, { page, pageSize: PAGE_SIZE, sortBy })
+  const invoices = result?.data ?? []
+  const total = result?.total ?? 0
+
+  useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect
+    setPage(1)
+  }, [filters, sortBy])
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  useEffect(() => {
+    if (page > totalPages) {
+      // oxlint-disable-next-line react/set-state-in-effect
+      setPage(totalPages)
+    }
+  }, [page, totalPages])
+
+  const filteredCustomers = useMemo(() => {
+    const q = customerQuery.trim().toLowerCase()
+    if (!q) return customers
+    return customers.filter(
+      (c) => String(c.id).includes(q) || c.name.toLowerCase().includes(q)
+    )
+  }, [customers, customerQuery])
+
+  const selectedCustomerChips = useMemo(
+    () => customers.filter((c) => customerIds.includes(c.id)),
+    [customers, customerIds]
+  )
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (duration !== 'all') count += 1
+    if (customerIds.length > 0) count += 1
+    if (statuses.length > 0) count += 1
+    if (overdue) count += 1
+    if (minAmount !== '' || maxAmount !== '') count += 1
+    return count
+  }, [duration, customerIds, statuses, overdue, minAmount, maxAmount])
+
+  const activePill: StatusFilter = overdue
+    ? 'Overdue'
+    : statuses.length === 1
+      ? statuses[0]
+      : 'All'
+
+  const toggleCustomer = (id: number) => {
+    setCustomerIds((prev) =>
+      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
+    )
+  }
+
+  const toggleStatus = (s: InvoiceStatus) => {
+    setStatuses((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]))
+  }
+
+  const toggleOverdue = () => {
+    setOverdue((prev) => {
+      if (!prev) setStatuses(['Unpaid', 'Partial'])
+      return !prev
+    })
+  }
+
+  const handlePill = (pill: StatusFilter) => {
+    if (pill === 'All') {
+      setOverdue(false)
+      setStatuses([])
+    } else if (pill === 'Overdue') {
+      setOverdue(true)
+      setStatuses(['Unpaid', 'Partial'])
+    } else {
+      setOverdue(false)
+      setStatuses([pill])
+    }
+  }
+
+  const durationLabel =
+    duration === 'custom'
+      ? 'Custom Range'
+      : durationButtons.find((o) => o.value === duration)?.label ?? 'All Time'
+
+  const handleClearFilters = () => {
+    setQuery('')
+    setDuration('all')
+    setFromDate('')
+    setToDate('')
+    setCustomerIds([])
+    setCustomerQuery('')
+    setStatuses([])
+    setOverdue(false)
+    setMinAmount('')
+    setMaxAmount('')
+    setSortBy('newest')
+  }
 
   const handleGenerate = () => navigate('/invoice/new')
   const handleView = (invoice: Invoice) => navigate(`/invoice/${invoice.id}`)
 
-  if (!loading && invoices.length === 0) {
+  const listStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
+  const listEnd = total === 0 ? 0 : Math.min(page * PAGE_SIZE, total)
+  const hasNoInvoices =
+    !loading && total === 0 && activeFilterCount === 0 && query.trim() === ''
+
+  if (hasNoInvoices) {
     return (
       <div className="flex h-full flex-col">
         <TopNav title="Invoices" />
@@ -183,22 +398,37 @@ export function Invoices() {
 
             <div className="flex flex-wrap items-center gap-4">
               <div className="no-scrollbar flex overflow-x-auto rounded-lg bg-surface-container-high p-1">
-                {filters.map((filter) => (
+                {statusPills.map((pill) => (
                   <button
-                    key={filter}
+                    key={pill}
                     type="button"
-                    onClick={() => setStatusFilter(filter)}
+                    onClick={() => handlePill(pill)}
                     className={cn(
                       'min-h-10 whitespace-nowrap rounded-md px-4 font-label-md text-label-md transition-all',
-                      statusFilter === filter
+                      activePill === pill
                         ? 'bg-surface-container-lowest text-on-secondary-container shadow-sm'
                         : 'text-on-surface-variant hover:bg-surface-container-lowest/60 hover:text-on-surface'
                     )}
                   >
-                    {filter}
+                    {pill}
                   </button>
                 ))}
               </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setFilterOpen(true)}
+                className="h-12 gap-2 rounded-lg border-transparent bg-surface-container-high px-5 font-label-md text-label-md text-on-surface shadow-sm hover:bg-surface-container-highest"
+              >
+                <SlidersHorizontal className="size-[18px]" />
+                Filters
+                {activeFilterCount > 0 ? (
+                  <span className="flex size-5 items-center justify-center rounded-full bg-primary font-label-sm text-label-sm font-bold text-on-primary">
+                    {activeFilterCount}
+                  </span>
+                ) : null}
+              </Button>
             </div>
           </div>
 
@@ -219,7 +449,15 @@ export function Invoices() {
                   </tr>
                 </thead>
                 <tbody className="font-body-md text-body-md text-on-surface">
-                  {invoices.length === 0 ? (
+                  {loading ? (
+                    Array.from({ length: 3 }).map((_, i) => (
+                      <tr key={i} className="border-b border-outline-variant">
+                        <td colSpan={9} className="p-6">
+                          <div className="h-6 animate-pulse rounded bg-surface-container-high" />
+                        </td>
+                      </tr>
+                    ))
+                  ) : invoices.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="p-10 text-center font-body-md text-body-md text-on-surface-variant">
                         No invoices match your filters.
@@ -298,33 +536,363 @@ export function Invoices() {
             </div>
 
             <div className="flex items-center justify-between border-t border-outline-variant bg-surface-container-lowest px-6 py-4 font-label-md text-label-md text-on-surface-variant">
-              <span>Showing {invoices.length} invoice{invoices.length === 1 ? '' : 's'}</span>
+              <span>
+                {isFetching && page > 1 ? (
+                  'Loading...'
+                ) : (
+                  <>
+                    Showing {listStart}-{listEnd} of {total.toLocaleString()}
+                  </>
+                )}
+              </span>
               <div className="flex items-center gap-2">
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="icon-lg"
-                  disabled
-                  className="size-9 rounded p-2 text-outline hover:bg-surface-container-high disabled:opacity-50"
+                  disabled={page <= 1 || isFetching}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="size-10 rounded border-outline-variant text-on-surface-variant hover:bg-surface-container-high"
                   aria-label="Previous page"
                 >
-                  <ChevronLeft className="size-5" />
+                  <ChevronLeft className="size-[18px]" />
                 </Button>
+                <span className="min-w-14 text-center font-label-sm text-label-sm text-on-surface-variant">
+                  Page {page} / {totalPages}
+                </span>
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="icon-lg"
-                  disabled
-                  className="size-9 rounded p-2 text-outline hover:bg-surface-container-high disabled:opacity-50"
+                  disabled={page >= totalPages || isFetching}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="size-10 rounded border-outline-variant text-on-surface-variant hover:bg-surface-container-high"
                   aria-label="Next page"
                 >
-                  <ChevronRight className="size-5" />
+                  <ChevronRight className="size-[18px]" />
                 </Button>
               </div>
             </div>
           </div>
         </div>
       </main>
+
+      <Sheet open={filterOpen} onOpenChange={setFilterOpen}>
+        <SheetContent
+          side="right"
+          showCloseButton={false}
+          className="w-full gap-0 border-l border-outline-variant bg-surface-container-lowest sm:max-w-[440px]"
+        >
+          <div className="flex items-start justify-between gap-3 border-b border-outline-variant bg-surface-container-low px-6 py-5">
+            <div className="flex items-start gap-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <SlidersHorizontal className="size-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <SheetTitle className="font-headline-md text-headline-md font-bold text-on-surface">
+                    Filter Invoices
+                  </SheetTitle>
+                  {activeFilterCount > 0 ? (
+                    <span className="rounded-full bg-primary-fixed px-2 py-0.5 font-label-sm text-label-sm font-semibold text-on-primary-fixed">
+                      {activeFilterCount} active
+                    </span>
+                  ) : null}
+                </div>
+                <SheetDescription className="mt-0.5 font-body-md text-body-md text-on-surface-variant">
+                  Refine records by timeframe, customer, status, and amount.
+                </SheetDescription>
+              </div>
+            </div>
+            <SheetClose asChild>
+              <Button
+                variant="ghost"
+                size="icon-lg"
+                aria-label="Close"
+                className="size-9 shrink-0 rounded-lg bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
+              >
+                <X className="size-5" />
+              </Button>
+            </SheetClose>
+          </div>
+
+          <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
+                  <CalendarDays className="size-4 text-primary" />
+                  Billing Period
+                </span>
+                <span className="font-label-sm text-label-sm text-on-surface-variant">
+                  {durationLabel}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {durationButtons.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setDuration(option.value)}
+                    className={cn(
+                      'rounded-lg px-3 py-2 text-center font-headline-md text-label-sm transition-colors',
+                      duration === option.value
+                        ? 'bg-primary text-on-primary shadow-sm'
+                        : 'bg-surface-container text-on-surface hover:bg-surface-container-high'
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setDuration('custom')}
+                  className={cn(
+                    'col-span-2 rounded-lg px-3 py-2 text-center font-headline-md text-label-sm transition-colors',
+                    duration === 'custom'
+                      ? 'bg-primary text-on-primary shadow-sm'
+                      : 'bg-surface-container text-on-surface hover:bg-surface-container-high'
+                  )}
+                >
+                  Custom Date Range
+                </button>
+              </div>
+              {duration === 'custom' ? (
+                <div className="mt-1 grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="font-label-sm text-label-sm text-on-surface-variant">
+                      From Date
+                    </label>
+                    <input
+                      type="date"
+                      value={fromDate}
+                      onChange={(e) => setFromDate(e.target.value)}
+                      className="h-10 rounded-lg bg-surface-container-low px-3 font-label-sm text-label-sm text-on-surface outline-none transition-colors focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-label-sm text-label-sm text-on-surface-variant">
+                      To Date
+                    </label>
+                    <input
+                      type="date"
+                      value={toDate}
+                      onChange={(e) => setToDate(e.target.value)}
+                      className="h-10 rounded-lg bg-surface-container-low px-3 font-label-sm text-label-sm text-on-surface outline-none transition-colors focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="h-px w-full bg-surface-container-high" />
+
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
+                  <Users className="size-4 text-primary" />
+                  Customer
+                </span>
+                {customerIds.length > 0 ? (
+                  <span className="font-label-sm text-label-sm font-semibold text-secondary">
+                    {customerIds.length} Selected
+                  </span>
+                ) : null}
+              </div>
+              <div className="flex h-10 items-center gap-2 rounded-lg bg-surface-container-low px-3 transition-all focus-within:bg-surface-container-lowest focus-within:ring-2 focus-within:ring-primary">
+                <Search className="size-4 shrink-0 text-outline" />
+                <input
+                  type="text"
+                  value={customerQuery}
+                  onChange={(e) => setCustomerQuery(e.target.value)}
+                  placeholder="Search customer name or ID..."
+                  className="w-full bg-transparent font-body-md text-label-sm text-on-surface outline-none placeholder:text-outline"
+                />
+                {customerQuery ? (
+                  <button
+                    type="button"
+                    onClick={() => setCustomerQuery('')}
+                    className="text-outline hover:text-on-surface"
+                    aria-label="Clear customer search"
+                  >
+                    <X className="size-4" />
+                  </button>
+                ) : null}
+              </div>
+              {selectedCustomerChips.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {selectedCustomerChips.map((c) => (
+                    <span
+                      key={c.id}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 font-headline-md text-label-sm text-primary"
+                    >
+                      <CheckCircle2 className="size-3.5" />
+                      {c.name}
+                      <button
+                        type="button"
+                        onClick={() => toggleCustomer(c.id)}
+                        className="flex items-center hover:opacity-75"
+                        aria-label={`Remove ${c.name}`}
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              <div className="flex max-h-36 flex-col gap-1 overflow-y-auto rounded-lg bg-surface-container-low p-2">
+                {filteredCustomers.length === 0 ? (
+                  <div className="px-2 py-4 text-center font-body-md text-body-md text-on-surface-variant">
+                    No customers found.
+                  </div>
+                ) : (
+                  filteredCustomers.map((c) => (
+                    <label
+                      key={c.id}
+                      className="flex cursor-pointer items-center gap-2.5 rounded px-2 py-1.5 hover:bg-surface-container"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={customerIds.includes(c.id)}
+                        onChange={() => toggleCustomer(c.id)}
+                        className="size-4 rounded accent-primary"
+                      />
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate font-headline-md text-label-sm text-on-surface">
+                          {c.name}
+                        </span>
+                        <span className="font-label-sm text-[10px] text-on-surface-variant">
+                          ID: #{c.id}
+                        </span>
+                      </div>
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="h-px w-full bg-surface-container-high" />
+
+            <div className="flex flex-col gap-3">
+              <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
+                <BadgeCheck className="size-4 text-primary" />
+                Payment Status
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                {statusOptions.map((option) => (
+                  <label
+                    key={option.value}
+                    className="flex cursor-pointer items-center gap-2 rounded-lg bg-surface-container-low p-2.5 hover:bg-surface-container"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={statuses.includes(option.value)}
+                      onChange={() => toggleStatus(option.value)}
+                      className="size-4 accent-primary"
+                    />
+                    <span className={cn('size-2.5 rounded-full', option.dot)} />
+                    <span className="font-headline-md text-label-sm text-on-surface">
+                      {option.label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg bg-surface-container-low p-2.5 hover:bg-surface-container">
+                <input
+                  type="checkbox"
+                  checked={overdue}
+                  onChange={toggleOverdue}
+                  className="size-4 accent-primary"
+                />
+                <span className="size-2.5 rounded-full bg-destructive" />
+                <span className="font-headline-md text-label-sm text-on-surface">
+                  Overdue
+                </span>
+              </label>
+            </div>
+
+            <div className="h-px w-full bg-surface-container-high" />
+
+            <div className="flex flex-col gap-3">
+              <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
+                <Wallet className="size-4 text-primary" />
+                Amount Range
+              </span>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex h-10 items-center gap-2 rounded-lg bg-surface-container-low px-3">
+                  <span className="font-label-sm text-label-sm text-on-surface-variant">Min:</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={minAmount}
+                    onChange={(e) => setMinAmount(e.target.value)}
+                    placeholder="0"
+                    className="w-full bg-transparent text-right font-label-sm text-label-sm text-on-surface outline-none"
+                  />
+                </div>
+                <div className="flex h-10 items-center gap-2 rounded-lg bg-surface-container-low px-3">
+                  <span className="font-label-sm text-label-sm text-on-surface-variant">Max:</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={maxAmount}
+                    onChange={(e) => setMaxAmount(e.target.value)}
+                    placeholder="∞"
+                    className="w-full bg-transparent text-right font-label-sm text-label-sm text-on-surface outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="h-px w-full bg-surface-container-high" />
+
+            <div className="flex flex-col gap-3">
+              <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
+                <ArrowUpDown className="size-4 text-primary" />
+                Sort By
+              </span>
+              <div className="relative">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as InvoiceSortKey)}
+                  className="h-10 w-full cursor-pointer appearance-none rounded-lg bg-surface-container-low pr-8 pl-3 font-headline-md text-label-sm text-on-surface outline-none transition-colors focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary"
+                >
+                  {sortOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-outline" />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 border-t border-outline-variant bg-surface-container-lowest px-6 py-4 shadow-lg">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleClearFilters}
+              className="h-11 gap-2 rounded-lg bg-surface-container px-4 font-headline-md text-label-md text-on-surface hover:bg-surface-container-high"
+            >
+              <RotateCcw className="size-4" />
+              Reset All
+            </Button>
+            <Button
+              type="button"
+              onClick={() => setFilterOpen(false)}
+              className="h-11 flex-1 gap-2 rounded-lg bg-primary px-5 font-headline-md text-label-md font-semibold text-on-primary shadow-sm hover:bg-primary-container hover:text-on-primary-container"
+            >
+              Apply Filters
+              <span className="rounded-full bg-primary-container px-2 py-0.5 font-label-sm text-label-sm text-on-primary-container">
+                {total.toLocaleString()} Results
+              </span>
+              <ArrowRight className="size-4" />
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <BulkInvoiceDialog open={bulkOpen} onOpenChange={setBulkOpen} />
     </div>

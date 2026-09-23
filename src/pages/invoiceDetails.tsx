@@ -1,11 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
   ArrowLeft,
-  FileText,
   Layers,
-  Share2,
+  MoreVertical,
+  Pencil,
+  Trash2,
   Wallet,
 } from 'lucide-react'
 import { TopNav } from '@/components/layout/TopNav'
@@ -18,10 +19,26 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useInvoiceQuery, useRecordPayment } from '@/hooks/queries'
-import type { InvoiceStatus, PaymentMode } from '@/lib/types'
+import { useAppSelector } from '@/store/hooks'
+import {
+  useDeletePayment,
+  useInvoiceQuery,
+  useRecordPayment,
+  useUpdatePayment,
+} from '@/hooks/queries'
+import type { InvoicePayment, InvoiceStatus, PaymentMode } from '@/lib/types'
 import { formatCurrency, formatDate, todayInputValue } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -58,9 +75,10 @@ const paymentModes: { label: string; value: PaymentMode }[] = [
   { label: 'Cheque', value: 'cheque' },
 ]
 
-interface RecordPaymentDialogProps {
+interface PaymentDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  payment: InvoicePayment | null
   dueAmount: number
   onSave: (payment: {
     amount: number
@@ -70,25 +88,29 @@ interface RecordPaymentDialogProps {
   }) => void
 }
 
-function RecordPaymentDialog({
+function PaymentDialog({
   open,
   onOpenChange,
+  payment,
   dueAmount,
   onSave,
-}: RecordPaymentDialogProps) {
-  const [amount, setAmount] = useState<string>(String(Math.round(dueAmount)))
-  const [date, setDate] = useState<string>(todayInputValue())
+}: PaymentDialogProps) {
+  const isEditing = payment != null
+  const maxAmount = dueAmount + (payment?.amount ?? 0)
+  const [amount, setAmount] = useState('')
+  const [date, setDate] = useState(todayInputValue())
   const [mode, setMode] = useState<PaymentMode>('bank_transfer')
   const [notes, setNotes] = useState('')
   const [error, setError] = useState('')
 
-  const reset = () => {
-    setAmount(String(Math.round(dueAmount)))
-    setDate(todayInputValue())
-    setMode('bank_transfer')
-    setNotes('')
+  useEffect(() => {
+    if (!open) return
+    setAmount(payment ? String(payment.amount) : String(Math.round(dueAmount)))
+    setDate(payment?.date ?? todayInputValue())
+    setMode(payment?.mode ?? 'bank_transfer')
+    setNotes(payment?.notes ?? '')
     setError('')
-  }
+  }, [open, payment, dueAmount])
 
   const handleSave = () => {
     const value = Number(amount)
@@ -96,8 +118,8 @@ function RecordPaymentDialog({
       setError('Enter a valid amount greater than zero.')
       return
     }
-    if (value > dueAmount) {
-      setError(`Amount cannot exceed the due amount of ${formatCurrency(dueAmount)}.`)
+    if (value > maxAmount) {
+      setError(`Amount cannot exceed the due amount of ${formatCurrency(maxAmount)}.`)
       return
     }
     onSave({
@@ -111,16 +133,10 @@ function RecordPaymentDialog({
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        onOpenChange(next)
-        if (next) reset()
-      }}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Record Payment</DialogTitle>
+          <DialogTitle>{isEditing ? 'Edit Payment' : 'Record Payment'}</DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-5 py-2">
@@ -194,7 +210,7 @@ function RecordPaymentDialog({
             </Button>
           </DialogClose>
           <Button type="button" onClick={handleSave}>
-            Save Payment
+            {isEditing ? 'Save Changes' : 'Save Payment'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -210,10 +226,15 @@ export function InvoiceDetails() {
     Number.isFinite(invoiceId) ? invoiceId : undefined
   )
   const recordPayment = useRecordPayment()
-  const [paymentOpen, setPaymentOpen] = useState(false)
+  const updatePayment = useUpdatePayment()
+  const deletePayment = useDeletePayment()
+  const role = useAppSelector((state) => state.auth.user?.role)
+  const canManagePayments = role === 'owner' || role === 'admin'
 
-  const handleShare = () => toast.info('Sharing coming soon')
-  const handleExportPdf = () => toast.info('PDF export coming soon')
+  const [paymentOpen, setPaymentOpen] = useState(false)
+  const [editingPayment, setEditingPayment] = useState<InvoicePayment | null>(null)
+  const [menuFor, setMenuFor] = useState<InvoicePayment | null>(null)
+  const [deleteFor, setDeleteFor] = useState<InvoicePayment | null>(null)
 
   const handleRecordPayment = async (payment: {
     amount: number
@@ -235,6 +256,44 @@ export function InvoiceDetails() {
       toast.success('Payment recorded')
     } catch {
       toast.error('Failed to record payment.')
+    }
+  }
+
+  const handleEditPayment = async (payment: {
+    amount: number
+    date: string
+    mode: PaymentMode
+    notes: string | null
+  }) => {
+    if (!invoice || !editingPayment) return
+    try {
+      await updatePayment.mutateAsync({
+        invoiceId: invoice.id,
+        paymentId: editingPayment.id,
+        payment: {
+          amount: payment.amount,
+          date: payment.date,
+          mode: payment.mode,
+          notes: payment.notes,
+        },
+      })
+      toast.success('Payment updated')
+    } catch {
+      toast.error('Failed to update payment.')
+    }
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!invoice || !deleteFor) return
+    try {
+      await deletePayment.mutateAsync({
+        invoiceId: invoice.id,
+        paymentId: deleteFor.id,
+      })
+      toast.success('Payment deleted')
+      setDeleteFor(null)
+    } catch {
+      toast.error('Failed to delete payment.')
     }
   }
 
@@ -273,26 +332,6 @@ export function InvoiceDetails() {
               <h1 className="font-headline-lg text-headline-lg text-on-surface">
                 {invoice.invoiceNumber}
               </h1>
-            </div>
-            <div className="flex gap-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleShare}
-                className="h-12 gap-2 rounded border-outline-variant bg-surface-container-lowest px-4 font-label-md text-label-md text-primary hover:bg-surface-container-low"
-              >
-                <Share2 className="size-5" />
-                Share
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={handleExportPdf}
-                className="h-12 gap-2 rounded px-6 font-label-md text-label-md"
-              >
-                <FileText className="size-5" />
-                Export PDF
-              </Button>
             </div>
           </header>
 
@@ -476,12 +515,24 @@ export function InvoiceDetails() {
                           key={payment.id}
                           className="rounded border border-outline-variant bg-surface-container-lowest p-4 text-sm"
                         >
-                          <div className="mb-1 flex justify-between">
+                          <div className="mb-1 flex items-start justify-between gap-2">
                             <span className="font-label-md text-label-md font-bold text-on-surface">
                               {formatCurrency(payment.amount)}
                             </span>
-                            <span className="font-label-sm text-label-sm text-on-surface-variant">
-                              {formatDate(payment.date)}
+                            <span className="flex items-center gap-1">
+                              <span className="font-label-sm text-label-sm text-on-surface-variant">
+                                {formatDate(payment.date)}
+                              </span>
+                              {canManagePayments ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setMenuFor(payment)}
+                                  className="grid size-7 place-items-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
+                                  aria-label={`Actions for payment of ${formatCurrency(payment.amount)}`}
+                                >
+                                  <MoreVertical className="size-4" />
+                                </button>
+                              ) : null}
                             </span>
                           </div>
                           <div className="flex justify-between text-xs text-on-surface-variant">
@@ -502,12 +553,95 @@ export function InvoiceDetails() {
         </div>
       </main>
 
-      <RecordPaymentDialog
+      <PaymentDialog
         open={paymentOpen}
         onOpenChange={setPaymentOpen}
+        payment={null}
         dueAmount={invoice.due}
         onSave={handleRecordPayment}
       />
+
+      <PaymentDialog
+        open={editingPayment != null}
+        onOpenChange={(open) => {
+          if (!open) setEditingPayment(null)
+        }}
+        payment={editingPayment}
+        dueAmount={invoice.due}
+        onSave={handleEditPayment}
+      />
+
+      <AlertDialog
+        open={menuFor != null}
+        onOpenChange={(open) => {
+          if (!open) setMenuFor(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {menuFor ? formatCurrency(menuFor.amount) : 'Payment'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Choose an action for this payment.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="grid gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => {
+                const payment = menuFor
+                setMenuFor(null)
+                if (payment) setEditingPayment(payment)
+              }}
+            >
+              <Pencil className="size-4" />
+              Edit payment
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="w-full"
+              onClick={() => {
+                setDeleteFor(menuFor)
+                setMenuFor(null)
+              }}
+            >
+              <Trash2 className="size-4" />
+              Delete payment
+            </Button>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Close</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={deleteFor != null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteFor(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete payment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteFor
+                ? `This will remove the ${formatCurrency(deleteFor.amount)} payment recorded on ${formatDate(deleteFor.date)} and update the invoice balance. This action cannot be undone.`
+                : ''}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

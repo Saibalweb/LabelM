@@ -253,4 +253,36 @@ export const invoiceService = {
     if (error) throw new Error(error.message)
     return this.getById(invoiceId)
   },
+
+  async updatePayment(
+    invoiceId: number,
+    paymentId: number,
+    input: InvoicePaymentInput
+  ): Promise<Invoice | null> {
+    const { error } = await supabase
+      .from('invoice_payments')
+      .update({
+        amount: input.amount,
+        payment_date: input.date,
+        payment_mode: input.mode,
+        notes: input.notes ?? null,
+      })
+      .eq('id', paymentId)
+      .eq('invoice_id', invoiceId)
+    if (error) throw new Error(error.message)
+    return this.getById(invoiceId)
+  },
+
+  async deletePayment(
+    invoiceId: number,
+    paymentId: number
+  ): Promise<Invoice | null> {
+    const { error } = await supabase
+      .from('invoice_payments')
+      .delete()
+      .eq('id', paymentId)
+      .eq('invoice_id', invoiceId)
+    if (error) throw new Error(error.message)
+    return this.getById(invoiceId)
+  },
 }

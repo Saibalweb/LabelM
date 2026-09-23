@@ -227,3 +227,33 @@ export function useRecordPayment() {
     onSuccess: () => invalidateInvoiceData(queryClient),
   })
 }
+
+export function useUpdatePayment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      invoiceId,
+      paymentId,
+      payment,
+    }: {
+      invoiceId: number
+      paymentId: number
+      payment: InvoicePaymentInput
+    }) => invoiceService.updatePayment(invoiceId, paymentId, payment),
+    onSuccess: () => invalidateInvoiceData(queryClient),
+  })
+}
+
+export function useDeletePayment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      invoiceId,
+      paymentId,
+    }: {
+      invoiceId: number
+      paymentId: number
+    }) => invoiceService.deletePayment(invoiceId, paymentId),
+    onSuccess: () => invalidateInvoiceData(queryClient),
+  })
+}

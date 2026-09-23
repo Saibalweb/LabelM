@@ -20,11 +20,11 @@ import {
   useUnbilledLabelsQuery,
 } from '@/hooks/queries'
 import {
+  currentMonthValue,
   isValidRange,
   monthBounds,
   monthLabel,
   monthRangeLabel,
-  previousMonthValue,
   rangeLabel,
 } from '@/lib/period'
 import type { Customer } from '@/lib/types'
@@ -114,7 +114,7 @@ export function CreateInvoice() {
   const generate = useGenerateInvoice()
 
   const [periodMode, setPeriodMode] = useState<'month' | 'custom'>('month')
-  const [monthValue, setMonthValue] = useState(previousMonthValue())
+  const [monthValue, setMonthValue] = useState(currentMonthValue())
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
 

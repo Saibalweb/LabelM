@@ -27,7 +27,7 @@ import {
   monthRangeLabel,
   rangeLabel,
 } from '@/lib/period'
-import type { Customer } from '@/lib/types'
+import type { Customer, Label } from '@/lib/types'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -39,6 +39,8 @@ const steps = [
   { n: 2, label: 'Review Labels' },
   { n: 3, label: 'Confirm' },
 ]
+
+const EMPTY_LABELS: Label[] = []
 
 function toAmount(value: number): string {
   return value.toLocaleString('en-IN', {
@@ -153,7 +155,7 @@ export function CreateInvoice() {
     )
   }, [customers, customerQuery])
 
-  const { data: labels = [] } = useUnbilledLabelsQuery(
+  const { data: labels = EMPTY_LABELS } = useUnbilledLabelsQuery(
     {
       from: bounds?.from ?? '',
       to: bounds?.to ?? '',
@@ -163,7 +165,7 @@ export function CreateInvoice() {
   )
 
   const filteredLabels = useMemo(
-    () => (includeAll || !selectedCustomerId ? [] : labels),
+    () => (includeAll || !selectedCustomerId ? EMPTY_LABELS : labels),
     [includeAll, selectedCustomerId, labels]
   )
 

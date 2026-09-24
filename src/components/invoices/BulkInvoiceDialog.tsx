@@ -156,10 +156,14 @@ export function BulkInvoiceDialog({ open, onOpenChange }: BulkInvoiceDialogProps
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setMonthValue(previousMonthValue())}
+                onClick={() => {
+                  setMonthValue(previousMonthValue())
+                  setCustomFrom('')
+                  setCustomTo('')
+                }}
                 className={cn(
                   'h-11 rounded-lg border font-label-md text-label-md transition-colors',
-                  !customFrom
+                  monthValue !== ''
                     ? 'border-primary bg-primary-container text-on-primary-container'
                     : 'border-outline-variant hover:bg-surface-container-low'
                 )}
@@ -171,7 +175,7 @@ export function BulkInvoiceDialog({ open, onOpenChange }: BulkInvoiceDialogProps
                 onClick={() => setMonthValue('')}
                 className={cn(
                   'h-11 rounded-lg border font-label-md text-label-md transition-colors',
-                  customFrom
+                  monthValue === ''
                     ? 'border-primary bg-primary-container text-on-primary-container'
                     : 'border-outline-variant hover:bg-surface-container-low'
                 )}
@@ -180,7 +184,7 @@ export function BulkInvoiceDialog({ open, onOpenChange }: BulkInvoiceDialogProps
               </button>
             </div>
 
-            {!customFrom ? (
+            {monthValue !== '' ? (
               <div className="space-y-2">
                 <label className="flex items-center gap-2 font-label-sm text-label-sm tracking-wider text-on-surface-variant uppercase">
                   <CalendarDays className="size-4" />

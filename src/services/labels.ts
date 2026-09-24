@@ -48,6 +48,25 @@ function round2(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100
 }
 
+function sanitizeTerm(value: string): string {
+  return value
+    .replace(/[,()"\\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+async function matchingCustomerIds(term: string): Promise<number[]> {
+  const { data, error } = await supabase.from('customers').select('id').ilike('name', `%${term}%`)
+  if (error) throw new Error(error.message)
+  return (data ?? []).map((row) => (row as { id: number }).id)
+}
+
+async function resolveSearchIds(filters: LabelFilters): Promise<number[]> {
+  const q = sanitizeTerm(filters.query ?? '')
+  if (!q) return []
+  return matchingCustomerIds(q)
+}
+
 const sortColumn: Record<LabelSortKey, { column: string; ascending: boolean }> = {
   newest: { column: 'label_date', ascending: false },
   oldest: { column: 'label_date', ascending: true },
@@ -57,12 +76,16 @@ const sortColumn: Record<LabelSortKey, { column: string; ascending: boolean }> =
   'customer-asc': { column: 'customers(name)', ascending: true },
 }
 
-function buildListQuery(filters: LabelFilters = {}) {
+function buildListQuery(filters: LabelFilters = {}, matchingIds: number[] = []) {
   let query = supabase.from('labels').select(LABEL_COLUMNS, { count: 'exact' })
 
-  const q = filters.query?.trim()
+  const q = sanitizeTerm(filters.query ?? '')
   if (q) {
-    query = query.or(`sl_no.ilike.%${q}%,customers.name.ilike.%${q}%`)
+    // PostgREST's or() tree cannot parse ilike on the embedded customers.name
+    // column, so we OR on customer_id.in() using ids resolved beforehand.
+    const conditions = [`sl_no.ilike.%${q}%`]
+    if (matchingIds.length > 0) conditions.push(`customer_id.in.(${matchingIds.join(',')})`)
+    query = query.or(conditions.join(','))
   }
 
   if (filters.customerIds && filters.customerIds.length > 0) {
@@ -98,7 +121,8 @@ export const labelService = {
     { page = 1, pageSize = 25, sortBy = 'newest' }: Partial<LabelListParams> = {}
   ): Promise<LabelListResult> {
     const sort = sortColumn[sortBy]
-    let query = buildListQuery(filters)
+    const matchingIds = await resolveSearchIds(filters)
+    let query = buildListQuery(filters, matchingIds)
     query = query.order(sort.column, { ascending: sort.ascending })
     if (sort.column !== 'id') query = query.order('id', { ascending: false })
     query = query.range((page - 1) * pageSize, page * pageSize - 1)

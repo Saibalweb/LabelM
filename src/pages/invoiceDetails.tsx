@@ -88,7 +88,7 @@ interface PaymentDialogProps {
   }) => void
 }
 
-function PaymentDialog({
+export function PaymentDialog({
   open,
   onOpenChange,
   payment,

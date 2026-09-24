@@ -127,7 +127,7 @@ export function TopNav({
   const navigate = useNavigate()
 
   return (
-    <header className="z-10 flex h-14 shrink-0 items-center justify-between border-b border-outline-variant bg-surface px-4 lg:px-5">
+    <header className="z-40 flex h-14 shrink-0 items-center justify-between border-b border-outline-variant bg-surface px-4 lg:px-5">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         {backTo ? (
           <Button

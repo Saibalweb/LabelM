@@ -56,6 +56,7 @@ export function Customers() {
   const [priceOpen, setPriceOpen] = useState(false)
   const [priceCustomer, setPriceCustomer] = useState<Customer | null>(null)
   const [priceValue, setPriceValue] = useState('')
+  const [menuCustomer, setMenuCustomer] = useState<Customer | null>(null)
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -227,7 +228,12 @@ export function Customers() {
                           </Button>
                         </td>
                         <td className="p-4 text-center">
-                          <AlertDialog>
+                          <AlertDialog
+                            open={menuCustomer?.id === customer.id}
+                            onOpenChange={(open) => {
+                              if (!open) setMenuCustomer(null)
+                            }}
+                          >
                             <AlertDialogTrigger asChild>
                               <Button
                                 type="button"
@@ -235,13 +241,16 @@ export function Customers() {
                                 size="icon-sm"
                                 className="size-12 text-on-surface-variant hover:text-primary"
                                 aria-label={`Actions for ${customer.name}`}
+                                onClick={() => setMenuCustomer(customer)}
                               >
                                 <MoreVertical className="size-5" />
                               </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>{customer.name}</AlertDialogTitle>
+                                <AlertDialogTitle>
+                                  {menuCustomer?.name ?? customer.name}
+                                </AlertDialogTitle>
                                 <AlertDialogDescription>
                                   Choose an action for this customer.
                                 </AlertDialogDescription>
@@ -251,7 +260,10 @@ export function Customers() {
                                   type="button"
                                   variant="outline"
                                   className="w-full"
-                                  onClick={() => handleOpenEdit(customer)}
+                                  onClick={() => {
+                                    setMenuCustomer(null)
+                                    handleOpenEdit(customer)
+                                  }}
                                 >
                                   Edit customer
                                 </Button>
@@ -259,7 +271,10 @@ export function Customers() {
                                   type="button"
                                   variant="destructive"
                                   className="w-full"
-                                  onClick={() => handleDelete(customer)}
+                                  onClick={() => {
+                                    setMenuCustomer(null)
+                                    handleDelete(customer)
+                                  }}
                                 >
                                   Delete customer
                                 </Button>

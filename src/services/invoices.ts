@@ -163,6 +163,25 @@ function todayISO(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
+function sanitizeTerm(value: string): string {
+  return value
+    .replace(/[,()"\\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+async function matchingCustomerIds(term: string): Promise<number[]> {
+  const { data, error } = await supabase.from('customers').select('id').ilike('name', `%${term}%`)
+  if (error) throw new Error(error.message)
+  return (data ?? []).map((row) => (row as { id: number }).id)
+}
+
+async function resolveSearchIds(filters: InvoiceFilters): Promise<number[]> {
+  const q = sanitizeTerm(filters.query ?? '')
+  if (!q) return []
+  return matchingCustomerIds(q)
+}
+
 const sortColumn: Record<InvoiceSortKey, { column: string; ascending: boolean }> = {
   newest: { column: 'created_at', ascending: false },
   oldest: { column: 'created_at', ascending: true },
@@ -170,12 +189,16 @@ const sortColumn: Record<InvoiceSortKey, { column: string; ascending: boolean }>
   'amount-asc': { column: 'total_amount', ascending: true },
 }
 
-function buildListQuery(filters: InvoiceFilters = {}) {
+function buildListQuery(filters: InvoiceFilters = {}, matchingIds: number[] = []) {
   let query = supabase.from('invoices').select(LIST_COLUMNS, { count: 'exact' })
 
-  const q = filters.query?.trim()
+  const q = sanitizeTerm(filters.query ?? '')
   if (q) {
-    query = query.or(`invoice_number.ilike.%${q}%,customers.name.ilike.%${q}%`)
+    // PostgREST's or() tree cannot parse ilike on the embedded customers.name
+    // column, so we OR on customer_id.in() using ids resolved beforehand.
+    const conditions = [`invoice_number.ilike.%${q}%`]
+    if (matchingIds.length > 0) conditions.push(`customer_id.in.(${matchingIds.join(',')})`)
+    query = query.or(conditions.join(','))
   }
 
   if (filters.statuses && filters.statuses.length > 0) {
@@ -201,7 +224,8 @@ function buildListQuery(filters: InvoiceFilters = {}) {
 
 export const invoiceService = {
   async list(filters: InvoiceFilters = {}): Promise<Invoice[]> {
-    let query = buildListQuery(filters).order('created_at', { ascending: false })
+    const matchingIds = await resolveSearchIds(filters)
+    let query = buildListQuery(filters, matchingIds).order('created_at', { ascending: false })
 
     const { data, error } = await query
     if (error) throw new Error(error.message)
@@ -213,7 +237,8 @@ export const invoiceService = {
     { page = 1, pageSize = 25, sortBy = 'newest' }: Partial<InvoiceListParams> = {}
   ): Promise<InvoiceListResult> {
     const sort = sortColumn[sortBy]
-    let query = buildListQuery(filters)
+    const matchingIds = await resolveSearchIds(filters)
+    let query = buildListQuery(filters, matchingIds)
     query = query.order(sort.column, { ascending: sort.ascending })
     if (sort.column !== 'id') query = query.order('id', { ascending: false })
     query = query.range((page - 1) * pageSize, page * pageSize - 1)

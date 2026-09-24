@@ -25,3 +25,9 @@ dist-ssr
 
 .env
 .env.local
+.env.staging
+
+# Test artifacts
+test-results
+playwright-report
+coverage

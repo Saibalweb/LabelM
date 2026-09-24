@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { ArrowRight, Eye, EyeOff, Info, KeyRound, Link2, Mail } from 'lucide-react'
 import { AuthLayout } from '@/components/auth/AuthLayout'
 import { TextField } from '@/components/auth/TextField'
 import { Button } from '@/components/ui/button'
 import { authService } from '@/services/auth'
 import { useAppSelector } from '@/store/hooks'
+import { TRIAL_MODE } from '@/lib/env'
 
 const DEFAULT_ERROR = 'Unable to sign in. Please try again.'
 
@@ -50,6 +52,10 @@ export function Login() {
   }
 
   async function handleMagicLink() {
+    if (TRIAL_MODE) {
+      toast.info('Magic link is available in the final delivery.')
+      return
+    }
     if (!email.trim()) {
       setError('Enter your work email first to receive a magic link.')
       return
@@ -119,6 +125,12 @@ export function Login() {
           </label>
           <Link
             to="/forgot-password"
+            onClick={(e) => {
+              if (TRIAL_MODE) {
+                e.preventDefault()
+                toast.info('Password reset is available in the final delivery.')
+              }
+            }}
             className="font-label-md text-label-md font-semibold text-primary hover:underline"
           >
             Forgot password?

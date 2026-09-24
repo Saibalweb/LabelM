@@ -17,6 +17,8 @@ import { Dues } from '@/pages/dues'
 import { InvoiceDetails } from '@/pages/invoiceDetails'
 import { Settings } from '@/pages/settings'
 import { Team } from '@/pages/team'
+import { ComingSoon } from '@/components/ui/coming-soon'
+import { TRIAL_MODE } from '@/lib/env'
 
 function App() {
   return (
@@ -55,7 +57,14 @@ function App() {
           path="/team"
           element={
             <RequireRole role="admin">
-              <Team />
+              {TRIAL_MODE ? (
+                <ComingSoon
+                  title="Team management"
+                  description="Inviting teammates and managing roles is coming in the final delivery."
+                />
+              ) : (
+                <Team />
+              )}
             </RequireRole>
           }
         />

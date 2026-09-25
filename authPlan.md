@@ -13,6 +13,10 @@ invited company members can authenticate. Backend: Supabase (Auth + Postgres + R
 - Tenancy: **single company**.
 - Deletes: **soft-delete only** (`deleted_at` / `deleted_by`); lists filter active.
 - Staff: can view all invoices, record payments, view dues/totals.
+- **Staff cannot delete customers** — soft-delete is owner/admin only via the
+  `soft_delete_customer` RPC. Once a customer is archived, ALL of their labels,
+  invoices, payments and dues are hidden from every screen until an owner/admin
+  restores them (`restore_customer` RPC).
 - Admin creation: **owner-only**.
 - History: **no audit log for v1** — use per-record `created_by` / `updated_by` /
   `updated_at` / `deleted_by` instead. (Audit log is a future add-on.)
@@ -26,8 +30,8 @@ invited company members can authenticate. Backend: Supabase (Auth + Postgres + R
 | Generate invoices (single + bulk) | ✓ | ✓ | ✗ |
 | View all invoices | ✓ | ✓ | ✓ |
 | Record payments / view dues & totals | ✓ | ✓ | ✓ |
-| Soft-delete (archive) records | ✓ | ✓ | ✓ |
-| Restore archived records | ✓ | ✓ | ✗ |
+| Soft-delete (archive) customers | ✓ | ✓ | ✗ |
+| Restore archived customers | ✓ | ✓ | ✗ |
 | Permanently purge archived | ✓ | ✗ | ✗ |
 | Company settings (tax, branding, numbering) | ✓ | ✓ | ✗ |
 | Invite/remove staff | ✓ | ✓ | ✗ |
@@ -99,6 +103,15 @@ Notes:
   `owner_update_member_role`, `owner_purge_member`). Inserts happen only via the
   invite Edge Function (service role).
 - Soft-delete: default queries filter `deleted_at IS NULL`.
+- Customer soft-delete is owner/admin only, via `soft_delete_customer` (SECURITY
+  DEFINER RPC — plain table updates can no longer set `deleted_at`; direct hard
+  deletes are owner/admin too).
+- Deleted customers are invisible to everyone: their labels / invoices / payments
+  SELECT policies require the customer's `deleted_at IS NULL`, so history and
+  unpaid dues stay hidden (data preserved, never erased).
+- Owner/admin can list archived customers (`list_deleted_customers`) and restore
+  them (`restore_customer`, clears `deleted_at`/`deleted_by`) — both SECURITY
+  DEFINER RPCs gated to `get_my_role() in ('owner', 'admin')`.
 - Restore: admin+; purge: owner-only via RPC.
 
 ## 8. Frontend Architecture

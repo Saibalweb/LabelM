@@ -126,8 +126,31 @@ export function useDeleteCustomer() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => customerService.remove(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.customers }),
+    onSuccess: () => invalidateCustomerHistoryData(queryClient),
   })
+}
+
+export function useDeletedCustomersQuery(enabled = true) {
+  return useQuery({
+    queryKey: [...queryKeys.customers, 'deleted'],
+    queryFn: () => customerService.listDeleted(),
+    enabled,
+    staleTime: LIST_STALE_TIME,
+  })
+}
+
+export function useRestoreCustomer() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => customerService.restore(id),
+    onSuccess: () => invalidateCustomerHistoryData(queryClient),
+  })
+}
+
+function invalidateCustomerHistoryData(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: queryKeys.customers })
+  queryClient.invalidateQueries({ queryKey: queryKeys.labels })
+  queryClient.invalidateQueries({ queryKey: queryKeys.invoices })
 }
 
 export function useSetCustomerRate() {

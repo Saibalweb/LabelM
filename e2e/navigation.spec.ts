@@ -17,7 +17,9 @@ test('visits every core route as an authenticated owner', async ({ page }) => {
   ]
   for (const [path, heading] of routes) {
     await page.goto(path)
-    await expect(page.getByRole('main').getByRole('heading', { name: heading })).toBeVisible()
+    await expect(
+      page.getByRole('main').getByRole('heading', { name: heading, exact: true })
+    ).toBeVisible()
   }
 })
 

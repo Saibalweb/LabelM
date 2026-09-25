@@ -28,7 +28,7 @@ test('label lifecycle: create → preview → edit → print', async ({ page }) 
   await expect(page.getByText('₹1,000.00')).toBeVisible()
   await page.getByRole('button', { name: 'Save Changes' }).click()
   await expect(page.getByText('Label updated')).toBeVisible()
-  await expect(page.getByText('₹1,000.00')).toBeVisible()
+  await expect(page.locator('#printLabel')).toContainText('₹1,000.00')
 
   // Print flips draft → printed (PATCH to /labels)
   const patchRequest = page.waitForRequest(

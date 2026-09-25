@@ -1,6 +1,15 @@
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Users } from 'lucide-react'
+import {
+  ChevronLeft,
+  ChevronRight,
+  MoreVertical,
+  Pencil,
+  Plus,
+  TriangleAlert,
+  Undo2,
+  Users,
+} from 'lucide-react'
 import { TopNav, MobileSearchBar } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -30,11 +39,15 @@ import {
   useAddCustomer,
   useCustomersQuery,
   useDeleteCustomer,
+  useDeletedCustomersQuery,
+  useRestoreCustomer,
   useSetCustomerRate,
   useUpdateCustomer,
 } from '@/hooks/queries'
-import { formatCurrency } from '@/lib/format'
-import type { Customer, CustomerInput } from '@/lib/types'
+import { useAppSelector } from '@/store/hooks'
+import { hasRole } from '@/lib/roles'
+import { formatCurrency, formatDateTime } from '@/lib/format'
+import type { Customer, CustomerInput, DeletedCustomer } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 const avatarStyles = [
@@ -49,7 +62,11 @@ export function Customers() {
   const addCustomer = useAddCustomer()
   const updateCustomer = useUpdateCustomer()
   const deleteCustomer = useDeleteCustomer()
+  const restoreCustomer = useRestoreCustomer()
   const setCustomerRate = useSetCustomerRate()
+  const role = useAppSelector((state) => state.auth.user?.role)
+  const canManage = hasRole(role, 'admin')
+  const { data: deletedItems = [] } = useDeletedCustomersQuery(canManage)
   const [query, setQuery] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Customer | null>(null)
@@ -57,6 +74,7 @@ export function Customers() {
   const [priceCustomer, setPriceCustomer] = useState<Customer | null>(null)
   const [priceValue, setPriceValue] = useState('')
   const [menuCustomer, setMenuCustomer] = useState<Customer | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null)
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -96,6 +114,17 @@ export function Customers() {
     try {
       await deleteCustomer.mutateAsync(customer.id)
       toast.success('Customer deleted')
+    } catch {
+      toast.error('Something went wrong')
+    } finally {
+      setDeleteTarget(null)
+    }
+  }
+
+  const handleRestore = async (customer: DeletedCustomer) => {
+    try {
+      await restoreCustomer.mutateAsync(customer.id)
+      toast.success(`Customer #${customer.id} restored`)
     } catch {
       toast.error('Something went wrong')
     }
@@ -267,17 +296,20 @@ export function Customers() {
                                 >
                                   Edit customer
                                 </Button>
-                                <Button
-                                  type="button"
-                                  variant="destructive"
-                                  className="w-full"
-                                  onClick={() => {
-                                    setMenuCustomer(null)
-                                    handleDelete(customer)
-                                  }}
-                                >
-                                  Delete customer
-                                </Button>
+                                {canManage ? (
+                                  <Button
+                                    type="button"
+                                    variant="destructive"
+                                    className="w-full gap-2"
+                                    onClick={() => {
+                                      setMenuCustomer(null)
+                                      setDeleteTarget(customer)
+                                    }}
+                                  >
+                                    <TriangleAlert className="size-4" />
+                                    Delete customer
+                                  </Button>
+                                ) : null}
                               </div>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Close</AlertDialogCancel>
@@ -318,6 +350,73 @@ export function Customers() {
             </div>
           </div>
           )}
+
+          {canManage ? (
+            <div className="mt-8">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="flex items-center gap-2 font-headline-md text-headline-md text-on-surface">
+                  <TriangleAlert className="size-5 text-destructive" />
+                  Deleted customers
+                </h3>
+                <span className="font-label-md text-label-md text-on-surface-variant">
+                  {deletedItems.length > 0 ? `${deletedItems.length} archived` : ''}
+                </span>
+              </div>
+              {deletedItems.length === 0 ? (
+                <p className="font-body-sm text-body-sm text-on-surface-variant">
+                  No deleted customers. Deleted customers and their full history can be restored
+                  from here.
+                </p>
+              ) : (
+                <div className="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm">
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-left">
+                      <thead>
+                        <tr className="border-b border-surface-variant bg-surface-container-low font-label-sm text-label-sm text-on-surface-variant">
+                          <th className="w-16 p-4 font-medium">#</th>
+                          <th className="min-w-[200px] p-4 font-medium">Customer Name</th>
+                          <th className="min-w-[140px] p-4 font-medium">Phone</th>
+                          <th className="min-w-[160px] p-4 font-medium">Deleted on</th>
+                          <th className="min-w-[140px] p-4 font-medium">Deleted by</th>
+                          <th className="w-28 p-4 text-right font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-surface-variant font-body-md text-body-md text-on-surface">
+                        {deletedItems.map((customer) => (
+                          <tr key={customer.id} className="group h-16 transition-colors hover:bg-surface-bright">
+                            <td className="p-4">
+                              <span className="inline-flex size-8 items-center justify-center rounded-full bg-secondary-container font-label-md text-label-md font-bold text-on-secondary-container">
+                                {customer.id}
+                              </span>
+                            </td>
+                            <td className="p-4 font-medium">{customer.name}</td>
+                            <td className="p-4 text-on-surface-variant">{customer.phone || '—'}</td>
+                            <td className="p-4 text-on-surface-variant">
+                              {formatDateTime(customer.deleted_at)}
+                            </td>
+                            <td className="p-4 text-on-surface-variant">
+                              {customer.deleted_by_name || '—'}
+                            </td>
+                            <td className="p-4 text-right">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="h-9 gap-2 rounded border-outline-variant px-3 font-label-md text-label-md text-on-surface hover:bg-surface-container"
+                                onClick={() => handleRestore(customer)}
+                              >
+                                <Undo2 className="size-4 text-primary" />
+                                Restore
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null}
 
         </div>
       </main>
@@ -365,6 +464,66 @@ export function Customers() {
             </DialogClose>
             <Button type="button" onClick={handleSavePrice}>
               Save Rate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={deleteTarget != null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <TriangleAlert className="size-5" />
+              Delete customer?
+            </DialogTitle>
+            <DialogDescription>
+              {deleteTarget
+                ? `&ldquo;${deleteTarget.name}&rdquo; (#${deleteTarget.id}) will be archived.`
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4">
+            <ul className="space-y-2.5 font-body-sm text-body-sm text-on-surface">
+              <li className="flex gap-2">
+                <span className="text-destructive">•</span>
+                Removed from the customer list immediately.
+              </li>
+              <li className="flex gap-2">
+                <span className="text-destructive">•</span>
+                All labels, invoices, payments and unpaid dues for this customer become hidden
+                from every screen.
+              </li>
+              <li className="flex gap-2">
+                <span className="text-destructive">•</span>
+                No data is erased — every record stays preserved in the database.
+              </li>
+            </ul>
+          </div>
+          <p className="flex items-center gap-2 font-body-sm text-body-sm text-on-surface-variant">
+            <Undo2 className="size-4 shrink-0" />
+            Only an owner or admin can restore this customer and its full history.
+          </p>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button
+              type="button"
+              variant="destructive"
+              className="gap-2"
+              onClick={() => {
+                if (deleteTarget) handleDelete(deleteTarget)
+              }}
+            >
+              <TriangleAlert className="size-4" />
+              Delete customer
             </Button>
           </DialogFooter>
         </DialogContent>

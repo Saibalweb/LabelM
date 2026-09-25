@@ -299,7 +299,7 @@ describe('customerService.update', () => {
   })
 })
 
-describe('customerService.remove / restore', () => {
+describe('customerService.remove / restore / listDeleted', () => {
   it('soft-deletes via the soft_delete_customer RPC', async () => {
     supabaseMock.rpc.mockResolvedValue({ data: null, error: null })
 
@@ -310,14 +310,55 @@ describe('customerService.remove / restore', () => {
     })
   })
 
-  it('restores by clearing deleted_at', async () => {
-    const { query, calls } = createChain(() => ({ data: null, error: null }))
-    supabaseMock.from.mockReturnValue(query)
+  it('restores via the restore_customer RPC', async () => {
+    supabaseMock.rpc.mockResolvedValue({ data: null, error: null })
 
     await customerService.restore(7)
 
-    const updateArgs = calls.find((c) => c.method === 'update')?.args[0] as Record<string, unknown>
-    expect(updateArgs.deleted_at).toBeNull()
-    expect(calls.filter((c) => c.method === 'eq').map((c) => c.args)).toContainEqual(['id', 7])
+    expect(supabaseMock.rpc).toHaveBeenCalledWith('restore_customer', {
+      p_customer_id: 7,
+    })
+  })
+
+  it('lists deleted customers via the list_deleted_customers RPC', async () => {
+    supabaseMock.rpc.mockResolvedValue({
+      data: [
+        {
+          id: 7,
+          name: 'Acme Trading',
+          address: null,
+          phone: '123',
+          email: null,
+          gst_number: null,
+          deleted_at: '2026-09-25T10:00:00Z',
+          deleted_by: 'u1',
+          deleted_by_name: 'Saibal Kole',
+        },
+      ],
+      error: null,
+    })
+
+    const customers = await customerService.listDeleted()
+
+    expect(supabaseMock.rpc).toHaveBeenCalledWith('list_deleted_customers')
+    expect(customers).toEqual([
+      {
+        id: 7,
+        name: 'Acme Trading',
+        address: null,
+        phone: '123',
+        email: null,
+        gst_number: null,
+        deleted_at: '2026-09-25T10:00:00Z',
+        deleted_by: 'u1',
+        deleted_by_name: 'Saibal Kole',
+      },
+    ])
+  })
+
+  it('throws when an RPC fails', async () => {
+    supabaseMock.rpc.mockResolvedValue({ data: null, error: new Error('fail') })
+
+    await expect(customerService.restore(7)).rejects.toThrow('fail')
   })
 })

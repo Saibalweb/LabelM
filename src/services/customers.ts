@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { pricesService } from '@/services/prices'
-import type { Customer, CustomerInput } from '@/lib/types'
+import type { Customer, CustomerInput, DeletedCustomer } from '@/lib/types'
 
 interface CustomerRow {
   id: number
@@ -12,6 +12,18 @@ interface CustomerRow {
   created_at: string
   updated_at: string
   customer_prices: Array<{ effective_from: string; effective_to: string | null; rate: number }>
+}
+
+interface DeletedCustomerRow {
+  id: number
+  name: string
+  address: string | null
+  phone: string | null
+  email: string | null
+  gst_number: string | null
+  deleted_at: string
+  deleted_by: string | null
+  deleted_by_name: string | null
 }
 
 function currentRateOf(row: CustomerRow): number | null {
@@ -156,10 +168,25 @@ export const customerService = {
   },
 
   async restore(id: number): Promise<void> {
-    const { error } = await supabase
-      .from('customers')
-      .update({ deleted_at: null })
-      .eq('id', id)
+    const { error } = await supabase.rpc('restore_customer', { p_customer_id: id })
     if (error) throw new Error(error.message)
+  },
+
+  async listDeleted(): Promise<DeletedCustomer[]> {
+    const { data, error } = await supabase.rpc('list_deleted_customers')
+    if (error) throw new Error(error.message)
+    return (data ?? []).map((row: DeletedCustomerRow) => {
+      return {
+        id: row.id,
+        name: row.name,
+        address: row.address,
+        phone: row.phone,
+        email: row.email,
+        gst_number: row.gst_number,
+        deleted_at: row.deleted_at,
+        deleted_by: row.deleted_by,
+        deleted_by_name: row.deleted_by_name,
+      }
+    })
   },
 }

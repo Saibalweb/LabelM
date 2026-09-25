@@ -23,7 +23,7 @@ test('redirects a logged-out visitor to /login and preserves the from path', asy
   await page.getByLabel('Password', { exact: true }).fill('ChangeMe123!')
   await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page).toHaveURL(/\/customers/)
-  await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Customers', exact: true })).toBeVisible()
 })
 
 test('logs out and returns to the login page', async ({ page }) => {

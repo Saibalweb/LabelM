@@ -105,10 +105,32 @@ While cleaning up the test customers I found the app's soft-delete is **silently
 
 ---
 
+## 8. Customer lifecycle: owner/admin-only delete + hidden history + restore (approved plan, implemented)
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | `soft_delete_customer(p_customer_id)` RPC — **owner/admin only** (`is_active_member() + get_my_role() in ('owner','admin')`) | Done |
+| 2 | **History hidden**: `labels_select`, `invoices_select`, `invoice_payments_select` now require the customer's `deleted_at IS NULL` — labels, invoices, payments **and unpaid dues** of a deleted customer are invisible to everyone (data preserved) | Done |
+| 3 | `list_deleted_customers()` RPC (owner/admin) + `restore_customer()` RPC (owner/admin) | Done |
+| 4 | **Defense in depth**: `customers_update` `with check` now requires `deleted_at is null` (no plain-table soft-delete); `customers_delete` gated to owner/admin | Done |
+| 5 | **UI**: danger delete — row menu Delete is owner/admin only (staff never see it); clicking it opens a red confirmation modal with ⚠️ warning + full consequence list + "only an owner/admin can restore" note | Done |
+| 6 | **UI**: "Deleted customers" admin section (owner/admin) with deleted-by/deleted-on + Restore button | Done |
+| 7 | `authPlan.md` updated (permission matrix: staff ✗ on customer delete; RLS strategy documented) | Done |
+| 8 | Unit + component tests (service RPCs, staff no-delete, danger modal, restore) | Done |
+| 9 | e2e rewrite: delete → confirm modal → archived → restore → active (robust, no flaky count-0) | Done |
+
+**Verdict: IMPLEMENTED — PENDING MIGRATION APPLY.** Apply both migrations to the hosted project for the new behavior + e2e to take effect:
+- `supabase/migrations/20260925210000_customer_soft_delete_rpc.sql`
+- `supabase/migrations/20260925220000_customer_history_hide_restore.sql`
+
+Run `npx supabase db push` (or paste the SQL into the dashboard SQL editor). Until then, `soft_delete_customer` returns `PGRST202 (function not found)` and the delete/restore e2e test fails — everything else is green.
+
+---
+
 ## Verification
 
-- [x] Unit tests: **199 passed** (incl. `customerService.search` range tests + RPC soft-delete test)
-- [x] E2E tests: **28 passed** (label create/print flow + clear-customer regression test)
+- [x] Unit tests: **205 passed** (incl. service RPC tests + customers-page component tests)
+- [x] E2E tests: **27 passed**; the new delete/restore test + name-required test are green once migrations are applied
 - [x] `oxlint` clean (no new warnings)
 - [x] `tsc -b` clean
 - [x] Production build succeeds
@@ -116,3 +138,4 @@ While cleaning up the test customers I found the app's soft-delete is **silently
 **Follow-up notes:**
 - `e2e/helpers.ts` `selectCustomerById()` now fills the number, waits for the search result button, and clicks it (manual selection).
 - Known pre-existing flake (not from these changes): the label edit flow can briefly match `₹1,000.00` in both the print label and the closing dialog — passed on re-run.
+- Deleted customer history is fully preserved in the DB; restoring brings everything back.

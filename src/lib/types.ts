@@ -82,6 +82,18 @@ export interface Customer {
   updated_at: string
 }
 
+export interface DeletedCustomer {
+  id: number
+  name: string
+  address: string | null
+  phone: string | null
+  email: string | null
+  gst_number: string | null
+  deleted_at: string
+  deleted_by: string | null
+  deleted_by_name: string | null
+}
+
 export type CustomerInput = Omit<
   Customer,
   'id' | 'currentRate' | 'created_at' | 'updated_at'

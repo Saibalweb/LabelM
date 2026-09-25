@@ -8,8 +8,8 @@
 --     row, so the operation is rejected even for active members.
 --   * This RPC runs as the function owner (which bypasses RLS) and performs the
 --     same soft-delete, so members can mark customers deleted without loosening
---     the read policy. Authorization is enforced explicitly via
---     is_active_member().
+--     the read policy. Authorization is enforced explicitly:
+--     owner/admin only (staff must never delete customers).
 
 create or replace function public.soft_delete_customer(p_customer_id integer)
 returns void
@@ -18,7 +18,7 @@ security definer
 set search_path = public
 as $$
 begin
-  if not public.is_active_member() then
+  if not public.is_active_member() or public.get_my_role() not in ('owner', 'admin') then
     raise exception 'not authorized' using errcode = '42501';
   end if;
 

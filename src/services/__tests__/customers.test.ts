@@ -162,6 +162,46 @@ describe('customerService.search', () => {
 
     await expect(customerService.search('Acme')).rejects.toThrow('fail')
   })
+
+  it('clamps the final range to INT4_MAX when the exclusive upper bound would overflow', async () => {
+    const { query, calls } = createChain(() => ({ data: [], error: null }))
+    supabaseMock.from.mockReturnValue(query)
+
+    await customerService.search('2')
+
+    const orCondition = calls.find((c) => c.method === 'or')?.args[0] as string
+    expect(orCondition).toBe(
+      [
+        'and(id.gte.2,id.lt.3)',
+        'and(id.gte.20,id.lt.30)',
+        'and(id.gte.200,id.lt.300)',
+        'and(id.gte.2000,id.lt.3000)',
+        'and(id.gte.20000,id.lt.30000)',
+        'and(id.gte.200000,id.lt.300000)',
+        'and(id.gte.2000000,id.lt.3000000)',
+        'and(id.gte.20000000,id.lt.30000000)',
+        'and(id.gte.200000000,id.lt.300000000)',
+        'and(id.gte.2000000000,id.lte.2147483647)',
+      ].join(',')
+    )
+  })
+
+  it('never emits a literal outside the int4 range for prefixes 1..200', async () => {
+    const { query, calls } = createChain(() => ({ data: [], error: null }))
+    supabaseMock.from.mockReturnValue(query)
+
+    for (let i = 1; i <= 200; i++) {
+      calls.length = 0
+      await customerService.search(String(i))
+      const orCondition = calls.find((c) => c.method === 'or')?.args[0] as string
+      const literals = orCondition.match(/\d+/g)?.map(Number) ?? []
+      expect(literals.length).toBeGreaterThan(0)
+      for (const literal of literals) {
+        expect(literal).toBeGreaterThanOrEqual(0)
+        expect(literal).toBeLessThanOrEqual(2_147_483_647)
+      }
+    }
+  })
 })
 
 describe('customerService.create', () => {
@@ -260,16 +300,14 @@ describe('customerService.update', () => {
 })
 
 describe('customerService.remove / restore', () => {
-  it('soft-deletes by setting deleted_at', async () => {
-    const { query, calls } = createChain(() => ({ data: null, error: null }))
-    supabaseMock.from.mockReturnValue(query)
+  it('soft-deletes via the soft_delete_customer RPC', async () => {
+    supabaseMock.rpc.mockResolvedValue({ data: null, error: null })
 
     await customerService.remove(7)
 
-    const updateArgs = calls.find((c) => c.method === 'update')?.args[0] as Record<string, unknown>
-    expect(typeof updateArgs.deleted_at).toBe('string')
-    const eqCalls = calls.filter((c) => c.method === 'eq').map((c) => c.args)
-    expect(eqCalls).toContainEqual(['id', 7])
+    expect(supabaseMock.rpc).toHaveBeenCalledWith('soft_delete_customer', {
+      p_customer_id: 7,
+    })
   })
 
   it('restores by clearing deleted_at', async () => {

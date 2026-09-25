@@ -30,6 +30,8 @@ const INT4_MAX = 2_147_483_647
 // Matches ids whose decimal form starts with `prefix`, e.g. "12" covers
 // 12, 120–129, 1200–1299, ... PostgREST cannot cast to text in a filter, so
 // we express the prefix as a set of [n*10^k, (n+1)*10^k) integer ranges.
+// The final range is clamped to INT4_MAX when the exclusive upper bound would
+// overflow the int4 column type (e.g. prefix "2" → [2_000_000_000, 2_147_483_647]).
 function idPrefixRangeConditions(prefix: string): string[] {
   const base = Number(prefix)
   if (!Number.isFinite(base) || base < 0) return []
@@ -40,6 +42,10 @@ function idPrefixRangeConditions(prefix: string): string[] {
     const lower = base * pow
     if (lower > INT4_MAX) break
     const upper = (base + 1) * pow
+    if (upper > INT4_MAX) {
+      conditions.push(`and(id.gte.${lower},id.lte.${INT4_MAX})`)
+      break
+    }
     conditions.push(`and(id.gte.${lower},id.lt.${upper})`)
   }
   return conditions
@@ -145,11 +151,7 @@ export const customerService = {
   },
 
   async remove(id: number): Promise<void> {
-    const { error } = await supabase
-      .from('customers')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', id)
-      .is('deleted_at', null)
+    const { error } = await supabase.rpc('soft_delete_customer', { p_customer_id: id })
     if (error) throw new Error(error.message)
   },
 

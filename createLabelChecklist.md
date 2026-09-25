@@ -72,10 +72,43 @@ Page: **Create Label (`/create`)** — reviewed & fixed on 2026-09-25.
 
 ---
 
+## 6. Numeric id search crashed for short prefixes (int4 overflow) — FIXED
+
+**Reported:** searching `2` / `21` in the customer search failed with
+`{"code":"22003","message":"value \"3000000000\" is out of range for type integer"}`.
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | Root cause: `idPrefixRangeConditions("2")` generated `id.lt.3000000000` — only `lower` was guarded against the int4 max, the exclusive `upper` overflowed | Confirmed |
+| 2 | Final range is now clamped to `id.lte.2147483647` when the exclusive bound would overflow int4 | Done |
+| 3 | Unit test asserts exact conditions for `"2"` and verifies **every literal stays within int4 bounds for prefixes 1..200** | Done |
+| 4 | **Live verification:** created 200 customers against the hosted Supabase, ran every numeric id search (all 200) + spot-checked `2`/`21` — all resolved, no overflow | Verified |
+| 5 | All 200+ test customers created for verification were **hard-deleted** (cleanup complete) | Done |
+
+**Verdict: FIXED** — numeric search now resolves for all real id prefixes.
+
+---
+
+## 7. Pre-existing bug discovered: "Delete customer" never actually deletes (RLS)
+
+While cleaning up the test customers I found the app's soft-delete is **silently broken**:
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | Symptom: clicking "Delete customer" makes the row vanish in the UI, but the row is **never deleted server-side** (every "deleted" customer still has `deleted_at = null`) | Confirmed |
+| 2 | Root cause: `UPDATE ... SET deleted_at` returns **403/42501 "new row violates row-level security policy"**. PostgREST's UPDATE read-back is subject to the `customers_select` policy (`deleted_at is null`), which can never pass for the just-soft-deleted row | Root-caused |
+| 3 | The `customers.spec.ts` "soft-delete" assertion was a **false-pass flake** (it matched the table's loading/skeleton state during a refetch, not an actual deletion) | Confirmed |
+| 4 | Fix prepared: `soft_delete_customer(int)` SECURITY DEFINER RPC (new migration `supabase/migrations/20260925210000_customer_soft_delete_rpc.sql`) + `customerService.remove()` now calls it | Done |
+| 5 | Apply the migration to the hosted project for the fix to take effect: `npx supabase db push` (or run the SQL in the dashboard SQL editor) | **Pending — needs you to apply** |
+
+**Verdict: FIX PREPARED, NOT YET ACTIVE** — the code + migration are ready; the migration must be applied to the hosted Supabase project. Until then, "deleted" customers keep accumulating (including the ~40 `E2E Cust`/`E2E Label Cust` rows left by the e2e runs, which were never actually deleted).
+
+---
+
 ## Verification
 
-- [x] Unit tests: **197 passed** (incl. new `customerService.search` tests)
-- [x] E2E tests: **28 passed** (incl. label create/print flow + clear-customer regression test)
+- [x] Unit tests: **199 passed** (incl. `customerService.search` range tests + RPC soft-delete test)
+- [x] E2E tests: **28 passed** (label create/print flow + clear-customer regression test)
 - [x] `oxlint` clean (no new warnings)
 - [x] `tsc -b` clean
 - [x] Production build succeeds

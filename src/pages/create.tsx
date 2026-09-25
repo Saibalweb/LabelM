@@ -131,8 +131,15 @@ export function Create() {
           </div>
 
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-            <div className="space-y-6 rounded-xl border border-surface-container-highest bg-surface-container-lowest p-6 shadow-sm lg:col-span-2">
-              <div className="relative">
+            <div className="space-y-6 self-start rounded-xl border border-surface-container-highest bg-surface-container-lowest p-6 shadow-sm lg:col-span-2">
+              <div
+                className="relative"
+                onBlur={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                    setShowCustomerList(false)
+                  }
+                }}
+              >
                 <FormLabel className="mb-2 block font-label-md text-label-md text-on-surface-variant">
                   Customer by number
                 </FormLabel>
@@ -146,7 +153,6 @@ export function Create() {
                     value={customerQuery}
                     onChange={(e) => handleCustomerInput(e.target.value)}
                     onFocus={() => setShowCustomerList(true)}
-                    onBlur={() => setTimeout(() => setShowCustomerList(false), 150)}
                     placeholder="Press customer number (e.g. 1)"
                     className={cn(inputClasses, 'pl-12')}
                   />
@@ -164,6 +170,7 @@ export function Create() {
                       variant="ghost"
                       size="icon-xs"
                       aria-label="Clear customer"
+                      tabIndex={-1}
                       onClick={() => {
                         update({ customer: null })
                         setCustomerQuery('')
@@ -217,6 +224,7 @@ export function Create() {
                           type="button"
                           variant="destructive"
                           size="sm"
+                          tabIndex={-1}
                           className="self-start"
                           onClick={() => navigate('/customers')}
                         >
@@ -305,10 +313,26 @@ export function Create() {
                       value={draft.weight}
                       onChange={(e) => update({ weight: e.target.value })}
                       placeholder="0.00"
-                      className={cn(inputClasses, 'pr-12 font-label-md text-label-md')}
+                      className={cn(
+                        inputClasses,
+                        'h-16 pr-12 font-headline-lg text-headline-lg font-bold'
+                      )}
                     />
                     <span className="absolute top-1/2 right-4 -translate-y-1/2 font-label-md text-label-md text-on-surface-variant">
                       kg
+                    </span>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between rounded-lg border border-outline-variant bg-surface-container-low px-4 py-2.5">
+                    <span className="font-body-sm text-body-sm text-on-surface-variant">
+                      Amount
+                    </span>
+                    <span
+                      className={cn(
+                        'font-label-md text-headline-md font-bold',
+                        rate != null && weight > 0 ? 'text-primary' : 'text-on-surface-variant'
+                      )}
+                    >
+                      {rate != null && weight > 0 ? formatCurrency(amount) : '—'}
                     </span>
                   </div>
                 </div>
@@ -332,6 +356,7 @@ export function Create() {
                       type="date"
                       value={draft.date}
                       onChange={(e) => update({ date: e.target.value })}
+                      tabIndex={-1}
                       className={cn(inputClasses, 'pl-12')}
                     />
                   </div>
@@ -379,6 +404,7 @@ export function Create() {
                   <Button
                     type="button"
                     variant="destructive"
+                    tabIndex={-1}
                     className="w-full"
                     onClick={() => navigate('/customers')}
                   >

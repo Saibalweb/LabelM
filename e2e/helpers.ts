@@ -36,11 +36,14 @@ export async function addCustomer(
 
 export async function selectCustomerById(page: Page, customerId: string) {
   await page.getByPlaceholder('Press customer number (e.g. 1)').fill(customerId)
-  const summary = page.getByText(new RegExp(`^#${customerId} `))
-  if ((await summary.count()) === 0) {
-    await page.getByRole('button', { name: new RegExp(`^${customerId}\\b`) }).first().click()
-  }
-  await expect(summary).toBeVisible({ timeout: 10_000 })
+  const listItem = page
+    .getByRole('button', { name: new RegExp(`^${customerId}\\b`) })
+    .first()
+  await expect(listItem).toBeVisible({ timeout: 10_000 })
+  await listItem.click()
+  await expect(page.getByText(new RegExp(`^#${customerId} `))).toBeVisible({
+    timeout: 10_000,
+  })
 }
 
 export async function createLabel(

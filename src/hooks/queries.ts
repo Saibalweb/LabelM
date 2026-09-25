@@ -35,6 +35,16 @@ export function useCustomersQuery() {
   })
 }
 
+export function useCustomerSearchQuery(query: string, limit = 25) {
+  const trimmed = query.trim()
+  return useQuery({
+    queryKey: [...queryKeys.customers, 'search', trimmed.toLowerCase(), limit],
+    queryFn: () => customerService.search(trimmed, limit),
+    enabled: trimmed.length > 0,
+    staleTime: LIST_STALE_TIME,
+  })
+}
+
 export function useLabelQuery(id: number | undefined) {
   return useQuery({
     queryKey: [...queryKeys.labels, 'detail', id],

@@ -25,6 +25,26 @@ function currentRateOf(row: CustomerRow): number | null {
   return latest ? latest.rate : null
 }
 
+const INT4_MAX = 2_147_483_647
+
+// Matches ids whose decimal form starts with `prefix`, e.g. "12" covers
+// 12, 120–129, 1200–1299, ... PostgREST cannot cast to text in a filter, so
+// we express the prefix as a set of [n*10^k, (n+1)*10^k) integer ranges.
+function idPrefixRangeConditions(prefix: string): string[] {
+  const base = Number(prefix)
+  if (!Number.isFinite(base) || base < 0) return []
+  const startDigits = prefix.length
+  const conditions: string[] = []
+  for (let digits = startDigits; digits <= 10; digits++) {
+    const pow = 10 ** (digits - startDigits)
+    const lower = base * pow
+    if (lower > INT4_MAX) break
+    const upper = (base + 1) * pow
+    conditions.push(`and(id.gte.${lower},id.lt.${upper})`)
+  }
+  return conditions
+}
+
 function toCustomer(row: CustomerRow): Customer {
   return {
     id: row.id,
@@ -48,6 +68,24 @@ export const customerService = {
       .select(CUSTOMER_COLUMNS)
       .is('deleted_at', null)
       .order('id', { ascending: true })
+    if (error) throw new Error(error.message)
+    return (data ?? []).map((row) => toCustomer(row as CustomerRow))
+  },
+
+  async search(query: string, limit = 25): Promise<Customer[]> {
+    const trimmed = query.trim()
+    if (!trimmed) return []
+    const numeric = /^\d+$/.test(trimmed)
+    const conditions = numeric ? idPrefixRangeConditions(trimmed) : []
+    if (numeric && conditions.length === 0) return []
+    let builder = supabase
+      .from('customers')
+      .select(CUSTOMER_COLUMNS)
+      .is('deleted_at', null)
+    builder = numeric
+      ? builder.or(conditions.join(','))
+      : builder.ilike('name', `%${trimmed}%`)
+    const { data, error } = await builder.order('id', { ascending: true }).limit(limit)
     if (error) throw new Error(error.message)
     return (data ?? []).map((row) => toCustomer(row as CustomerRow))
   },

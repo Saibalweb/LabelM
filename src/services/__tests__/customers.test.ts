@@ -100,6 +100,70 @@ describe('customerService.list', () => {
   })
 })
 
+describe('customerService.search', () => {
+  it('returns an empty list for a blank query without hitting the server', async () => {
+    const customers = await customerService.search('   ')
+    expect(customers).toEqual([])
+    expect(supabaseMock.from).not.toHaveBeenCalled()
+  })
+
+  it('matches numeric queries against the id prefix via integer ranges', async () => {
+    const { query, calls } = createChain(() => ({ data: [customerRow()], error: null }))
+    supabaseMock.from.mockReturnValue(query)
+
+    await customerService.search('12')
+
+    expect(calls.find((c) => c.method === 'is')?.args).toEqual(['deleted_at', null])
+    expect(calls.find((c) => c.method === 'ilike')).toBeUndefined()
+    const orCondition = calls.find((c) => c.method === 'or')?.args[0] as string
+    expect(orCondition).toBe(
+      [
+        'and(id.gte.12,id.lt.13)',
+        'and(id.gte.120,id.lt.130)',
+        'and(id.gte.1200,id.lt.1300)',
+        'and(id.gte.12000,id.lt.13000)',
+        'and(id.gte.120000,id.lt.130000)',
+        'and(id.gte.1200000,id.lt.1300000)',
+        'and(id.gte.12000000,id.lt.13000000)',
+        'and(id.gte.120000000,id.lt.130000000)',
+        'and(id.gte.1200000000,id.lt.1300000000)',
+      ].join(',')
+    )
+    expect(calls.find((c) => c.method === 'limit')?.args).toEqual([25])
+  })
+
+  it('returns an empty list for numeric queries with no possible ranges', async () => {
+    const customers = await customerService.search('99999999999999999999')
+    expect(customers).toEqual([])
+    expect(supabaseMock.from).not.toHaveBeenCalled()
+  })
+
+  it('matches name queries with a case-insensitive contains', async () => {
+    const { query, calls } = createChain(() => ({ data: [], error: null }))
+    supabaseMock.from.mockReturnValue(query)
+
+    await customerService.search('Acme')
+
+    expect(calls.find((c) => c.method === 'ilike')?.args).toEqual(['name', '%Acme%'])
+  })
+
+  it('maps result rows to customers with currentRate', async () => {
+    const { query } = createChain(() => ({ data: [customerRow()], error: null }))
+    supabaseMock.from.mockReturnValue(query)
+
+    const customers = await customerService.search('Acme')
+    expect(customers[0].name).toBe('Acme Trading')
+    expect(customers[0].currentRate).toBe(42)
+  })
+
+  it('throws on error', async () => {
+    const { query } = createChain(() => ({ data: null, error: new Error('fail') }))
+    supabaseMock.from.mockReturnValue(query)
+
+    await expect(customerService.search('Acme')).rejects.toThrow('fail')
+  })
+})
+
 describe('customerService.create', () => {
   it('creates the customer then applies a rate when provided', async () => {
     const insert = createChain(() => ({ data: { id: 7 }, error: null }))

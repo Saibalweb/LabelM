@@ -1,14 +1,18 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { CalendarDays, Phone, Printer, Search, X } from 'lucide-react'
+import { AlertCircle, CalendarDays, Phone, Printer, Search, X } from 'lucide-react'
 import { TopNav } from '@/components/layout/TopNav'
 import { Label as FormLabel } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { CustomerFormDialog } from '@/components/customers/CustomerFormDialog'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { setDraft, resetDraft } from '@/store/slices/draftSlice'
-import { useAddCustomer, useCreateLabel, useCustomersQuery } from '@/hooks/queries'
+import {
+  useAddCustomer,
+  useCreateLabel,
+  useCustomerSearchQuery,
+} from '@/hooks/queries'
 import { formatCurrency } from '@/lib/format'
 import type { Customer, CustomerInput } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -24,13 +28,18 @@ export function Create() {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
   const { draft } = useAppSelector((state) => state.draft)
-  const { data: customers = [] } = useCustomersQuery()
   const addCustomer = useAddCustomer()
   const createLabel = useCreateLabel()
 
   const [customerQuery, setCustomerQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
   const [showCustomerList, setShowCustomerList] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(customerQuery), 150)
+    return () => clearTimeout(timer)
+  }, [customerQuery])
 
   useEffect(() => {
     if (!draft.date) dispatch(setDraft({ date: todayISO() }))
@@ -40,36 +49,24 @@ export function Create() {
   const rate = customer?.currentRate ?? null
   const weight = parseFloat(draft.weight) || 0
   const amount = rate != null ? weight * rate : 0
+  const missingRate = customer != null && rate == null
 
-  const filteredCustomers = useMemo(() => {
-    const q = customerQuery.trim().toLowerCase()
-    if (!q) return customers
-    if (/^\d+$/.test(q)) {
-      return customers.filter((c) => String(c.id).startsWith(q))
-    }
-    return customers.filter((c) => c.name.toLowerCase().includes(q))
-  }, [customers, customerQuery])
+  const { data: searchResults = [], isFetching: searchFetching } =
+    useCustomerSearchQuery(debouncedQuery)
+  const queryPending = customerQuery.trim() !== debouncedQuery.trim()
 
   const update = (patch: Parameters<typeof setDraft>[0]) => {
     dispatch(setDraft(patch))
   }
 
-  const pickCustomer = (customer: Customer) => {
-    update({ customer })
+  const pickCustomer = (selected: Customer) => {
+    update({ customer: selected })
     setShowCustomerList(false)
   }
 
   const handleCustomerInput = (value: string) => {
     setCustomerQuery(value)
     setShowCustomerList(true)
-    const trimmed = value.trim()
-    if (/^\d+$/.test(trimmed)) {
-      const match = customers.find((c) => c.id === Number(trimmed))
-      if (match) {
-        update({ customer: match })
-        setShowCustomerList(false)
-      }
-    }
   }
 
   const handleAddCustomer = async (input: CustomerInput) => {
@@ -156,7 +153,12 @@ export function Create() {
                 </div>
 
                 {customer ? (
-                  <div className="relative mt-3 rounded-lg border border-outline-variant bg-surface-container-low p-4">
+                  <div
+                    className={cn(
+                      'relative mt-3 rounded-lg border border-outline-variant bg-surface-container-low p-4',
+                      missingRate && 'border-destructive/40'
+                    )}
+                  >
                     <Button
                       type="button"
                       variant="ghost"
@@ -178,10 +180,15 @@ export function Create() {
                         <p className="truncate font-headline-md text-headline-md text-on-surface">
                           {customer.name}
                         </p>
-                        <p className="mt-0.5 font-label-md text-label-md text-on-surface-variant">
+                        <p
+                          className={cn(
+                            'mt-0.5 font-label-md text-label-md',
+                            missingRate ? 'text-destructive' : 'text-on-surface-variant'
+                          )}
+                        >
                           {rate != null
                             ? `${formatCurrency(rate)}/kg`
-                            : 'No rate set — add one in Customers'}
+                            : 'No rate set — set it to generate labels'}
                         </p>
                       </div>
                     </div>
@@ -200,26 +207,56 @@ export function Create() {
                         ) : null}
                       </div>
                     ) : null}
+                    {missingRate ? (
+                      <div className="mt-3 flex flex-col gap-3 rounded-md border border-destructive/40 bg-destructive/10 p-3">
+                        <p className="flex items-center gap-2 font-body-sm text-body-sm text-destructive">
+                          <AlertCircle className="size-4 shrink-0" />
+                          Rate missing for {customer.name}. Add a rate before generating.
+                        </p>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          className="self-start"
+                          onClick={() => navigate('/customers')}
+                        >
+                          Set rate in Customers
+                        </Button>
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
 
                 {showCustomerList ? (
                   <div className="absolute left-0 right-0 z-30 mt-2 flex max-h-72 flex-col overflow-y-auto rounded-xl border border-outline-variant bg-surface-container-lowest shadow-lg">
-                    {filteredCustomers.length === 0 ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          setShowCustomerList(false)
-                          setDialogOpen(true)
-                        }}
-                        className="flex h-auto w-full items-center justify-start gap-3 rounded-none border-b border-outline-variant px-4 py-3 text-left last:border-b-0 hover:bg-surface-container"
-                      >
-                        <span className="font-label-md text-label-md text-primary">+ Add new customer</span>
-                      </Button>
+                    {debouncedQuery.trim() === '' ? (
+                      <div className="px-4 py-3 font-body-sm text-body-sm text-on-surface-variant">
+                        Type a customer number or name, then pick from the list.
+                      </div>
+                    ) : queryPending || (searchFetching && searchResults.length === 0) ? (
+                      <div className="px-4 py-3 font-body-sm text-body-sm text-on-surface-variant">
+                        Searching customers…
+                      </div>
+                    ) : searchResults.length === 0 ? (
+                      <div className="flex flex-col">
+                        <div className="px-4 py-3 font-body-sm text-body-sm text-on-surface-variant">
+                          No customers match &ldquo;{debouncedQuery}&rdquo;.
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setShowCustomerList(false)
+                            setDialogOpen(true)
+                          }}
+                          className="flex h-auto w-full items-center justify-start gap-3 rounded-none border-b border-outline-variant px-4 py-3 text-left last:border-b-0 hover:bg-surface-container"
+                        >
+                          <span className="font-label-md text-label-md text-primary">+ Add new customer</span>
+                        </Button>
+                      </div>
                     ) : (
-                      filteredCustomers.map((c) => (
+                      searchResults.map((c) => (
                         <Button
                           key={c.id}
                           type="button"
@@ -254,23 +291,7 @@ export function Create() {
                 ) : null}
               </div>
 
-              <div className="grid grid-cols-2 gap-4 border-t border-outline-variant pt-4">
-                <div>
-                  <FormLabel className="mb-2 block font-label-md text-label-md text-on-surface-variant">
-                    Date
-                  </FormLabel>
-                  <div className="relative">
-                    <span className="absolute top-1/2 left-4 -translate-y-1/2 text-on-surface-variant">
-                      <CalendarDays className="size-5" />
-                    </span>
-                    <input
-                      type="date"
-                      value={draft.date}
-                      onChange={(e) => update({ date: e.target.value })}
-                      className={cn(inputClasses, 'pl-12')}
-                    />
-                  </div>
-                </div>
+              <div className="border-t border-outline-variant pt-4">
                 <div>
                   <FormLabel className="mb-2 block font-label-md text-label-md text-on-surface-variant">
                     Total Weight (kg)
@@ -299,6 +320,22 @@ export function Create() {
                 <h3 className="mb-6 border-b border-outline-variant pb-4 font-headline-md text-headline-md text-on-surface">
                   Summary
                 </h3>
+                <div className="mb-6">
+                  <FormLabel className="mb-2 block font-label-md text-label-md text-on-surface-variant">
+                    Date
+                  </FormLabel>
+                  <div className="relative">
+                    <span className="absolute top-1/2 left-4 -translate-y-1/2 text-on-surface-variant">
+                      <CalendarDays className="size-5" />
+                    </span>
+                    <input
+                      type="date"
+                      value={draft.date}
+                      onChange={(e) => update({ date: e.target.value })}
+                      className={cn(inputClasses, 'pl-12')}
+                    />
+                  </div>
+                </div>
                 <div className="space-y-4 font-body-md text-body-md">
                   <div className="flex items-center justify-between">
                     <span className="text-on-surface-variant">SL No</span>
@@ -333,10 +370,32 @@ export function Create() {
                 </div>
               </div>
 
+              {missingRate ? (
+                <div className="flex flex-col gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3">
+                  <p className="flex items-center gap-2 font-body-sm text-body-sm text-destructive">
+                    <AlertCircle className="size-4 shrink-0" />
+                    Rate missing — set a rate to generate labels.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    className="w-full"
+                    onClick={() => navigate('/customers')}
+                  >
+                    Go to Customers
+                  </Button>
+                </div>
+              ) : null}
+
               <Button
                 type="button"
                 variant="secondary"
-                className="h-[52px] w-full gap-2 rounded font-body-md text-body-md"
+                disabled={missingRate}
+                className={cn(
+                  'h-[52px] w-full gap-2 rounded font-body-md text-body-md',
+                  missingRate &&
+                    'border-destructive/50 bg-destructive/10 text-destructive disabled:opacity-100'
+                )}
                 onClick={handleGenerate}
               >
                 <Printer className="size-5" />

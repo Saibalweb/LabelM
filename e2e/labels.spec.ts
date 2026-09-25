@@ -39,6 +39,23 @@ test('label lifecycle: create → preview → edit → print', async ({ page }) 
   await patchRequest
 })
 
+test('clear customer button resets the selection and the search number', async ({ page }) => {
+  stubPrint(page)
+  await login(page)
+
+  const clearName = `${custName} Clear`
+  await addCustomer(page, { name: clearName, rate: '60' })
+  const row = page.getByRole('row', { name: new RegExp(clearName) })
+  const customerId = (await row.locator('td').first().innerText()).trim()
+
+  await page.goto('/create')
+  await selectCustomerById(page, customerId)
+
+  await page.getByRole('button', { name: 'Clear customer' }).click()
+  await expect(page.getByText(new RegExp(`^#${customerId} `))).toHaveCount(0)
+  await expect(page.getByPlaceholder('Press customer number (e.g. 1)')).toHaveValue('')
+})
+
 test('label create validation requires weight and customer', async ({ page }) => {
   stubPrint(page)
   await login(page)

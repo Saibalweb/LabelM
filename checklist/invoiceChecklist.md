@@ -27,10 +27,25 @@ verified live against the hosted Supabase via a headless browser, plus unit test
 |---|------|--------|
 | 1 | Old: avatar circle rendered `initials(customerName)` (e.g. "JD") next to the customer name | Confirmed |
 | 2 | New: the avatar circle now renders `#{customerId}` on the left side of the customer name | Done |
-| 3 | Avatar color now derives from `customerId` (consistent per customer) instead of `invoice.id` | Done |
+| 3 | Avatar color now derives from `invoice.status` (Paid / Unpaid / Partial) using the same status color code as the status pill | Done |
 | 4 | Unused `initials()` helper removed (no dead code) | Done |
 
 **Verdict: FIXED** — each row now reads `#580  E2E Inv Cust …` style (id chip, then name). Live-verified.
+
+---
+
+## 2b. Status color code on the left-side avatar (Paid / Unpaid / Partial)
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | Avatar previously used a rotating customer-id palette (`avatarStyles[id % len]`), not tied to payment state | Confirmed |
+| 2 | Avatar now uses the same status color code as the status pill: `statusPillStyles[invoice.status]` | Done |
+| 3 | Paid → `bg-secondary-container text-on-secondary-container`, Unpaid → `bg-destructive/10 text-destructive`, Partial → `bg-tertiary-container text-on-tertiary-container` | Done |
+| 4 | Due column color unchanged (`text-destructive` when `due > 0`) | Confirmed |
+| 5 | Status pill colors unchanged | Confirmed |
+| 6 | Single source of truth: avatar reuses `statusPillStyles` — no duplicated color map | Done |
+
+**Verdict: FIXED** — the left-side avatar now carries a meaningful per-status color code (green = Paid, red = Unpaid, amber = Partial), while Due and Status keep their previous colors.
 
 ---
 
@@ -160,7 +175,7 @@ serialized by three layers:
 - [x] Live headless-browser checks for items 2, 3, 5, 6, 7, 8
 
 **Files changed:**
-- `src/pages/invoices.tsx` — items 1–3, 8
+- `src/pages/invoices.tsx` — items 1–3, 8, 2b (status color code on avatar)
 - `src/pages/createInvoice.tsx` — items 4–7
 - `src/components/ui/loading-overlay.tsx` — new reusable loading overlay (item 4)
 - `checklist/labelChecklist.md` — moved here from repo root (checklist folder)

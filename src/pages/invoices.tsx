@@ -54,13 +54,6 @@ const PAGE_SIZE = 25
 
 const statusPills: StatusFilter[] = ['All', 'Unpaid', 'Partial', 'Paid', 'Overdue']
 
-const avatarStyles = [
-  'bg-primary-container text-on-primary-container',
-  'bg-secondary-container text-on-secondary-container',
-  'bg-tertiary-container text-on-tertiary-container',
-  'bg-primary-fixed-dim text-on-primary-fixed',
-]
-
 const statusPillStyles: Record<InvoiceStatus, string> = {
   Paid: 'bg-secondary-container text-on-secondary-container',
   Unpaid: 'bg-destructive/10 text-destructive',
@@ -476,7 +469,7 @@ export function Invoices() {
                             <div
                               className={cn(
                                 'flex size-10 shrink-0 items-center justify-center rounded-full border border-outline-variant text-sm font-bold',
-                                avatarStyles[invoice.customerId % avatarStyles.length]
+                                statusPillStyles[invoice.status]
                               )}
                             >
                               #{invoice.customerId}

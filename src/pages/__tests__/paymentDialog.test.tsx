@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { PaymentDialog } from '@/pages/invoiceDetails'
+import { todayInputValue } from '@/lib/format'
 import type { InvoicePayment, PaymentMode } from '@/lib/types'
 
 vi.mock('@/hooks/queries', () => ({
@@ -106,9 +107,58 @@ describe('PaymentDialog validation', () => {
     await user.click(screen.getByRole('button', { name: 'Save Payment' }))
     await waitFor(() =>
       expect(onSave).toHaveBeenCalledWith(
-        expect.objectContaining({ amount: 500, mode: 'bank_transfer' })
+        expect.objectContaining({ amount: 500, mode: 'cash' })
       )
     )
+  })
+
+  it('clamps the number input to the remaining due amount', () => {
+    renderDialog({ dueAmount: 500 })
+    expect(screen.getByLabelText('Amount (₹)')).toHaveAttribute('max', '500')
+  })
+
+  it('leaves the amount input empty by default', () => {
+    renderDialog({ dueAmount: 500 })
+    expect(screen.getByLabelText('Amount (₹)')).toHaveValue(null)
+  })
+
+  it('defaults to cash mode and today when saving', async () => {
+    const user = userEvent.setup()
+    const { onSave } = renderDialog({ dueAmount: 500 })
+
+    await user.type(screen.getByLabelText('Amount (₹)'), '500')
+    await user.click(screen.getByRole('button', { name: 'Save Payment' }))
+
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: 500, mode: 'cash', date: todayInputValue() })
+      )
+    )
+  })
+
+  it('fills the full remaining amount when the checkbox is checked', async () => {
+    const user = userEvent.setup()
+    renderDialog({ dueAmount: 500 })
+
+    const amount = screen.getByLabelText('Amount (₹)')
+    expect(amount).toHaveValue(null)
+    await user.click(screen.getByRole('checkbox', { name: /Pay full remaining/ }))
+
+    expect(amount).toHaveValue(500)
+    expect(amount).toBeDisabled()
+  })
+
+  it('unchecks the full-payment checkbox when the amount is edited manually', async () => {
+    const user = userEvent.setup()
+    renderDialog({ dueAmount: 500 })
+
+    const checkbox = screen.getByRole('checkbox', { name: /Pay full remaining/ })
+    await user.click(checkbox)
+    expect(checkbox).toBeChecked()
+
+    await user.click(checkbox)
+    expect(checkbox).not.toBeChecked()
+    expect(screen.getByLabelText('Amount (₹)')).toBeEnabled()
   })
 
   it('saves with the selected payment mode and notes', async () => {
@@ -138,6 +188,7 @@ describe('PaymentDialog validation', () => {
     const user = userEvent.setup()
     const { onSave } = renderDialog({ dueAmount: 100 })
 
+    await user.type(screen.getByLabelText('Amount (₹)'), '100')
     await user.click(screen.getByRole('button', { name: 'Save Payment' }))
 
     await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ notes: null })))
@@ -159,6 +210,7 @@ describe('PaymentDialog editing mode', () => {
     })
     expect(screen.getByText('Edit Payment')).toBeInTheDocument()
     expect(screen.getByLabelText('Amount (₹)')).toHaveValue(120)
+    expect(screen.queryByRole('checkbox', { name: /Pay full remaining/ })).not.toBeInTheDocument()
   })
 
   it('raises the allowed maximum for the payment being edited', async () => {

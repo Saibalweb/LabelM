@@ -10,6 +10,7 @@ import { labelService } from '@/services/labels'
 import { pricesService } from '@/services/prices'
 import type {
   CustomerInput,
+  DueFilters,
   InvoiceFilters,
   InvoiceListParams,
   InvoicePaymentInput,
@@ -191,6 +192,15 @@ export function useInvoicesQuery(filters: InvoiceFilters = {}) {
   return useQuery({
     queryKey: [...queryKeys.invoices, 'list', filters],
     queryFn: () => invoiceService.list(filters),
+    staleTime: LIST_STALE_TIME,
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useDueInvoicesQuery(filters: DueFilters = {}) {
+  return useQuery({
+    queryKey: [...queryKeys.invoices, 'due', filters],
+    queryFn: () => invoiceService.listDue(filters),
     staleTime: LIST_STALE_TIME,
     placeholderData: keepPreviousData,
   })

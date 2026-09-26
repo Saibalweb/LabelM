@@ -50,9 +50,10 @@ test('dues aggregation, search, sort, expand and record-payment link', async ({ 
   await search.fill(custName)
   await expect(page.getByText(custName)).toBeVisible()
 
-  // Sort options are functional
-  const sort = page.getByRole('combobox')
-  await sort.selectOption('Name A-Z')
+  // Sort options are functional (moved inside the filter sheet)
+  await page.getByRole('button', { name: /Filters/ }).click()
+  await page.getByRole('combobox').selectOption('Name A-Z')
+  await page.getByRole('button', { name: /Apply Filters/ }).click()
   await expect(page.getByText(custName)).toBeVisible()
 
   // Expand the row to reveal the invoice
@@ -63,4 +64,19 @@ test('dues aggregation, search, sort, expand and record-payment link', async ({ 
   await page.getByRole('button', { name: 'Record Payment' }).click()
   await page.waitForURL(/\/invoice\/\d+/)
   await expect(page.getByRole('button', { name: 'Record Payment' })).toBeVisible()
+
+  // Filters sheet applies the server-side payment-status filter
+  await page.goto('/dues')
+  await page.getByRole('button', { name: /Filters/ }).click()
+  await expect(page.getByRole('heading', { name: 'Filter Dues' })).toBeVisible()
+  await page.getByLabel('Partial').check()
+  await expect(page.getByText('1 active')).toBeVisible()
+  await page.getByRole('button', { name: /Apply Filters/ }).click()
+  await expect(page.getByText(custName)).toBeVisible({ timeout: 10_000 })
+
+  // Reset all restores the default view
+  await page.getByRole('button', { name: /Filters/ }).click()
+  await page.getByRole('button', { name: /Reset All/ }).click()
+  await expect(page.getByText('1 active')).not.toBeVisible()
+  await expect(page.getByText(custName)).toBeVisible()
 })

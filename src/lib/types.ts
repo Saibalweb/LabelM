@@ -208,6 +208,18 @@ export interface InvoiceFilters {
   overdue?: boolean
 }
 
+export type DuePreset = 'all' | 'overdue' | 'due-soon' | 'due-later'
+export type DueAgingBucket = 'overdue-1-30' | 'overdue-31-60' | 'overdue-60plus'
+export type DueWindow = 'all' | 'overdue' | 'month' | 'custom'
+
+export interface DueFilters {
+  query?: string
+  statuses?: InvoiceStatus[]
+  customerIds?: number[]
+  from?: string
+  to?: string
+}
+
 export interface InvoiceListParams {
   page: number
   pageSize: number

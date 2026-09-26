@@ -196,6 +196,46 @@ describe('invoiceService.listPage — filter mapping', () => {
   })
 })
 
+describe('invoiceService.listDue', () => {
+  async function capture(filters = {}, customers: Array<{ id: number }> = []) {
+    const customerChain = createChain(() => ({ data: customers, error: null }))
+    const invoicesChain = createChain(() => ({ data: [], error: null }))
+    supabaseMock.from.mockImplementation((table: string) =>
+      table === 'customers' ? customerChain.query : invoicesChain.query
+    )
+    await invoiceService.listDue(filters)
+    return invoicesChain.calls
+  }
+
+  it('scopes to unpaid/partial by default and maps search + customer + due-date filters', async () => {
+    const calls = await capture(
+      { query: 'acme', statuses: ['Unpaid'], customerIds: [1, 2], from: '2026-10-01', to: '2026-11-01' },
+      [{ id: 3 }]
+    )
+    expect(filterCalls(calls, 'in')[0]).toEqual(['status', ['Unpaid']])
+    expect(filterCalls(calls, 'in')[1]).toEqual(['customer_id', [1, 2]])
+    expect(calls.find((c) => c.method === 'or')?.args[0]).toBe(
+      'invoice_number.ilike.%acme%,customer_id.in.(3)'
+    )
+    expect(calls.find((c) => c.method === 'gte')?.args).toEqual(['due_date', '2026-10-01'])
+    expect(calls.find((c) => c.method === 'lt')?.args).toEqual(['due_date', '2026-11-01'])
+  })
+
+  it('defaults status to unpaid/partial when none are given', async () => {
+    const calls = await capture({})
+    expect(filterCalls(calls, 'in')[0]).toEqual(['status', ['Unpaid', 'Partial']])
+  })
+
+  it('maps rows to invoices with computed paid and due', async () => {
+    const { query } = createChain(() => ({ data: [invoiceRow], error: null }))
+    supabaseMock.from.mockReturnValue(query)
+    const result = await invoiceService.listDue({})
+    expect(result).toHaveLength(1)
+    expect(result[0].paid).toBe(700)
+    expect(result[0].due).toBe(200)
+  })
+})
+
 describe('invoiceService.getById', () => {
   it('selects detail columns including line items', async () => {
     const { query, calls } = createChain(() => ({ data: invoiceRow, error: null }))

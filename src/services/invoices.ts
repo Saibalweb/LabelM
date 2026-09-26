@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import type {
+  DueFilters,
   Invoice,
   InvoiceFilters,
   InvoiceGenerationResult,
@@ -222,6 +223,33 @@ function buildListQuery(filters: InvoiceFilters = {}, matchingIds: number[] = []
   return query
 }
 
+// Dues are outstanding invoices: due > 0 exactly when status is Unpaid or
+// Partial (paid is derived from the sum of invoice_payments, so there is no
+// stored due column to filter on). Filters below apply to real columns only;
+// customer-level aggregation (aging buckets, total-due amount range) happens
+// client-side after grouping.
+function buildDueListQuery(filters: DueFilters = {}, matchingIds: number[] = []) {
+  const statuses =
+    filters.statuses && filters.statuses.length > 0 ? filters.statuses : ['Unpaid', 'Partial']
+  let query = supabase.from('invoices').select(LIST_COLUMNS).in('status', statuses)
+
+  const q = sanitizeTerm(filters.query ?? '')
+  if (q) {
+    const conditions = [`invoice_number.ilike.%${q}%`]
+    if (matchingIds.length > 0) conditions.push(`customer_id.in.(${matchingIds.join(',')})`)
+    query = query.or(conditions.join(','))
+  }
+
+  if (filters.customerIds && filters.customerIds.length > 0) {
+    query = query.in('customer_id', filters.customerIds)
+  }
+
+  if (filters.from) query = query.gte('due_date', filters.from)
+  if (filters.to) query = query.lt('due_date', filters.to)
+
+  return query
+}
+
 export const invoiceService = {
   async list(filters: InvoiceFilters = {}): Promise<Invoice[]> {
     const matchingIds = await resolveSearchIds(filters)
@@ -249,6 +277,15 @@ export const invoiceService = {
       data: (data ?? []).map((row) => toInvoice(row as unknown as InvoiceRow)),
       total: count ?? 0,
     }
+  },
+
+  async listDue(filters: DueFilters = {}): Promise<Invoice[]> {
+    const matchingIds = await resolveSearchIds(filters)
+    let query = buildDueListQuery(filters, matchingIds).order('created_at', { ascending: false })
+
+    const { data, error } = await query
+    if (error) throw new Error(error.message)
+    return (data ?? []).map((row) => toInvoice(row as unknown as InvoiceRow))
   },
 
   async getById(id: number): Promise<Invoice | null> {

@@ -88,6 +88,8 @@ interface PaymentDialogProps {
   }) => void
 }
 
+// Payment flow checklist & requirements live in checklist/duesChecklist.md
+// (payment UX: default date/mode, max-amount clamp, "pay full remaining").
 export function PaymentDialog({
   open,
   onOpenChange,
@@ -99,17 +101,19 @@ export function PaymentDialog({
   const maxAmount = dueAmount + (payment?.amount ?? 0)
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState(todayInputValue())
-  const [mode, setMode] = useState<PaymentMode>('bank_transfer')
+  const [mode, setMode] = useState<PaymentMode>('cash')
   const [notes, setNotes] = useState('')
   const [error, setError] = useState('')
+  const [fullAmount, setFullAmount] = useState(false)
 
   useEffect(() => {
     if (!open) return
-    setAmount(payment ? String(payment.amount) : String(Math.round(dueAmount)))
+    setAmount(payment ? String(payment.amount) : '')
     setDate(payment?.date ?? todayInputValue())
-    setMode(payment?.mode ?? 'bank_transfer')
+    setMode(payment?.mode ?? 'cash')
     setNotes(payment?.notes ?? '')
     setError('')
+    setFullAmount(false)
   }, [open, payment, dueAmount])
 
   const handleSave = () => {
@@ -147,15 +151,38 @@ export function PaymentDialog({
               type="number"
               inputMode="decimal"
               min={0}
+              max={maxAmount}
               step="0.01"
               value={amount}
+              disabled={fullAmount}
               onChange={(e) => {
                 setAmount(e.target.value)
+                setFullAmount(false)
                 setError('')
               }}
               className="h-11 px-4 text-base"
               autoFocus
             />
+            {!isEditing ? (
+              <label className="flex cursor-pointer items-center gap-2 font-body-md text-body-md text-on-surface-variant">
+                <input
+                  type="checkbox"
+                  checked={fullAmount}
+                  onChange={(e) => {
+                    setFullAmount(e.target.checked)
+                    if (e.target.checked) {
+                      setAmount(String(maxAmount))
+                      setError('')
+                    }
+                  }}
+                  className="size-4 accent-primary"
+                />
+                <span>
+                  Pay full remaining amount —{' '}
+                  <span className="font-semibold text-primary">{formatCurrency(maxAmount)}</span>
+                </span>
+              </label>
+            ) : null}
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
           </div>
 

@@ -1,6 +1,7 @@
-# Create Label Page — Fix Checklist
+# Label Checklist — Create Label page + Labels/Dashboard
 
-Page: **Create Label (`/create`)** — reviewed & fixed on 2026-09-25.
+Covers the **Create Label (`/create`)** flow and the **Labels/Dashboard** list + filters.
+Reviewed & fixed on 2026-09-25 (sections 1–8); seed data + filter verification on 2026-09-26 (section 9).
 
 ---
 
@@ -22,12 +23,13 @@ Page: **Create Label (`/create`)** — reviewed & fixed on 2026-09-25.
 
 | # | Item | Status |
 |---|------|--------|
-| 1 | Date field removed from the main entry row (was tab-stop #2) | Done |
-| 2 | Date moved into the Summary card so it no longer interrupts the fill flow | Done |
-| 3 | Tab order is now **customer → weight → date**, so the client can fill just the two key fields | Done |
-| 4 | Date still defaults to today's date automatically | Already OK |
+| 1 | Date field removed from the main entry row (was tab-stop #2) and moved into the Summary card | Done |
+| 2 | Left card no longer stretches — the empty gap under the weight field is gone; weight is a prominent quick-entry with a live Amount readout | Done |
+| 3 | **Date is removed from the tab order** (`tabIndex={-1}`) but still selectable with the mouse | Done |
+| 4 | Tab flow is **customer search → dropdown results (focusable, Enter selects) → weight → Generate**; helper buttons (clear X, rate alerts) are skipped | Done |
+| 5 | Date still defaults to today's date automatically | Already OK |
 
-**Verdict: FIXED** — entry is now a straight "press number, type weight" flow; the date is only touched when it actually differs from today.
+**Verdict: FIXED** — entry is a fast "type number → Tab → type weight → Tab → Generate" flow; the dropdown stays open while tabbing and closes only when focus leaves the widget.
 
 ---
 
@@ -127,15 +129,38 @@ Run `npx supabase db push` (or paste the SQL into the dashboard SQL editor). Unt
 
 ---
 
+## 9. Seed data across dates/months + filter accuracy verification
+
+The dashboard previously showed every label dated today (by design). To exercise the
+date/month/status/billing/amount/customer filters, realistic seed data was written to the
+**real hosted DB** using existing active customers.
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | **Seeded 300 labels** spread across 10 months (2025-12 → 2026-09), 30 per month, using **161 existing customers** | Done |
+| 2 | SL numbers allocated through the real `next_document_number` counter (LBL-0453 → LBL-0745) — no collision with app-generated numbers | Done |
+| 3 | Status mix: 39 draft / 261 printed | Done |
+| 4 | **5 invoices created** (INV-0057 → INV-0061) for 5 anchor customers across Jan/Mar/May/Jul/Sep 2026, each marked **Paid** via a full payment — 30 labels billed, so the billing filter is meaningful and Dues is not polluted | Done |
+| 5 | **Filter accuracy verified against the raw dataset**: every one of 18 filter cases returned exactly the rows the filter semantics dictate (id sets + totals matched) | Verified |
+| 6 | Filter cases covered: all, single-month (2025-12 / 2026-09), Q1 range, presets (today / this month), one customer, status (draft/printed), billing (billed/unbilled), weight min/max, amount min, search by SL-number substring, search by customer name, and combos (billed+printed+range, unbilled+min amount) | Verified |
+| 7 | Existing dashboard filter + dues e2e still pass with the seeded data | Verified |
+
+**Verdict: SEEDED + FILTERS ACCURATE** — the dashboard now shows realistic labels across
+months/customers and every filter (date ranges, presets, status, billing, weight, amount,
+search) returns the correct rows. Seed data is intentionally left in place; to remove it,
+delete the labels with `sl_no` between `LBL-0453` and `LBL-0745` and their invoices/payments.
+
+---
+
 ## Verification
 
 - [x] Unit tests: **205 passed** (incl. service RPC tests + customers-page component tests)
-- [x] E2E tests: **27 passed**; the new delete/restore test + name-required test are green once migrations are applied
+- [x] E2E tests: **29 passed** (incl. customer delete→archive→restore, create-label flow, filters, dues)
 - [x] `oxlint` clean (no new warnings)
 - [x] `tsc -b` clean
 - [x] Production build succeeds
 
 **Follow-up notes:**
-- `e2e/helpers.ts` `selectCustomerById()` now fills the number, waits for the search result button, and clicks it (manual selection).
-- Known pre-existing flake (not from these changes): the label edit flow can briefly match `₹1,000.00` in both the print label and the closing dialog — passed on re-run.
+- `e2e/helpers.ts` `selectCustomerById()` fills the number, waits for the search result button, and clicks it (manual selection).
+- Known pre-existing flake (not from these changes): the label edit flow can briefly match `₹1,000.00` in both the print label and the closing dialog — fixed by scoping to `#printLabel`.
 - Deleted customer history is fully preserved in the DB; restoring brings everything back.

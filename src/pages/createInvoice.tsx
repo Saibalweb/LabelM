@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { TopNav } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
+import { LoadingOverlay } from '@/components/ui/loading-overlay'
 import { BulkInvoiceDialog } from '@/components/invoices/BulkInvoiceDialog'
 import {
   useCustomersQuery,
@@ -148,14 +149,16 @@ export function CreateInvoice() {
   const filteredCustomers = useMemo(() => {
     const q = customerQuery.trim().toLowerCase()
     if (!q) return customers
-    return customers.filter((customer) =>
-      [customer.name, customer.email]
-        .filter(Boolean)
-        .some((field) => field!.toLowerCase().includes(q))
+    return customers.filter(
+      (customer) =>
+        String(customer.id).includes(q) ||
+        [customer.name, customer.email]
+          .filter(Boolean)
+          .some((field) => field!.toLowerCase().includes(q))
     )
   }, [customers, customerQuery])
 
-  const { data: labels = EMPTY_LABELS } = useUnbilledLabelsQuery(
+  const { data: labels = EMPTY_LABELS, isPending: labelsLoading } = useUnbilledLabelsQuery(
     {
       from: bounds?.from ?? '',
       to: bounds?.to ?? '',
@@ -219,6 +222,12 @@ export function CreateInvoice() {
   }
 
   const canGenerate = !includeAll && !!selectedCustomer && bounds != null && selectedLabels.length > 0
+
+  const noLabelsForCustomer =
+    !!selectedCustomerId &&
+    bounds != null &&
+    !labelsLoading &&
+    filteredLabels.length === 0
 
   const handleGenerate = async () => {
     if (!canGenerate || generating || !selectedCustomerId || !bounds) return
@@ -454,16 +463,18 @@ export function CreateInvoice() {
                     </div>
 
                     {periodMode === 'month' ? (
-                      <div className="relative mt-3">
-                        <span className="absolute top-1/2 left-4 -translate-y-1/2 text-on-surface-variant">
-                          <Calendar className="size-5" />
-                        </span>
-                        <input
-                          type="month"
-                          value={monthValue}
-                          onChange={(e) => setMonthValue(e.target.value)}
-                          className={cn(inputClasses, 'pl-12 font-label-md text-label-md')}
-                        />
+                      <div>
+                        <div className="relative mt-3">
+                          <span className="absolute top-1/2 left-4 -translate-y-1/2 text-on-surface-variant">
+                            <Calendar className="size-5" />
+                          </span>
+                          <input
+                            type="month"
+                            value={monthValue}
+                            onChange={(e) => setMonthValue(e.target.value)}
+                            className={cn(inputClasses, 'pl-12 font-label-md text-label-md')}
+                          />
+                        </div>
                         {monthValue ? (
                           <p className="mt-2 font-label-sm text-label-sm text-on-surface-variant">
                             {monthRangeLabel(monthValue)}
@@ -591,11 +602,29 @@ export function CreateInvoice() {
                         {filteredLabels.length === 0 ? (
                           <tr>
                             <td colSpan={6} className="p-10 text-center">
-                              <p className="font-body-md text-body-md text-on-surface-variant">
-                                {!selectedCustomerId
-                                  ? 'Select a customer above to load their uninvoiced labels.'
-                                  : 'No uninvoiced labels found for the selected customer and billing period.'}
-                              </p>
+                              {noLabelsForCustomer ? (
+                                <div className="mx-auto flex max-w-md flex-col items-center gap-2">
+                                  <span className="flex size-11 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+                                    <Info className="size-5" />
+                                  </span>
+                                  <p className="font-body-md text-body-md font-semibold text-destructive">
+                                    No labels available
+                                  </p>
+                                  <p className="font-body-md text-body-md text-on-surface-variant">
+                                    This customer has no uninvoiced labels for the selected billing
+                                    period. The Generate button is disabled.
+                                  </p>
+                                </div>
+                              ) : !selectedCustomerId ? (
+                                <p className="font-body-md text-body-md text-on-surface-variant">
+                                  Select a customer above to load their uninvoiced labels.
+                                </p>
+                              ) : (
+                                <p className="font-body-md text-body-md text-on-surface-variant">
+                                  No uninvoiced labels found for the selected customer and billing
+                                  period.
+                                </p>
+                              )}
                             </td>
                           </tr>
                         ) : (
@@ -748,9 +777,13 @@ export function CreateInvoice() {
                     <p className="mt-3 text-center font-label-sm text-label-sm text-on-surface-variant">
                       {!selectedCustomerId
                         ? 'Select a customer to continue.'
-                        : selectedLabels.length === 0
-                          ? 'Select at least one label.'
-                          : 'Select a valid billing period to continue.'}
+                        : !bounds
+                          ? 'Select a valid billing period to continue.'
+                          : labelsLoading
+                            ? 'Loading labels…'
+                            : filteredLabels.length === 0
+                              ? 'No labels found for this customer and billing period.'
+                              : 'Select at least one label.'}
                     </p>
                   ) : null}
                 </div>
@@ -761,6 +794,8 @@ export function CreateInvoice() {
       </main>
 
       <BulkInvoiceDialog open={bulkOpen} onOpenChange={setBulkOpen} />
+
+      {generating ? <LoadingOverlay label="Generating invoice…" /> : null}
     </div>
   )
 }

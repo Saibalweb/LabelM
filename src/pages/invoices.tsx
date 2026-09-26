@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  Loader2,
   Plus,
   RotateCcw,
   Search,
@@ -109,15 +110,6 @@ function durationBounds(
     return { from: isoDate(from), to: isoDate(to) }
   }
   return null
-}
-
-function initials(name: string): string {
-  return name
-    .split(' ')
-    .map((part) => part.charAt(0))
-    .slice(0, 2)
-    .join('')
-    .toUpperCase()
 }
 
 export function Invoices() {
@@ -273,8 +265,9 @@ export function Invoices() {
 
   const listStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
   const listEnd = total === 0 ? 0 : Math.min(page * PAGE_SIZE, total)
+  const showFilterLoading = isFetching && !loading && page === 1
   const hasNoInvoices =
-    !loading && total === 0 && activeFilterCount === 0 && query.trim() === ''
+    !loading && total === 0 && activeFilterCount === 0 && debouncedQuery.trim() === ''
 
   if (hasNoInvoices) {
     return (
@@ -432,7 +425,15 @@ export function Invoices() {
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm">
+          <div className="relative overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm">
+            {showFilterLoading ? (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface-container-lowest/70">
+                <div className="flex items-center gap-2 rounded-full bg-surface-container-lowest px-4 py-2 shadow-md ring-1 ring-outline-variant">
+                  <Loader2 className="size-4 animate-spin text-primary" />
+                  <span className="font-label-md text-label-md text-on-surface">Loading…</span>
+                </div>
+              </div>
+            ) : null}
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1000px] border-collapse text-left">
                 <thead>
@@ -475,10 +476,10 @@ export function Invoices() {
                             <div
                               className={cn(
                                 'flex size-10 shrink-0 items-center justify-center rounded-full border border-outline-variant text-sm font-bold',
-                                avatarStyles[invoice.id % avatarStyles.length]
+                                avatarStyles[invoice.customerId % avatarStyles.length]
                               )}
                             >
-                              {initials(invoice.customerName)}
+                              #{invoice.customerId}
                             </div>
                             <span className="font-semibold text-on-background">
                               {invoice.customerName}

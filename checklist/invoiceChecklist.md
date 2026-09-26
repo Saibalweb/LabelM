@@ -116,6 +116,41 @@ verified live against the hosted Supabase via a headless browser, plus unit test
 
 ---
 
+## 9. Concurrent invoice generation — how conflicts are managed
+
+**Short explanation** (for testers/developers): invoice generation is entirely server-side in
+`generate_invoice_for_customer` / `generate_invoices_for_period` (`supabase/migrations/20260922120000_invoices_generate.sql`),
+one atomic transaction per call. Two employees generating for the same customer + same period are
+serialized by three layers:
+
+1. **Counters row lock** (`next_document_number`, `supabase/migrations/20260920130000_counters.sql`) —
+   `INSERT ... ON CONFLICT DO UPDATE` locks the `invoice` counters row; the lock is held until the
+   whole transaction commits, so the second caller blocks at the number-allocation step until the
+   first employee's entire invoice is committed. Invoice numbers stay unique.
+2. **Unique index** `invoices_customer_period_uniq (customer_id, period_start, period_end)` — once the
+   first invoice is committed, the second insert for the same customer + period is rejected with
+   SQLSTATE 23505, aborting that employee's transaction (nothing is created).
+3. **Label protection** — the labels `UPDATE` only touches `invoice_id IS NULL` rows and the
+   `labels_lock_billed` trigger blocks re-billing, so a label can never land on two invoices.
+
+**Known edge cases / risks:**
+- Two employees generating for the **same customer but overlapping different periods** (e.g. Jan 1–31
+  vs Jan 15–Feb 15) can race past the overlap check (plain read, no lock); the unique index doesn't
+  fire (different bounds), so the second invoice can be created with a **stale/inflated amount snapshot**.
+- **Bulk generation is all-or-nothing**: `generate_invoices_for_period` loops customers with no
+  per-customer `BEGIN/EXCEPTION`. A concurrent unique-violation on any customer aborts and rolls back
+  the **entire** bulk run, not just that customer.
+- UX: the concurrent loser in the same-period case surfaces as a generic "Failed to generate invoice."
+  toast rather than the friendly "already has an invoice for this period" message (the `skipped='overlap'`
+  path only catches already-committed overlaps).
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | Two employees, same customer + same period, concurrent → exactly one invoice, loser gets error toast, no duplicate labels | TODO — test later |
+| 2 | Two employees, same customer + overlapping different periods, concurrent → verify second invoice's total_amount vs line items | TODO — test later |
+| 3 | Concurrent bulk generation same period → confirm whole second run rolls back cleanly (no partial invoices) | TODO — test later |
+| 4 | Sequential overlap (invoice already committed) → `skipped='overlap'` message shown, only that customer skipped | TODO — test later |
+
 ## Verification
 
 - [x] Unit tests: **205 passed**

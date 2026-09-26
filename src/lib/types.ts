@@ -82,6 +82,20 @@ export interface Customer {
   updated_at: string
 }
 
+export interface CustomerFilters {
+  query?: string
+}
+
+export interface CustomerListParams {
+  page: number
+  pageSize: number
+}
+
+export interface CustomerListResult {
+  data: Customer[]
+  total: number
+}
+
 export interface DeletedCustomer {
   id: number
   name: string

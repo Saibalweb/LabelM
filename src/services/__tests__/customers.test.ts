@@ -204,6 +204,61 @@ describe('customerService.search', () => {
   })
 })
 
+describe('customerService.listPage', () => {
+  it('returns paginated customers with a total count', async () => {
+    const { query, calls } = createChain(() => ({
+      data: [customerRow()],
+      error: null,
+      count: 42,
+    }))
+    supabaseMock.from.mockReturnValue(query)
+
+    const result = await customerService.listPage({}, { page: 2, pageSize: 25 })
+
+    expect(result.total).toBe(42)
+    expect(result.data[0].id).toBe(7)
+    expect(calls.find((c) => c.method === 'is')?.args).toEqual(['deleted_at', null])
+    expect(calls.find((c) => c.method === 'range')?.args).toEqual([25, 49])
+    expect(calls.find((c) => c.method === 'order')?.args).toEqual(['id', { ascending: true }])
+  })
+
+  it('applies a name search via ilike when the query is non-numeric', async () => {
+    const { query, calls } = createChain(() => ({ data: [], error: null, count: 0 }))
+    supabaseMock.from.mockReturnValue(query)
+
+    await customerService.listPage({ query: 'Acme' }, { page: 1, pageSize: 25 })
+
+    expect(calls.find((c) => c.method === 'ilike')?.args).toEqual(['name', '%Acme%'])
+  })
+
+  it('applies numeric id-prefix ranges via or()', async () => {
+    const { query, calls } = createChain(() => ({ data: [], error: null, count: 0 }))
+    supabaseMock.from.mockReturnValue(query)
+
+    await customerService.listPage({ query: '12' }, { page: 1, pageSize: 25 })
+
+    const orCondition = calls.find((c) => c.method === 'or')?.args[0] as string
+    expect(orCondition).toContain('and(id.gte.12,id.lt.13)')
+    expect(calls.find((c) => c.method === 'ilike')).toBeUndefined()
+  })
+
+  it('returns an empty page for numeric queries with no possible ranges', async () => {
+    const result = await customerService.listPage(
+      { query: '99999999999999999999' },
+      { page: 1, pageSize: 25 }
+    )
+    expect(result).toEqual({ data: [], total: 0 })
+    expect(supabaseMock.from).not.toHaveBeenCalled()
+  })
+
+  it('throws on error', async () => {
+    const { query } = createChain(() => ({ data: null, error: new Error('fail') }))
+    supabaseMock.from.mockReturnValue(query)
+
+    await expect(customerService.listPage({}, { page: 1, pageSize: 25 })).rejects.toThrow('fail')
+  })
+})
+
 describe('customerService.create', () => {
   it('creates the customer then applies a rate when provided', async () => {
     const insert = createChain(() => ({ data: { id: 7 }, error: null }))

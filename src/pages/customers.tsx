@@ -1,16 +1,19 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import {
   ChevronLeft,
   ChevronRight,
+  Loader2,
   MoreVertical,
   Pencil,
   Plus,
+  Search,
   TriangleAlert,
   Undo2,
   Users,
+  X,
 } from 'lucide-react'
-import { TopNav, MobileSearchBar } from '@/components/layout/TopNav'
+import { TopNav } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { CustomerFormDialog } from '@/components/customers/CustomerFormDialog'
@@ -37,7 +40,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import {
   useAddCustomer,
-  useCustomersQuery,
+  useCustomerListQuery,
   useDeleteCustomer,
   useDeletedCustomersQuery,
   useRestoreCustomer,
@@ -47,8 +50,10 @@ import {
 import { useAppSelector } from '@/store/hooks'
 import { hasRole } from '@/lib/roles'
 import { formatCurrency, formatDateTime } from '@/lib/format'
-import type { Customer, CustomerInput, DeletedCustomer } from '@/lib/types'
+import type { Customer, CustomerFilters, CustomerInput, DeletedCustomer } from '@/lib/types'
 import { cn } from '@/lib/utils'
+
+const PAGE_SIZE = 25
 
 const avatarStyles = [
   'bg-primary-container text-on-primary-container',
@@ -57,8 +62,16 @@ const avatarStyles = [
   'bg-primary-fixed-dim text-on-primary-fixed',
 ]
 
+function useDebouncedValue<T>(value: T, delay = 300): T {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+  return debounced
+}
+
 export function Customers() {
-  const { data: items = [], isPending: loading } = useCustomersQuery()
   const addCustomer = useAddCustomer()
   const updateCustomer = useUpdateCustomer()
   const deleteCustomer = useDeleteCustomer()
@@ -68,6 +81,7 @@ export function Customers() {
   const canManage = hasRole(role, 'admin')
   const { data: deletedItems = [] } = useDeletedCustomersQuery(canManage)
   const [query, setQuery] = useState('')
+  const [page, setPage] = useState(1)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Customer | null>(null)
   const [priceOpen, setPriceOpen] = useState(false)
@@ -76,15 +90,39 @@ export function Customers() {
   const [menuCustomer, setMenuCustomer] = useState<Customer | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null)
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return items
-    return items.filter((customer) =>
-      [customer.name, customer.phone, customer.email, customer.address]
-        .filter(Boolean)
-        .some((field) => field!.toLowerCase().includes(q))
-    )
-  }, [items, query])
+  const debouncedQuery = useDebouncedValue(query)
+
+  const filters = useMemo<CustomerFilters>(
+    () => ({ query: debouncedQuery.trim() || undefined }),
+    [debouncedQuery]
+  )
+
+  const {
+    data: result,
+    isPending: loading,
+    isFetching,
+  } = useCustomerListQuery(filters, { page, pageSize: PAGE_SIZE })
+  const items = result?.data ?? []
+  const total = result?.total ?? 0
+
+  useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect
+    setPage(1)
+  }, [filters])
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  useEffect(() => {
+    if (page > totalPages) {
+      // oxlint-disable-next-line react/set-state-in-effect
+      setPage(totalPages)
+    }
+  }, [page, totalPages])
+
+  const listStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
+  const listEnd = total === 0 ? 0 : Math.min(page * PAGE_SIZE, total)
+  const hasNoCustomers =
+    !loading && total === 0 && debouncedQuery.trim() === ''
+  const showSearchLoading = isFetching && !loading && page === 1
 
   const handleOpenAdd = () => {
     setEditing(null)
@@ -154,13 +192,7 @@ export function Customers() {
 
   return (
     <div className="flex h-full flex-col">
-      <TopNav
-        searchable
-        searchValue={query}
-        onSearchChange={setQuery}
-        searchPlaceholder="Search customers..."
-      />
-      <MobileSearchBar value={query} onChange={setQuery} placeholder="Search customers..." />
+      <TopNav title="Customers" />
 
       <main className="flex-1 overflow-y-auto bg-background p-4 lg:p-8">
         <div className="mx-auto max-w-6xl">
@@ -181,7 +213,34 @@ export function Customers() {
             </Button>
           </div>
 
-          {!loading && items.length === 0 ? (
+          {!hasNoCustomers ? (
+            <div className="mb-6 flex flex-wrap items-center gap-4 rounded-xl border border-outline-variant bg-surface-container-lowest p-4 shadow-sm">
+              <div className="relative w-full max-w-sm">
+                <span className="absolute top-1/2 left-3 -translate-y-1/2 text-on-surface-variant">
+                  <Search className="size-5" />
+                </span>
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search name or ID..."
+                  className="h-12 w-full rounded-lg border border-outline-variant bg-surface pr-10 pl-10 font-label-md text-label-md text-on-surface transition-shadow placeholder:text-on-surface-variant focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
+                />
+                {query ? (
+                  <button
+                    type="button"
+                    onClick={() => setQuery('')}
+                    className="absolute top-1/2 right-3 -translate-y-1/2 text-on-surface-variant hover:text-on-surface"
+                    aria-label="Clear search"
+                  >
+                    <X className="size-5" />
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {hasNoCustomers ? (
             <EmptyState
               icon={<Users className="size-9" />}
               title="No customers yet"
@@ -191,7 +250,15 @@ export function Customers() {
             />
           ) : (
           <div className="overflow-hidden rounded-xl border border-surface-variant bg-surface-container-lowest shadow-sm">
-            <div className="overflow-x-auto">
+            <div className="relative overflow-x-auto">
+              {showSearchLoading ? (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface-container-lowest/70">
+                  <div className="flex items-center gap-2 rounded-full bg-surface-container-lowest px-4 py-2 shadow-md ring-1 ring-outline-variant">
+                    <Loader2 className="size-4 animate-spin text-primary" />
+                    <span className="font-label-md text-label-md text-on-surface">Loading…</span>
+                  </div>
+                </div>
+              ) : null}
               <table className="w-full border-collapse text-left">
                 <thead>
                   <tr className="border-b border-surface-variant bg-surface-container-low font-label-sm text-label-sm text-on-surface-variant">
@@ -213,14 +280,14 @@ export function Customers() {
                         </td>
                       </tr>
                     ))
-                  ) : filtered.length === 0 ? (
+                  ) : items.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="p-8 text-center text-on-surface-variant">
                         No customers match your search.
                       </td>
                     </tr>
                   ) : (
-                    filtered.map((customer, index) => (
+                    items.map((customer, index) => (
                       <tr key={customer.id} className="group h-16 transition-colors hover:bg-surface-bright">
                         <td className="p-4">
                           <span className="inline-flex size-8 items-center justify-center rounded-full bg-primary-container font-label-md text-label-md font-bold text-on-primary-container">
@@ -324,27 +391,41 @@ export function Customers() {
               </table>
             </div>
 
-            <div className="flex items-center justify-between border-t border-surface-variant bg-surface-container-lowest p-4">
-              <span className="font-body-md text-body-md text-on-surface-variant">
-                Showing {filtered.length} of {items.length}
+            <div className="flex items-center justify-between gap-4 border-t border-surface-variant bg-surface-container-lowest p-4 font-label-md text-label-md text-on-surface-variant">
+              <span>
+                {isFetching && page > 1 ? (
+                  'Loading...'
+                ) : (
+                  <>
+                    Showing {listStart}-{listEnd} of {total.toLocaleString()}
+                  </>
+                )}
               </span>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
                 <Button
                   type="button"
                   variant="outline"
-                  disabled
-                  className="min-h-12 rounded border-outline-variant px-3 text-on-surface-variant hover:bg-surface-container"
+                  size="icon-lg"
+                  disabled={page <= 1 || isFetching}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="size-10 rounded border-outline-variant text-on-surface-variant hover:bg-surface-container-high"
                   aria-label="Previous page"
                 >
-                  <ChevronLeft className="size-5" />
+                  <ChevronLeft className="size-[18px]" />
                 </Button>
+                <span className="min-w-14 text-center font-label-sm text-label-sm text-on-surface-variant">
+                  Page {page} / {totalPages}
+                </span>
                 <Button
                   type="button"
                   variant="outline"
-                  className="min-h-12 rounded border-outline-variant px-3 text-on-surface-variant hover:bg-surface-container"
+                  size="icon-lg"
+                  disabled={page >= totalPages || isFetching}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="size-10 rounded border-outline-variant text-on-surface-variant hover:bg-surface-container-high"
                   aria-label="Next page"
                 >
-                  <ChevronRight className="size-5" />
+                  <ChevronRight className="size-[18px]" />
                 </Button>
               </div>
             </div>
@@ -429,17 +510,41 @@ export function Customers() {
       />
 
       <Dialog open={priceOpen} onOpenChange={setPriceOpen}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Rate</DialogTitle>
-            <DialogDescription>
-              {priceCustomer ? `${priceCustomer.name} · ₹ per kg` : ''}
+            <DialogTitle className="font-headline-md text-headline-md text-on-surface">
+              Edit Rate
+            </DialogTitle>
+            <DialogDescription className="font-body-md text-body-md">
+              Update the per-kg rate for this customer. New labels will use this rate.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-2 py-2">
-            <Label htmlFor="price-rate">Rate (₹ per kg)</Label>
+
+          {priceCustomer ? (
+            <div className="flex items-center gap-3 rounded-xl border border-outline-variant bg-surface-container-low p-4">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-container font-headline-md text-headline-md font-bold text-on-primary-container">
+                {priceCustomer.id}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate font-body-md text-body-md font-semibold text-on-surface">
+                  {priceCustomer.name}
+                </p>
+                <p className="mt-0.5 font-label-sm text-label-sm text-on-surface-variant">
+                  Current rate: {formatCurrency(priceCustomer.currentRate ?? 0)}/kg
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="grid gap-2 pt-1">
+            <Label
+              htmlFor="price-rate"
+              className="font-label-md text-label-md text-on-surface-variant"
+            >
+              Rate (₹ per kg)
+            </Label>
             <div className="relative">
-              <span className="absolute top-1/2 left-3 -translate-y-1/2 text-sm text-on-surface-variant">
+              <span className="absolute top-1/2 left-4 -translate-y-1/2 font-body-md text-body-md text-on-surface-variant">
                 ₹
               </span>
               <Input
@@ -451,18 +556,24 @@ export function Customers() {
                 value={priceValue}
                 onChange={(e) => setPriceValue(e.target.value)}
                 placeholder="e.g. 120.00"
-                className="pl-7"
+                className="h-12 rounded-lg border-outline-variant bg-surface-container-lowest pr-4 pl-9 font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant"
                 autoFocus
               />
             </div>
+            <p className="font-label-sm text-label-sm text-on-surface-variant">
+              This rate is charged per kilogram on every new label for{' '}
+              {priceCustomer?.name ?? 'this customer'}.
+            </p>
           </div>
+
           <DialogFooter className="gap-2 sm:gap-2">
             <DialogClose asChild>
               <Button type="button" variant="outline">
                 Cancel
               </Button>
             </DialogClose>
-            <Button type="button" onClick={handleSavePrice}>
+            <Button type="button" onClick={handleSavePrice} className="gap-2">
+              <Pencil className="size-4" />
               Save Rate
             </Button>
           </DialogFooter>

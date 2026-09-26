@@ -1,6 +1,13 @@
 import { supabase } from '@/lib/supabase'
 import { pricesService } from '@/services/prices'
-import type { Customer, CustomerInput, DeletedCustomer } from '@/lib/types'
+import type {
+  Customer,
+  CustomerFilters,
+  CustomerInput,
+  CustomerListParams,
+  CustomerListResult,
+  DeletedCustomer,
+} from '@/lib/types'
 
 interface CustomerRow {
   id: number
@@ -106,6 +113,41 @@ export const customerService = {
     const { data, error } = await builder.order('id', { ascending: true }).limit(limit)
     if (error) throw new Error(error.message)
     return (data ?? []).map((row) => toCustomer(row as CustomerRow))
+  },
+
+  async listPage(
+    filters: CustomerFilters = {},
+    { page = 1, pageSize = 25 }: Partial<CustomerListParams> = {}
+  ): Promise<CustomerListResult> {
+    const q = (filters.query ?? '').trim()
+
+    let conditions: string[] = []
+    let numeric = false
+    if (q) {
+      numeric = /^\d+$/.test(q)
+      conditions = numeric ? idPrefixRangeConditions(q) : []
+      if (numeric && conditions.length === 0) {
+        return { data: [], total: 0 }
+      }
+    }
+
+    let query = supabase
+      .from('customers')
+      .select(CUSTOMER_COLUMNS, { count: 'exact' })
+      .is('deleted_at', null)
+
+    if (q) {
+      query = numeric ? query.or(conditions.join(',')) : query.ilike('name', `%${q}%`)
+    }
+
+    query = query.order('id', { ascending: true }).range((page - 1) * pageSize, page * pageSize - 1)
+
+    const { data, error, count } = await query
+    if (error) throw new Error(error.message)
+    return {
+      data: (data ?? []).map((row) => toCustomer(row as CustomerRow)),
+      total: count ?? 0,
+    }
   },
 
   async getById(id: number): Promise<Customer | null> {

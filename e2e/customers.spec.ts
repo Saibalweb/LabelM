@@ -18,17 +18,18 @@ test('customer CRUD: create, search, edit, rate change', async ({ page }) => {
   await page.getByLabel('Phone (optional)').fill('+91 90000 11111')
   await page.getByLabel('Rate (₹ per kg)').fill('100')
   await page.getByRole('button', { name: 'Add Customer' }).click()
+
+  // Search (server-side, by name) to bring the new customer into view
+  const search = page.getByPlaceholder('Search name or ID...')
+  await search.fill(custName)
   const row = page.getByRole('row', { name: new RegExp(custName) })
   await expect(row).toBeVisible({ timeout: 10_000 })
   await expect(row).toContainText('₹100.00')
 
-  // Search
-  const search = page.getByPlaceholder('Search customers...').first()
-  await search.fill(custName)
-  await expect(page.getByRole('row', { name: new RegExp(custName) })).toBeVisible()
+  // No-match search shows the empty row
   await search.fill('zzz-nothing-zzz')
   await expect(page.getByText('No customers match your search.')).toBeVisible()
-  await search.fill('')
+  await search.fill(custName)
 
   // Rate change
   await row.getByRole('button', { name: /₹100\.00/ }).click()
@@ -54,6 +55,9 @@ test('admin delete archives a customer and restore brings it back', async ({ pag
   await page.getByLabel('Name').fill(delName)
   await page.getByLabel('Rate (₹ per kg)').fill('60')
   await page.getByRole('button', { name: 'Add Customer' }).click()
+
+  // Search (server-side, by name) to bring the new customer into view
+  await page.getByPlaceholder('Search name or ID...').fill(delName)
   const row = page.getByRole('row', { name: new RegExp(delName) })
   await expect(row).toBeVisible({ timeout: 10_000 })
 

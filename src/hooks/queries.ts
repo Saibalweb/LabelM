@@ -9,7 +9,9 @@ import { invoiceService } from '@/services/invoices'
 import { labelService } from '@/services/labels'
 import { pricesService } from '@/services/prices'
 import type {
+  CustomerFilters,
   CustomerInput,
+  CustomerListParams,
   DueFilters,
   InvoiceFilters,
   InvoiceListParams,
@@ -43,6 +45,15 @@ export function useCustomerSearchQuery(query: string, limit = 25) {
     queryFn: () => customerService.search(trimmed, limit),
     enabled: trimmed.length > 0,
     staleTime: LIST_STALE_TIME,
+  })
+}
+
+export function useCustomerListQuery(filters: CustomerFilters = {}, params: CustomerListParams) {
+  return useQuery({
+    queryKey: [...queryKeys.customers, 'list', filters, params.page, params.pageSize],
+    queryFn: () => customerService.listPage(filters, params),
+    staleTime: LIST_STALE_TIME,
+    placeholderData: keepPreviousData,
   })
 }
 

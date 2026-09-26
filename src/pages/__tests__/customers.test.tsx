@@ -10,7 +10,7 @@ import draftReducer, { emptyDraft } from '@/store/slices/draftSlice'
 import type { Customer, DeletedCustomer } from '@/lib/types'
 
 const hooks = vi.hoisted(() => ({
-  useCustomersQuery: vi.fn(),
+  useCustomerListQuery: vi.fn(),
   useAddCustomer: vi.fn(),
   useUpdateCustomer: vi.fn(),
   useDeleteCustomer: vi.fn(),
@@ -20,7 +20,7 @@ const hooks = vi.hoisted(() => ({
 }))
 
 vi.mock('@/hooks/queries', () => ({
-  useCustomersQuery: hooks.useCustomersQuery,
+  useCustomerListQuery: hooks.useCustomerListQuery,
   useAddCustomer: hooks.useAddCustomer,
   useUpdateCustomer: hooks.useUpdateCustomer,
   useDeleteCustomer: hooks.useDeleteCustomer,
@@ -87,7 +87,7 @@ function renderCustomers(role: 'owner' | 'admin' | 'staff') {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  hooks.useCustomersQuery.mockReturnValue({ data: [customer], isPending: false })
+  hooks.useCustomerListQuery.mockReturnValue({ data: { data: [customer], total: 1 }, isPending: false })
   hooks.useAddCustomer.mockReturnValue(mutationMock())
   hooks.useUpdateCustomer.mockReturnValue(mutationMock())
   hooks.useDeleteCustomer.mockReturnValue(mutationMock())

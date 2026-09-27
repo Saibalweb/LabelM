@@ -177,6 +177,19 @@ these are fixed; remove the markers once green.
       and allowlist `/accept-invite` + `/reset-password` (dashboard, both
       staging and prod).
 - [ ] Route `owner_purge_member` through auth cleanup (remove the orphan).
+- [ ] **Accept-invite while already signed in (explicit switch confirmation).**
+      Today `/accept-invite` is public and unguarded, so a signed-in user who
+      opens an invite for a *different* email silently has their session swapped
+      by `verifyOtp` — the browser ends up signed in as the invitee. Planned fix:
+      when `status === 'authenticated'` and the current user is not the invitee,
+      show a "You're signed in as X. Accept this invite and switch accounts?"
+      step that calls `signOut()` before rendering the form. Include the invited
+      email in the link/template so the account being switched to is explicit.
+      Also harden the swap: clear the React Query cache when the authenticated
+      user id changes (currently only on `SIGNED_OUT`, see
+      `src/components/auth/AuthListener.tsx`), and remove the `restricted` race
+      where `onAuthStateChange` fetches the invitee's profile before
+      `activate_my_membership` flips it to `active`.
 - [ ] Next phase: RBAC capability matrix (`roles.spec.ts`) — create invoice,
       edit label, archive customer, payment delete, settings, promote/purge.
 

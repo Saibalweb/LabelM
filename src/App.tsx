@@ -1,6 +1,7 @@
 import { Route, Navigate, Routes } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { RequireAuth, RequireRole } from '@/components/auth/RequireAuth'
+import { TokenRedirect } from '@/components/auth/TokenRedirect'
 import { Login } from '@/pages/auth/login'
 import { MagicLinkSent } from '@/pages/auth/magicLinkSent'
 import { ForgotPassword } from '@/pages/auth/forgotPassword'
@@ -22,56 +23,59 @@ import { TRIAL_MODE } from '@/lib/env'
 
 function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/magic-link-sent" element={<MagicLinkSent />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/accept-invite" element={<AcceptInvite />} />
-      <Route path="/unauthorized" element={<AccessRestricted />} />
+    <>
+      <TokenRedirect />
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/magic-link-sent" element={<MagicLinkSent />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/accept-invite" element={<AcceptInvite />} />
+        <Route path="/unauthorized" element={<AccessRestricted />} />
 
-      <Route
-        element={
-          <RequireAuth>
-            <AppLayout />
-          </RequireAuth>
-        }
-      >
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/create" element={<Create />} />
-        <Route path="/preview/:id" element={<Preview />} />
-        <Route path="/customers" element={<Customers />} />
-        <Route path="/invoice" element={<Invoices />} />
         <Route
-          path="/invoice/new"
           element={
-            <RequireRole role="admin">
-              <CreateInvoice />
-            </RequireRole>
+            <RequireAuth>
+              <AppLayout />
+            </RequireAuth>
           }
-        />
-        <Route path="/dues" element={<Dues />} />
-        <Route path="/invoice/:id" element={<InvoiceDetails />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route
-          path="/team"
-          element={
-            <RequireRole role="admin">
-              {TRIAL_MODE ? (
-                <ComingSoon
-                  title="Team management"
-                  description="Inviting teammates and managing roles is coming in the final delivery."
-                />
-              ) : (
-                <Team />
-              )}
-            </RequireRole>
-          }
-        />
-      </Route>
+        >
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/create" element={<Create />} />
+          <Route path="/preview/:id" element={<Preview />} />
+          <Route path="/customers" element={<Customers />} />
+          <Route path="/invoice" element={<Invoices />} />
+          <Route
+            path="/invoice/new"
+            element={
+              <RequireRole role="admin">
+                <CreateInvoice />
+              </RequireRole>
+            }
+          />
+          <Route path="/dues" element={<Dues />} />
+          <Route path="/invoice/:id" element={<InvoiceDetails />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route
+            path="/team"
+            element={
+              <RequireRole role="admin">
+                {TRIAL_MODE ? (
+                  <ComingSoon
+                    title="Team management"
+                    description="Inviting teammates and managing roles is coming in the final delivery."
+                  />
+                ) : (
+                  <Team />
+                )}
+              </RequireRole>
+            }
+          />
+        </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   )
 }
 

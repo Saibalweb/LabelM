@@ -68,3 +68,131 @@ export function customerIdFromName(page: Page, name: string): Promise<string> {
     .first()
     .innerText()
 }
+
+// ---------------------------------------------------------------------------
+// Supabase REST helpers — deterministic setup that bypasses the flaky two-step
+// UI creation (customer insert + price insert). The endpoint and anon key are
+// captured from the app's own login traffic, so no env vars are required.
+// ---------------------------------------------------------------------------
+
+export interface SupabaseSession {
+  origin: string
+  anonKey: string
+}
+
+export async function loginCapturing(page: Page): Promise<SupabaseSession> {
+  let captured: SupabaseSession | null = null
+  page.on('request', (req) => {
+    if (captured) return
+    const url = req.url()
+    if (url.includes('/auth/v1/')) {
+      const apikey = req.headers()['apikey']
+      if (apikey) captured = { origin: new URL(url).origin, anonKey: apikey }
+    }
+  })
+  await login(page)
+  if (!captured) throw new Error('failed to capture Supabase endpoint from login traffic')
+  return captured
+}
+
+async function sessionToken(page: Page): Promise<string> {
+  const token = await page.evaluate(() => {
+    const key = Object.keys(localStorage).find((k) => k.includes('-auth-token'))
+    if (!key) return null
+    try {
+      return JSON.parse(localStorage.getItem(key) ?? '{}').access_token ?? null
+    } catch {
+      return null
+    }
+  })
+  if (!token) throw new Error('no session token in localStorage')
+  return token
+}
+
+export async function apiHeaders(page: Page, supa: SupabaseSession) {
+  return {
+    apikey: supa.anonKey,
+    Authorization: `Bearer ${await sessionToken(page)}`,
+    'Content-Type': 'application/json',
+  }
+}
+
+export async function apiCreateCustomer(
+  page: Page,
+  supa: SupabaseSession,
+  name: string,
+  rate: string
+): Promise<string> {
+  const headers = await apiHeaders(page, supa)
+  const res = await page.request.post(`${supa.origin}/rest/v1/customers`, {
+    headers: { ...headers, Prefer: 'return=representation' },
+    data: { name },
+  })
+  if (!res.ok()) throw new Error(`customer create failed: ${res.status()} ${await res.text()}`)
+  const [customer] = (await res.json()) as { id: number }[]
+
+  const price = await page.request.post(`${supa.origin}/rest/v1/customer_prices`, {
+    headers,
+    data: {
+      customer_id: customer.id,
+      rate: Number(rate),
+      effective_from: new Date().toISOString().slice(0, 10),
+      effective_to: null,
+    },
+  })
+  if (!price.ok()) throw new Error(`price create failed: ${price.status()} ${await price.text()}`)
+  return String(customer.id)
+}
+
+let labelCounter = 0
+
+export async function apiCreateLabel(
+  page: Page,
+  supa: SupabaseSession,
+  customerId: string,
+  labelDate: string,
+  weight: number,
+  rate: number
+): Promise<void> {
+  const headers = await apiHeaders(page, supa)
+  labelCounter += 1
+  const res = await page.request.post(`${supa.origin}/rest/v1/labels`, {
+    headers,
+    data: {
+      sl_no: `LBL-E2E-${Date.now().toString(36)}-${labelCounter}`,
+      customer_id: Number(customerId),
+      label_date: labelDate,
+      weight,
+      rate,
+      amount: Math.round(weight * rate * 100) / 100,
+    },
+  })
+  if (!res.ok()) throw new Error(`label create failed: ${res.status()} ${await res.text()}`)
+}
+
+export async function apiGenerateInvoice(
+  page: Page,
+  supa: SupabaseSession,
+  customerId: string,
+  periodStart: string,
+  periodEnd: string,
+  dueDate: string
+): Promise<number> {
+  const headers = await apiHeaders(page, supa)
+  const res = await page.request.post(
+    `${supa.origin}/rest/v1/rpc/generate_invoice_for_customer`,
+    {
+      headers,
+      data: {
+        p_customer_id: Number(customerId),
+        p_period_start: periodStart,
+        p_period_end: periodEnd,
+        p_due_date: dueDate,
+      },
+    }
+  )
+  if (!res.ok()) throw new Error(`invoice generate failed: ${res.status()} ${await res.text()}`)
+  const rows = (await res.json()) as { invoice_id: number | null }[]
+  if (!rows[0]?.invoice_id) throw new Error('invoice generation returned no invoice')
+  return rows[0].invoice_id
+}

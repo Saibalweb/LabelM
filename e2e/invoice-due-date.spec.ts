@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test'
-import { login, selectCustomerById, stubPrint } from './helpers'
+import {
+  apiCreateCustomer,
+  apiHeaders,
+  loginCapturing,
+  selectCustomerById,
+  stubPrint,
+} from './helpers'
 
 test.describe.configure({ mode: 'serial' })
 
@@ -27,70 +33,6 @@ function fmt(iso: string): string {
     month: 'short',
     year: 'numeric',
   }).format(new Date(iso))
-}
-
-// Captured from the app's own login traffic so the spec needs no env vars.
-let supa: { origin: string; anonKey: string }
-
-async function loginCapturing(page: Page) {
-  let captured: { origin: string; anonKey: string } | null = null
-  page.on('request', (req) => {
-    if (captured) return
-    const url = req.url()
-    if (url.includes('/auth/v1/')) {
-      const apikey = req.headers()['apikey']
-      if (apikey) captured = { origin: new URL(url).origin, anonKey: apikey }
-    }
-  })
-  await login(page)
-  if (!captured) throw new Error('failed to capture Supabase endpoint from login traffic')
-  supa = captured
-}
-
-async function sessionToken(page: Page): Promise<string> {
-  const token = await page.evaluate(() => {
-    const key = Object.keys(localStorage).find((k) => k.includes('-auth-token'))
-    if (!key) return null
-    try {
-      return JSON.parse(localStorage.getItem(key) ?? '{}').access_token ?? null
-    } catch {
-      return null
-    }
-  })
-  if (!token) throw new Error('no session token in localStorage')
-  return token
-}
-
-async function apiHeaders(page: Page) {
-  return {
-    apikey: supa.anonKey,
-    Authorization: `Bearer ${await sessionToken(page)}`,
-    'Content-Type': 'application/json',
-  }
-}
-
-// Deterministic setup: create the customer + active price via PostgREST rather
-// than the UI, whose two-step create can transiently leave a customer rate-less.
-async function createCustomerWithId(page: Page, name: string, rate: string): Promise<string> {
-  const headers = await apiHeaders(page)
-  const res = await page.request.post(`${supa.origin}/rest/v1/customers`, {
-    headers: { ...headers, Prefer: 'return=representation' },
-    data: { name },
-  })
-  if (!res.ok()) throw new Error(`customer create failed: ${res.status()} ${await res.text()}`)
-  const [customer] = (await res.json()) as { id: number }[]
-
-  const price = await page.request.post(`${supa.origin}/rest/v1/customer_prices`, {
-    headers,
-    data: {
-      customer_id: customer.id,
-      rate: Number(rate),
-      effective_from: todayISO(),
-      effective_to: null,
-    },
-  })
-  if (!price.ok()) throw new Error(`price create failed: ${price.status()} ${await price.text()}`)
-  return String(customer.id)
 }
 
 async function addLabelInMonth(page: Page, customerId: string, month: string) {
@@ -133,10 +75,10 @@ function dueDateValue(page: Page) {
 
 test('single wizard: each payment term writes the expected due date', async ({ page }) => {
   stubPrint(page)
-  await loginCapturing(page)
+  const supa = await loginCapturing(page)
 
   const cust = `E2E Due ${suffix}`
-  const customerId = await createCustomerWithId(page, cust, '100')
+  const customerId = await apiCreateCustomer(page, supa, cust, '100')
 
   const today = todayISO()
   const net30 = addDaysISO(today, 30)
@@ -177,10 +119,10 @@ test('single wizard: each payment term writes the expected due date', async ({ p
 
 test('single wizard: confirm panel previews the selected due date before generating', async ({ page }) => {
   stubPrint(page)
-  await loginCapturing(page)
+  const supa = await loginCapturing(page)
 
   const cust = `E2E Due Preview ${suffix}`
-  const customerId = await createCustomerWithId(page, cust, '100')
+  const customerId = await apiCreateCustomer(page, supa, cust, '100')
   await addLabelInMonth(page, customerId, '2026-03')
 
   const expected = addDaysISO(todayISO(), 15)
@@ -197,10 +139,10 @@ test('single wizard: confirm panel previews the selected due date before generat
 
 test('bulk: custom due date applies to every generated invoice', async ({ page }) => {
   stubPrint(page)
-  await loginCapturing(page)
+  const supa = await loginCapturing(page)
 
   const cust = `E2E Due Bulk ${suffix}`
-  const customerId = await createCustomerWithId(page, cust, '100')
+  const customerId = await apiCreateCustomer(page, supa, cust, '100')
   await addLabelInMonth(page, customerId, '2026-02')
 
   const customDue = addDaysISO(todayISO(), 45)
@@ -229,13 +171,13 @@ test('bulk: custom due date applies to every generated invoice', async ({ page }
 
 test('rpc fallback: null p_due_date stores current_date + 30', async ({ page }) => {
   stubPrint(page)
-  await loginCapturing(page)
+  const supa = await loginCapturing(page)
 
   const cust = `E2E Due Fallback ${suffix}`
-  const customerId = await createCustomerWithId(page, cust, '100')
+  const customerId = await apiCreateCustomer(page, supa, cust, '100')
   await addLabelInMonth(page, customerId, '2026-01')
 
-  const headers = await apiHeaders(page)
+  const headers = await apiHeaders(page, supa)
 
   const res = await page.request.post(`${supa.origin}/rest/v1/rpc/generate_invoice_for_customer`, {
     headers,

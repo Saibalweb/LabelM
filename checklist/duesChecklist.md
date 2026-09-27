@@ -100,19 +100,81 @@ The payment flow requirements below are tracked **here** so payment UX and Dues 
 
 **Verdict: FIXED** — Quick Views selection is now unmistakably blue, matching the other selected controls (segmented duration buttons). Verified live via headless screenshots.
 
+## 6. Due-date integration (variable due dates from generation) + "Oldest Due" fix
+
+Due dates are now chosen per invoice at generation time (On Receipt / Net 15 / Net 30 / Custom),
+so the dues page sees arbitrary, non-uniform due dates. This section records how the page turns
+those into the three overview cards and the filters, and the bug that surfaced.
+
+### How the three overview cards are calculated
+
+| Card | Formula | Scope |
+|------|---------|-------|
+| Total Outstanding | Σ over customers of Σ `invoice.due` (invoices with `due > 0`) | Server-filtered set (`duesCustomers`) |
+| Customers with Dues | `duesCustomers.length`; footnote = count of customers with any invoice past due | Server-filtered set |
+| Oldest Due | max over customers of `today − dueDate` in days (clamped ≥ 0) | Server-filtered set |
+
+- `due` = `total_amount − Σ payments` (derived at read time; there is no stored `due` column).
+- The cards aggregate `duesCustomers` (the server-filtered rows), so **only server-side filters
+  change them** — search, payment status, customer ids, due-date window. Client-side filters
+  (quick-view preset, aging, amount range) narrow the visible list but **not** the cards.
+
+### Filtering tiers
+
+| Tier | Filters |
+|------|---------|
+| Server (PostgREST `WHERE`) | status `IN (Unpaid, Partial)`, `customer_id.in`, `due_date >= from`, `due_date < to`, search (invoice no / resolved customer name) |
+| Client (post-grouping) | quick-view presets (today-based), aging buckets (today-based `oldestDays`), due amount range (per-customer `totalDue`) |
+
+### Bug found & fixed — "Oldest Due" / "currently overdue" used the wrong reference
+
+`daysOverdue` was computed against `referenceNow` = the **latest due date in the result set**
+(a leftover from the original mock-data prototype), while aging used today's date. With uniform
+`period_end + 30` due dates the difference was easy to miss; with user-selected due dates it
+produced wrong numbers — e.g. a single invoice 40 days past due showed **Oldest Due = 0 days** and
+was **not** counted as overdue.
+
+Fix (`src/pages/dues.tsx`): removed `referenceNow`; `daysOverdue`, `oldestDays`, and the `overdue`
+flag are now all measured from **today**, matching the aging filter and the Overdue quick view.
+`overdueDays` was folded into `oldestDays`. Added `data-testid` on the three card values
+(`stat-total-outstanding`, `stat-customers-with-dues`, `stat-oldest-due`) for stable assertions.
+
+### Real-data verification
+
+Automated by `e2e/dues-due-dates.spec.ts`. Creates one customer with three invoices via the
+generation RPC — ₹100 each, due **today−40**, **today+3**, **today+45** — then scopes the page to
+that customer with the server-side search and asserts:
+
+| # | Check | Expected | Result |
+|---|-------|----------|--------|
+| 1 | Total Outstanding (scoped) | ₹300 | Pass |
+| 2 | Customers with Dues | 1 | Pass |
+| 3 | Oldest Due | 40 days (today-based) | Pass |
+| 4 | "1 currently overdue" footnote | visible | Pass |
+| 5 | Quick views Overdue / Due Soon / Due 30+ | row visible for each | Pass |
+| 6 | Aging 31–60 | row visible | Pass |
+| 7 | Aging 1–30 | no match | Pass |
+| 8 | Due window = Overdue (server-side) | Total Outstanding → ₹100, Oldest Due → 40 days | Pass |
+
+**Verdict: FIXED** — the dues overview now reflects variable due dates correctly, and every
+day-count on the page (card, aging, presets) is consistently today-based.
+
 ## Verification
 
-- [x] Unit tests: **229 passed** (incl. new `paymentDialog` coverage: max clamp attribute, cash/today defaults, quick-fill button; `duesFilters` suite; `listDue` service filter mapping)
+- [x] Unit tests: **234 passed**
+- [x] e2e (Playwright, live hosted Supabase): **34 passed**
 - [x] `tsc -b` clean
 - [x] `oxlint` clean (no new warnings)
 - [x] Production build succeeds
 
 **Files changed:**
-- `src/pages/dues.tsx` — filter sheet (quick views, aging, status, customer, amount, due window, sort) + server/client two-tier filtering; §5 restyle + Quick Views active state
+- `src/pages/dues.tsx` — filter sheet (quick views, aging, status, customer, amount, due window, sort) + server/client two-tier filtering; §5 restyle + Quick Views active state; §6 today-based `oldestDays`/`overdue` fix + card `data-testid`s
 - `src/services/invoices.ts` — `invoiceService.listDue` (server-side dues query)
 - `src/hooks/queries.ts` — `useDueInvoicesQuery`
 - `src/lib/types.ts` — `DuePreset`, `DueAgingBucket`, `DueWindow`, `DueFilters`
 - `src/pages/invoiceDetails.tsx` — payment flow: max clamp, empty amount default, cash default, "Pay full remaining" checkbox
 - `src/pages/__tests__/duesFilters.test.tsx`, `src/pages/__tests__/paymentDialog.test.tsx`, `src/services/__tests__/invoices.test.ts` — tests
 - `e2e/dues.spec.ts` — filter sheet + sort-in-sheet e2e coverage
+- `e2e/dues-due-dates.spec.ts` — §6 real-data due-date integration coverage
+- `e2e/helpers.ts` — shared Supabase REST setup helpers (customer/label/invoice)
 - `checklist/duesChecklist.md` — this file

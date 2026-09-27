@@ -94,7 +94,6 @@ interface DuesCustomer {
   tone: number
   totalDue: number
   oldestDays: number
-  overdueDays: number
   overdue: boolean
   invoices: DuesInvoice[]
 }
@@ -160,6 +159,7 @@ function StatCard({
   iconClassName,
   decorClassName,
   footnote,
+  testId,
 }: {
   label: string
   value: string
@@ -167,6 +167,7 @@ function StatCard({
   iconClassName: string
   decorClassName: string
   footnote: React.ReactNode
+  testId: string
 }) {
   return (
     <div className="group relative overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest p-6 shadow-sm transition-shadow hover:shadow-md">
@@ -182,7 +183,10 @@ function StatCard({
         </span>
         <span className={iconClassName}>{icon}</span>
       </div>
-      <div className="relative z-10 font-headline-lg text-headline-lg text-on-background">
+      <div
+        className="relative z-10 font-headline-lg text-headline-lg text-on-background"
+        data-testid={testId}
+      >
         {value}
       </div>
       <div className="relative z-10 mt-2 flex items-center gap-1 font-label-sm text-label-sm text-on-surface-variant">
@@ -226,11 +230,6 @@ export function Dues() {
 
   const { data: invoices = [] } = useDueInvoicesQuery(dueFilters)
 
-  const referenceNow = useMemo(() => {
-    if (invoices.length === 0) return 0
-    return Math.max(...invoices.map((inv) => parseDate(inv.dueDate).getTime()))
-  }, [invoices])
-
   const todayMs = useMemo(() => {
     const d = new Date()
     d.setHours(0, 0, 0, 0)
@@ -242,8 +241,7 @@ export function Dues() {
     for (const invoice of invoices) {
       if (invoice.due <= 0) continue
       const dueDateMs = parseDate(invoice.dueDate).getTime()
-      const daysOverdue = Math.max(0, Math.floor((referenceNow - dueDateMs) / DAY_MS))
-      const overdueDays = Math.max(0, Math.floor((todayMs - dueDateMs) / DAY_MS))
+      const daysOverdue = Math.max(0, Math.floor((todayMs - dueDateMs) / DAY_MS))
       const statusLabel =
         invoice.status === 'Partial'
           ? `Partial (${Math.round((invoice.paid / invoice.totalAmount) * 100)}%)`
@@ -254,19 +252,17 @@ export function Dues() {
         tone: invoice.id,
         totalDue: 0,
         oldestDays: 0,
-        overdueDays: 0,
         overdue: false,
         invoices: [] as DuesInvoice[],
       }
       entry.totalDue += invoice.due
       entry.oldestDays = Math.max(entry.oldestDays, daysOverdue)
-      entry.overdueDays = Math.max(entry.overdueDays, overdueDays)
       if (daysOverdue > 0) entry.overdue = true
       entry.invoices.push({ invoice, daysOverdue, statusLabel })
       byCustomer.set(invoice.customerId, entry)
     }
     return Array.from(byCustomer.values())
-  }, [invoices, referenceNow, todayMs])
+  }, [invoices, todayMs])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -295,7 +291,7 @@ export function Dues() {
         !c.invoices.some(({ invoice }) => daysUntilDue(invoice, todayMs) > 30)
       )
         return false
-      if (aging.length > 0 && !aging.some((bucket) => inAgingBucket(c.overdueDays, bucket)))
+      if (aging.length > 0 && !aging.some((bucket) => inAgingBucket(c.oldestDays, bucket)))
         return false
       if (min != null && c.totalDue < min) return false
       if (max != null && c.totalDue > max) return false
@@ -439,6 +435,7 @@ export function Dues() {
               footnote={
                 <span>Across {duesCustomers.length} customers with dues</span>
               }
+              testId="stat-total-outstanding"
             />
             <StatCard
               label="Customers with Dues"
@@ -451,6 +448,7 @@ export function Dues() {
                   {duesCustomers.filter((c) => c.overdue).length} currently overdue
                 </span>
               }
+              testId="stat-customers-with-dues"
             />
             <StatCard
               label="Oldest Due"
@@ -459,6 +457,7 @@ export function Dues() {
               iconClassName="text-tertiary"
               decorClassName="bg-tertiary-container/10"
               footnote={<span>From the oldest unpaid invoice</span>}
+              testId="stat-oldest-due"
             />
           </div>
 

@@ -221,10 +221,16 @@ generates through the UI, then reads the invoice's `Due Date:` value.
 **Verdict: DONE** — due date is selectable in both flows, persists correctly, drives the Overdue
 filter, and the null fallback preserves the old default shape.
 
+**Downstream — Dues page:** variable due dates flow into `/dues` (Total Outstanding, Customers with
+Dues, Oldest Due, and the Overdue/Due Soon/Due 30+ presets, aging, and due-date window). Verifying
+this surfaced a pre-existing bug where "Oldest Due"/"currently overdue" were measured against the
+latest due date in the result set instead of today. Fixed and covered by
+`e2e/dues-due-dates.spec.ts` — see `checklist/duesChecklist.md` §6.
+
 ## Verification
 
 - [x] Unit tests: **234 passed**
-- [x] e2e (Playwright, live hosted Supabase): **33 passed**
+- [x] e2e (Playwright, live hosted Supabase): **34 passed**
 - [x] `tsc -b` clean
 - [x] `oxlint` clean (no new warnings)
 - [x] Production build succeeds

@@ -35,6 +35,20 @@ function nameFromEmail(email: string): string {
     .join(' ')
 }
 
+// The Admin API has no getUserByEmail, so page through listUsers. Fine for a
+// closed, single-company workspace (10 pages x 1000 users).
+async function findUserByEmail(email: string) {
+  const perPage = 1000
+  for (let page = 1; page <= 10; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage })
+    if (error || !data?.users) return null
+    const found = data.users.find((u) => u.email?.toLowerCase() === email)
+    if (found) return found
+    if (data.users.length < perPage) return null
+  }
+  return null
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
@@ -85,33 +99,60 @@ Deno.serve(async (req) => {
     data: { role },
     redirectTo,
   })
-  if (inviteErr) {
-    // If the user already exists but has NOT joined yet, resend their invite
-    // link instead of failing. Otherwise report a conflict.
-    if (/already|registered|exists/i.test(inviteErr.message)) {
-      const { data: existing } = await admin
-        .from('employees')
-        .select('id, status')
-        .eq('email', email)
-        .maybeSingle()
 
-      if (existing?.status === 'invited') {
-        const { error: resendErr } = await admin.auth.admin.resend({
-          type: 'invite',
-          email,
-          options: { emailRedirectTo: redirectTo },
-        })
-        if (resendErr) {
-          return json({ error: resendErr.message ?? 'Unable to resend the invitation' }, 500)
-        }
-        return json({ ok: true, id: existing.id })
+  let userId = created?.user?.id
+
+  if (inviteErr) {
+    if (!/already|registered|exists/i.test(inviteErr.message)) {
+      return json({ error: inviteErr.message ?? 'Unable to send the invitation' }, 500)
+    }
+
+    const { data: existing } = await admin
+      .from('employees')
+      .select('id, status')
+      .eq('email', email)
+      .maybeSingle()
+
+    // Still pending: resend the existing invite link.
+    if (existing?.status === 'invited') {
+      const { error: resendErr } = await admin.auth.admin.resend({
+        type: 'invite',
+        email,
+        options: { emailRedirectTo: redirectTo },
+      })
+      if (resendErr) {
+        return json({ error: resendErr.message ?? 'Unable to resend the invitation' }, 500)
       }
+      return json({ ok: true, id: existing.id })
+    }
+
+    // Active or suspended member: a real conflict.
+    if (existing) {
       return json({ error: 'That email already belongs to this workspace' }, 409)
     }
-    return json({ error: inviteErr.message ?? 'Unable to send the invitation' }, 500)
+
+    // Orphaned auth user — an invite/revoke left the auth.users row behind but
+    // the employees row is gone. Remove it and retry so re-invites work.
+    const orphan = await findUserByEmail(email)
+    if (!orphan) {
+      return json({ error: 'That email already belongs to this workspace' }, 409)
+    }
+
+    const { error: deleteErr } = await admin.auth.admin.deleteUser(orphan.id, false)
+    if (deleteErr) {
+      return json({ error: deleteErr.message ?? 'Unable to reset the previous invitation' }, 500)
+    }
+
+    const { data: retried, error: retryErr } = await admin.auth.admin.inviteUserByEmail(email, {
+      data: { role },
+      redirectTo,
+    })
+    if (retryErr || !retried?.user?.id) {
+      return json({ error: retryErr?.message ?? 'Unable to send the invitation' }, 500)
+    }
+    userId = retried.user.id
   }
 
-  const userId = created?.user?.id
   if (!userId) return json({ error: 'Unable to create the user' }, 500)
 
   // Mirror the role into app_metadata (never user_metadata) for JWT consumers.

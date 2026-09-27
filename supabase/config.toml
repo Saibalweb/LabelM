@@ -50,3 +50,6 @@ enable_confirmations = true
 
 [functions.invite-user]
 verify_jwt = true
+
+[functions.revoke-user]
+verify_jwt = true

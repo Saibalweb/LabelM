@@ -49,8 +49,16 @@ export const teamService = {
   },
 
   async revokeInvite(id: string) {
-    const { error } = await supabase.rpc('admin_revoke_invite', { member_id: id })
-    if (error) throw new Error(error.message)
+    const { data, error } = await supabase.functions.invoke('revoke-user', {
+      body: { memberId: id },
+    })
+    if (error) {
+      const context = (error as { context?: { data?: { error?: string } } }).context?.data
+      throw new Error(context?.error ?? error.message ?? 'Unable to revoke the invitation')
+    }
+    if (!data?.ok) {
+      throw new Error((data as { error?: string } | null)?.error ?? 'Unable to revoke the invitation')
+    }
   },
 
   async setStatus(id: string, status: Exclude<MemberStatus, 'invited'>) {

@@ -190,13 +190,38 @@ Deferred on purpose. Nothing in Stage 1 changes; this only **adds** on top.
 
 ### 6.2 Auth E2E (staging only)
 
-| Flow | Covers |
+Two tiers, matching the identity/membership scope. Real-SMTP (Tier 2) is opt-in.
+
+**Tier 1 — deterministic logic (no email), `npm run test:e2e:auth`**
+Requires `SUPABASE_SERVICE_ROLE_KEY` (staging) + `E2E_STAGING_REF` in the shell.
+The real `invite-user` / `revoke-user` Edge Functions are invoked over HTTP with
+member JWTs; accept links are minted via the Admin API, never read from email.
+
+| Spec | Covers |
 |---|---|
-| Magic link | request → email received → click → logged in; expired/invalid token |
-| Forgot password | request → reset email → set new password → strength meter → login |
-| Accept invite | invite email → accept page → name + password → member active |
-| Team management | invite staff/admin, resend, revoke, promote/demote, suspend/reactivate, remove; owner-only ops (promote admin, transfer ownership, purge) |
-| Invite-user function | validation, role gating, duplicate/resend, cleanup on failure |
+| `auth-invite.spec.ts` | invite staff/admin, role gating, resend/re-invite, 409s, revoke (pending vs active vs owner vs admin), orphan self-heal, accept happy path / tampered / revoked / missing type, Team-page UI invite + revoke |
+| `auth-membership.spec.ts` | suspend → `/unauthorized`, live RLS lock-out, reactivate, admin-remove=suspend vs owner-remove=purge, admin-cannot-suspend-admin |
+| `auth-login.spec.ts` | wrong password, unknown email (no enumeration), forgot-password + magic-link request confirmations, non-member with valid credentials |
+
+Fixtures: `e2e/fixtures/admin.ts` (service role), `e2e/fixtures/identities.ts`
+(per-run `@yopmail.com` addresses), `e2e/fixtures/globalSetup.ts` (staging guard).
+
+**Tier 2 — real SMTP via ZeptoMail → YOPmail (later), `E2E_EMAIL=1`**
+Reads the actual delivered invite/magic/reset emails, asserts the emailed link
+works and the link host is the app origin.
+
+**Known bugs found by the suite** (tests marked `test.fail` until fixed):
+1. **Re-invite/resend of a pending invite returns 500.** `inviteUserByEmail`
+   succeeds (no error) for an already-invited user, so `invite-user` skips its
+   resend branch and the `employees` INSERT hits `employees_pkey`. Breaks the
+   "Resend invite" button.
+2. **`invite-user` does not require owner/admin for staff invites.** It only
+   blocks non-active callers and admin-granting, so a staff JWT can invite staff
+   directly (privilege escalation; UI is gated but the function is the boundary).
+3. **`revoke-user` does not require owner/admin** — it only checks that the
+   caller is active, so staff can revoke pending invites.
+4. Purge (`owner_purge_member`) leaves an orphaned `auth.users` row (known;
+   `invite-user` self-heals it on re-invite).
 
 ### 6.3 Flip to full auth on prod
 

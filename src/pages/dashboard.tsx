@@ -674,25 +674,25 @@ export function Dashboard() {
         <SheetContent
           side="right"
           showCloseButton={false}
-          className="w-full gap-0 border-l border-outline-variant bg-surface-container-lowest sm:max-w-[440px]"
+          className="w-full gap-0 border-l border-outline-variant bg-surface-container-lowest sm:max-w-[420px]"
         >
-          <div className="flex items-start justify-between gap-3 border-b border-outline-variant bg-surface-container-low px-6 py-5">
+          <div className="flex items-start justify-between gap-3 border-b border-outline-variant bg-surface-container-low px-5 py-4">
             <div className="flex items-start gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <SlidersHorizontal className="size-5" />
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <SlidersHorizontal className="size-[18px]" />
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <SheetTitle className="font-headline-md text-headline-md font-bold text-on-surface">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <SheetTitle className="font-sans text-[17px] leading-6 font-semibold tracking-tight text-on-surface">
                     Filter Labels
                   </SheetTitle>
                   {activeFilterCount > 0 ? (
-                    <span className="rounded-full bg-primary-fixed px-2 py-0.5 font-label-sm text-label-sm font-semibold text-on-primary-fixed">
+                    <span className="rounded-full bg-primary-fixed-dim px-2 py-0.5 font-sans text-[11px] font-semibold text-on-primary-fixed">
                       {activeFilterCount} active
                     </span>
                   ) : null}
                 </div>
-                <SheetDescription className="mt-0.5 font-body-md text-body-md text-on-surface-variant">
+                <SheetDescription className="mt-1 font-sans text-[13px] leading-5 text-on-surface-variant">
                   Refine records by timeframe, customer, status, and value.
                 </SheetDescription>
               </div>
@@ -702,24 +702,24 @@ export function Dashboard() {
                 variant="ghost"
                 size="icon-lg"
                 aria-label="Close"
-                className="size-9 shrink-0 rounded-lg bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
+                className="size-8 shrink-0 rounded-lg bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
               >
-                <X className="size-5" />
+                <X className="size-4" />
               </Button>
             </SheetClose>
           </div>
 
-          <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
+          <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
-                  <Bookmark className="size-4 text-primary" />
+                <span className="flex items-center gap-1.5 font-label-sm text-[11px] leading-4 font-semibold tracking-[0.08em] text-on-surface-variant uppercase">
+                  <Bookmark className="size-3.5 text-primary" />
                   Saved Filter Presets
                 </span>
                 <button
                   type="button"
                   onClick={() => toast.info('Saved filter presets coming soon')}
-                  className="cursor-pointer font-label-sm text-label-sm text-primary hover:underline"
+                  className="cursor-pointer font-sans text-[12px] font-medium text-primary hover:underline"
                 >
                   Manage
                 </button>
@@ -733,10 +733,10 @@ export function Dashboard() {
                       type="button"
                       onClick={() => applyPreset(preset.id)}
                       className={cn(
-                        'flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-label-sm text-label-sm transition-colors',
+                        'flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-sans text-[12px] leading-4 font-medium transition-colors',
                         active
-                          ? 'bg-primary-fixed font-semibold text-on-primary-fixed'
-                          : 'bg-surface-container text-on-surface hover:bg-surface-container-high'
+                          ? 'bg-primary font-semibold text-on-primary shadow-sm'
+                          : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'
                       )}
                     >
                       <preset.Icon className="size-3.5" />
@@ -747,15 +747,15 @@ export function Dashboard() {
               </div>
             </div>
 
-            <div className="h-px w-full bg-surface-container-high" />
+            <div className="h-px w-full bg-outline-variant/60" />
 
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
-                  <CalendarDays className="size-4 text-primary" />
+                <span className="flex items-center gap-1.5 font-label-sm text-[11px] leading-4 font-semibold tracking-[0.08em] text-on-surface-variant uppercase">
+                  <CalendarDays className="size-3.5 text-primary" />
                   Timeframe &amp; Duration
                 </span>
-                <span className="font-label-sm text-label-sm text-on-surface-variant">
+                <span className="font-sans text-[12px] font-medium text-on-surface-variant">
                   {durationLabel}
                 </span>
               </div>
@@ -766,10 +766,10 @@ export function Dashboard() {
                     type="button"
                     onClick={() => setDuration(option.value)}
                     className={cn(
-                      'rounded-lg px-3 py-2 text-center font-headline-md text-label-sm transition-colors',
+                      'rounded-lg px-3 py-2 text-center font-sans text-[13px] leading-5 font-medium transition-colors',
                       duration === option.value
                         ? 'bg-primary text-on-primary shadow-sm'
-                        : 'bg-surface-container text-on-surface hover:bg-surface-container-high'
+                        : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'
                     )}
                   >
                     {option.label}
@@ -779,10 +779,10 @@ export function Dashboard() {
                   type="button"
                   onClick={() => setDuration('custom')}
                   className={cn(
-                    'col-span-2 rounded-lg px-3 py-2 text-center font-headline-md text-label-sm transition-colors',
+                    'col-span-2 rounded-lg px-3 py-2 text-center font-sans text-[13px] leading-5 font-medium transition-colors',
                     duration === 'custom'
                       ? 'bg-primary text-on-primary shadow-sm'
-                      : 'bg-surface-container text-on-surface hover:bg-surface-container-high'
+                      : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'
                   )}
                 >
                   Custom Date Range
@@ -791,53 +791,53 @@ export function Dashboard() {
               {duration === 'custom' ? (
                 <div className="mt-1 grid grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1">
-                    <label className="font-label-sm text-label-sm text-on-surface-variant">
+                    <label className="font-sans text-[12px] font-medium text-on-surface-variant">
                       From Date
                     </label>
                     <input
                       type="date"
                       value={fromDate}
                       onChange={(e) => setFromDate(e.target.value)}
-                      className="h-10 rounded-lg bg-surface-container-low px-3 font-label-sm text-label-sm text-on-surface outline-none transition-colors focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary"
+                      className="h-10 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-3 font-sans text-[13px] text-on-surface outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/30"
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="font-label-sm text-label-sm text-on-surface-variant">
+                    <label className="font-sans text-[12px] font-medium text-on-surface-variant">
                       To Date
                     </label>
                     <input
                       type="date"
                       value={toDate}
                       onChange={(e) => setToDate(e.target.value)}
-                      className="h-10 rounded-lg bg-surface-container-low px-3 font-label-sm text-label-sm text-on-surface outline-none transition-colors focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary"
+                      className="h-10 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-3 font-sans text-[13px] text-on-surface outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/30"
                     />
                   </div>
                 </div>
               ) : null}
             </div>
 
-            <div className="h-px w-full bg-surface-container-high" />
+            <div className="h-px w-full bg-outline-variant/60" />
 
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
-                  <Users className="size-4 text-primary" />
+                <span className="flex items-center gap-1.5 font-label-sm text-[11px] leading-4 font-semibold tracking-[0.08em] text-on-surface-variant uppercase">
+                  <Users className="size-3.5 text-primary" />
                   Customer &amp; Account
                 </span>
                 {customerIds.length > 0 ? (
-                  <span className="font-label-sm text-label-sm font-semibold text-secondary">
+                  <span className="font-sans text-[12px] font-semibold text-secondary">
                     {customerIds.length} Selected
                   </span>
                 ) : null}
               </div>
-              <div className="flex h-10 items-center gap-2 rounded-lg bg-surface-container-low px-3 transition-all focus-within:bg-surface-container-lowest focus-within:ring-2 focus-within:ring-primary">
+              <div className="flex h-10 items-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-3 transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/30">
                 <Search className="size-4 shrink-0 text-outline" />
                 <input
                   type="text"
                   value={customerQuery}
                   onChange={(e) => setCustomerQuery(e.target.value)}
                   placeholder="Search customer name or ID..."
-                  className="w-full bg-transparent font-body-md text-label-sm text-on-surface outline-none placeholder:text-outline"
+                  className="w-full bg-transparent font-sans text-[13px] text-on-surface outline-none placeholder:text-outline"
                 />
                 {customerQuery ? (
                   <button
@@ -855,7 +855,7 @@ export function Dashboard() {
                   {selectedCustomerChips.map((c) => (
                     <span
                       key={c.id}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 font-headline-md text-label-sm text-primary"
+                      className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 font-sans text-[12px] leading-4 font-medium text-primary"
                     >
                       <CheckCircle2 className="size-3.5" />
                       {c.name}
@@ -871,28 +871,28 @@ export function Dashboard() {
                   ))}
                 </div>
               ) : null}
-              <div className="flex max-h-36 flex-col gap-1 overflow-y-auto rounded-lg bg-surface-container-low p-2">
+              <div className="flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border border-outline-variant/70 bg-surface-container-lowest p-1">
                 {filteredCustomers.length === 0 ? (
-                  <div className="px-2 py-4 text-center font-body-md text-body-md text-on-surface-variant">
+                  <div className="px-2 py-4 text-center font-sans text-[13px] text-on-surface-variant">
                     No customers found.
                   </div>
                 ) : (
                   filteredCustomers.map((c) => (
                     <label
                       key={c.id}
-                      className="flex cursor-pointer items-center gap-2.5 rounded px-2 py-1.5 hover:bg-surface-container"
+                      className="flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 transition-colors hover:bg-surface-container-low"
                     >
                       <input
                         type="checkbox"
                         checked={customerIds.includes(c.id)}
                         onChange={() => toggleCustomer(c.id)}
-                        className="size-4 rounded accent-primary"
+                        className="size-4 shrink-0 rounded accent-primary"
                       />
                       <div className="flex min-w-0 flex-col">
-                        <span className="truncate font-headline-md text-label-sm text-on-surface">
+                        <span className="truncate font-sans text-[13px] leading-5 font-medium text-on-surface">
                           {c.name}
                         </span>
-                        <span className="font-label-sm text-[10px] text-on-surface-variant">
+                        <span className="font-sans text-[11px] leading-4 text-on-surface-variant">
                           ID: #{c.id} • {customerLabelCounts[c.id] ?? 0} labels
                         </span>
                       </div>
@@ -902,27 +902,27 @@ export function Dashboard() {
               </div>
             </div>
 
-            <div className="h-px w-full bg-surface-container-high" />
+            <div className="h-px w-full bg-outline-variant/60" />
 
             <div className="flex flex-col gap-3">
-              <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
-                <BadgeCheck className="size-4 text-primary" />
+              <span className="flex items-center gap-1.5 font-label-sm text-[11px] leading-4 font-semibold tracking-[0.08em] text-on-surface-variant uppercase">
+                <BadgeCheck className="size-3.5 text-primary" />
                 Label Status
               </span>
               <div className="grid grid-cols-2 gap-2">
                 {statusOptions.map((option) => (
                   <label
                     key={option.value}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg bg-surface-container-low p-2.5 hover:bg-surface-container"
+                    className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-3 py-2.5 transition-colors hover:border-outline-variant hover:bg-surface-container-low"
                   >
                     <input
                       type="checkbox"
                       checked={statuses.includes(option.value)}
                       onChange={() => toggleStatus(option.value)}
-                      className="size-4 accent-primary"
+                      className="size-4 shrink-0 rounded accent-primary"
                     />
                     <span className={cn('size-2.5 rounded-full', option.dot)} />
-                    <span className="font-headline-md text-label-sm text-on-surface">
+                    <span className="font-sans text-[13px] leading-5 font-medium text-on-surface">
                       {option.label}
                     </span>
                   </label>
@@ -930,27 +930,27 @@ export function Dashboard() {
               </div>
             </div>
 
-            <div className="h-px w-full bg-surface-container-high" />
+            <div className="h-px w-full bg-outline-variant/60" />
 
             <div className="flex flex-col gap-3">
-              <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
-                <ReceiptText className="size-4 text-primary" />
+              <span className="flex items-center gap-1.5 font-label-sm text-[11px] leading-4 font-semibold tracking-[0.08em] text-on-surface-variant uppercase">
+                <ReceiptText className="size-3.5 text-primary" />
                 Billing &amp; Invoices
               </span>
               <div className="grid grid-cols-2 gap-2">
                 {billingOptions.map((option) => (
                   <label
                     key={option.value}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg bg-surface-container-low p-2.5 hover:bg-surface-container"
+                    className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-3 py-2.5 transition-colors hover:border-outline-variant hover:bg-surface-container-low"
                   >
                     <input
                       type="checkbox"
                       checked={billing.includes(option.value)}
                       onChange={() => toggleBilling(option.value)}
-                      className="size-4 accent-primary"
+                      className="size-4 shrink-0 rounded accent-primary"
                     />
                     <span className={cn('size-2.5 rounded-full', option.dot)} />
-                    <span className="font-headline-md text-label-sm text-on-surface">
+                    <span className="font-sans text-[13px] leading-5 font-medium text-on-surface">
                       {option.label}
                     </span>
                   </label>
@@ -958,26 +958,26 @@ export function Dashboard() {
               </div>
             </div>
 
-            <div className="h-px w-full bg-surface-container-high" />
+            <div className="h-px w-full bg-outline-variant/60" />
 
             <div className="flex flex-col gap-3">
-              <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
-                <Scale className="size-4 text-primary" />
+              <span className="flex items-center gap-1.5 font-label-sm text-[11px] leading-4 font-semibold tracking-[0.08em] text-on-surface-variant uppercase">
+                <Scale className="size-3.5 text-primary" />
                 Weight (KG) &amp; Total Value
               </span>
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-label-sm text-label-sm text-on-surface-variant">
+                  <span className="font-sans text-[12px] font-medium text-on-surface-variant">
                     Weight Range
                   </span>
-                  <span className="font-label-sm text-label-sm font-semibold text-on-surface">
+                  <span className="font-sans text-[12px] font-semibold text-on-surface">
                     {minWeight || dataRanges.minW.toFixed(1)} kg —{' '}
                     {maxWeight || dataRanges.maxW.toFixed(1)} kg
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="flex h-10 items-center gap-2 rounded-lg bg-surface-container-low px-3">
-                    <span className="font-label-sm text-label-sm text-on-surface-variant">Min:</span>
+                  <div className="flex h-10 items-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-3 transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/30">
+                    <span className="font-sans text-[12px] font-medium text-on-surface-variant">Min:</span>
                     <input
                       type="number"
                       min="0"
@@ -985,12 +985,12 @@ export function Dashboard() {
                       value={minWeight}
                       onChange={(e) => setMinWeight(e.target.value)}
                       placeholder="0"
-                      className="w-full bg-transparent text-right font-label-sm text-label-sm text-on-surface outline-none"
+                      className="w-full bg-transparent text-right font-sans text-[13px] font-medium text-on-surface outline-none placeholder:text-outline"
                     />
-                    <span className="font-label-sm text-label-sm text-on-surface-variant">kg</span>
+                    <span className="font-sans text-[12px] font-medium text-on-surface-variant">kg</span>
                   </div>
-                  <div className="flex h-10 items-center gap-2 rounded-lg bg-surface-container-low px-3">
-                    <span className="font-label-sm text-label-sm text-on-surface-variant">Max:</span>
+                  <div className="flex h-10 items-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-3 transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/30">
+                    <span className="font-sans text-[12px] font-medium text-on-surface-variant">Max:</span>
                     <input
                       type="number"
                       min="0"
@@ -998,25 +998,25 @@ export function Dashboard() {
                       value={maxWeight}
                       onChange={(e) => setMaxWeight(e.target.value)}
                       placeholder="∞"
-                      className="w-full bg-transparent text-right font-label-sm text-label-sm text-on-surface outline-none"
+                      className="w-full bg-transparent text-right font-sans text-[13px] font-medium text-on-surface outline-none placeholder:text-outline"
                     />
-                    <span className="font-label-sm text-label-sm text-on-surface-variant">kg</span>
+                    <span className="font-sans text-[12px] font-medium text-on-surface-variant">kg</span>
                   </div>
                 </div>
               </div>
               <div className="flex flex-col gap-2 pt-1">
                 <div className="flex items-center justify-between">
-                  <span className="font-label-sm text-label-sm text-on-surface-variant">
+                  <span className="font-sans text-[12px] font-medium text-on-surface-variant">
                     Price / Value Range
                   </span>
-                  <span className="font-label-sm text-label-sm font-semibold text-on-surface">
+                  <span className="font-sans text-[12px] font-semibold text-on-surface">
                     {formatCurrency(minAmount ? Number(minAmount) : dataRanges.minA)} —{' '}
                     {formatCurrency(maxAmount ? Number(maxAmount) : dataRanges.maxA)}
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="flex h-10 items-center gap-2 rounded-lg bg-surface-container-low px-3">
-                    <span className="font-label-sm text-label-sm text-on-surface-variant">₹</span>
+                  <div className="flex h-10 items-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-3 transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/30">
+                    <span className="font-sans text-[12px] font-medium text-on-surface-variant">₹</span>
                     <input
                       type="number"
                       min="0"
@@ -1024,11 +1024,11 @@ export function Dashboard() {
                       value={minAmount}
                       onChange={(e) => setMinAmount(e.target.value)}
                       placeholder="0"
-                      className="w-full bg-transparent font-label-sm text-label-sm text-on-surface outline-none"
+                      className="w-full bg-transparent font-sans text-[13px] font-medium text-on-surface outline-none placeholder:text-outline"
                     />
                   </div>
-                  <div className="flex h-10 items-center gap-2 rounded-lg bg-surface-container-low px-3">
-                    <span className="font-label-sm text-label-sm text-on-surface-variant">₹</span>
+                  <div className="flex h-10 items-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-3 transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/30">
+                    <span className="font-sans text-[12px] font-medium text-on-surface-variant">₹</span>
                     <input
                       type="number"
                       min="0"
@@ -1036,25 +1036,25 @@ export function Dashboard() {
                       value={maxAmount}
                       onChange={(e) => setMaxAmount(e.target.value)}
                       placeholder="∞"
-                      className="w-full bg-transparent font-label-sm text-label-sm text-on-surface outline-none"
+                      className="w-full bg-transparent font-sans text-[13px] font-medium text-on-surface outline-none placeholder:text-outline"
                     />
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="h-px w-full bg-surface-container-high" />
+            <div className="h-px w-full bg-outline-variant/60" />
 
             <div className="flex flex-col gap-3">
-              <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
-                <ArrowUpDown className="size-4 text-primary" />
+              <span className="flex items-center gap-1.5 font-label-sm text-[11px] leading-4 font-semibold tracking-[0.08em] text-on-surface-variant uppercase">
+                <ArrowUpDown className="size-3.5 text-primary" />
                 Sort By
               </span>
               <div className="relative">
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as LabelSortKey)}
-                  className="h-10 w-full cursor-pointer appearance-none rounded-lg bg-surface-container-low pr-8 pl-3 font-headline-md text-label-sm text-on-surface outline-none transition-colors focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary"
+                  className="h-10 w-full cursor-pointer appearance-none rounded-lg border border-outline-variant/70 bg-surface-container-lowest pr-9 pl-3 font-sans text-[13px] font-medium text-on-surface outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/30"
                 >
                   {sortOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -1067,12 +1067,12 @@ export function Dashboard() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-3 border-t border-outline-variant bg-surface-container-lowest px-6 py-4 shadow-lg">
+          <div className="flex items-center gap-2.5 border-t border-outline-variant bg-surface-container-lowest px-5 py-3.5">
             <Button
               type="button"
               variant="ghost"
               onClick={handleClearFilters}
-              className="h-11 gap-2 rounded-lg bg-surface-container px-4 font-headline-md text-label-md text-on-surface hover:bg-surface-container-high"
+              className="h-11 gap-2 rounded-lg bg-surface-container px-4 font-sans text-[13px] font-medium text-on-surface hover:bg-surface-container-high"
             >
               <RotateCcw className="size-4" />
               Reset All
@@ -1080,10 +1080,10 @@ export function Dashboard() {
             <Button
               type="button"
               onClick={() => setFilterOpen(false)}
-              className="h-11 flex-1 gap-2 rounded-lg bg-primary px-5 font-headline-md text-label-md font-semibold text-on-primary shadow-sm hover:bg-primary-container hover:text-on-primary-container"
+              className="h-11 flex-1 gap-2 rounded-lg bg-primary px-5 font-sans text-[13px] font-semibold text-on-primary shadow-sm hover:bg-primary-container hover:text-on-primary-container"
             >
               Apply Filters
-              <span className="rounded-full bg-primary-container px-2 py-0.5 font-label-sm text-label-sm text-on-primary-container">
+              <span className="rounded-full bg-primary-container px-2 py-0.5 font-label-sm text-[11px] font-semibold text-on-primary-container">
                 {total.toLocaleString()} Results
               </span>
               <ArrowRight className="size-4" />

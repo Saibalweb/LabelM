@@ -152,13 +152,29 @@ delete the labels with `sl_no` between `LBL-0453` and `LBL-0745` and their invoi
 
 ---
 
+## 10. Dashboard filter sidebar — typography/spacing + preset selected state
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | Filter sheet restyled to the refined reference (13px sans option text, 11px mono section labels, bordered option rows/inputs, normalised spacing, 420px width) | Done |
+| 2 | "Saved Filter Presets" active pill now renders **solid primary blue** instead of a grey background | Done |
+| 3 | Root cause: the active style used `bg-primary-fixed`, a colour token not defined in `index.css`, so no background ever rendered — switched to `bg-primary text-on-primary` | Root-caused |
+| 4 | "N active" badge switched from the undefined `bg-primary-fixed` to the defined `bg-primary-fixed-dim` | Done |
+| 5 | Same treatment applied to the Invoices and Dues filter sheets for consistency | Done |
+
+**Verdict: FIXED** — saved-preset selection is now unmistakably blue, matching the other selected controls (segmented duration buttons). Verified live via headless screenshots.
+
 ## Verification
 
-- [x] Unit tests: **205 passed** (incl. service RPC tests + customers-page component tests)
+- [x] Unit tests: **229 passed** (incl. service RPC tests + customers-page component tests)
 - [x] E2E tests: **29 passed** (incl. customer delete→archive→restore, create-label flow, filters, dues)
 - [x] `oxlint` clean (no new warnings)
 - [x] `tsc -b` clean
 - [x] Production build succeeds
+
+**Files changed (section 10):**
+- `src/pages/dashboard.tsx` — filter sidebar restyle + "Saved Filter Presets" active state + active badge token
+- `src/pages/invoices.tsx`, `src/pages/dues.tsx` — same filter sidebar treatment for consistency
 
 **Follow-up notes:**
 - `e2e/helpers.ts` `selectCustomerById()` fills the number, waits for the search result button, and clicks it (manual selection).

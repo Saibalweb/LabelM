@@ -613,7 +613,7 @@ export function Dues() {
                                   <span className="font-label-md text-label-md font-bold text-on-surface">
                                     #{invoice.invoiceNumber}
                                   </span>
-                                  <span className="font-label-sm text-label-sm text-on-surface-variant">
+                                  <span className="font-sans text-[12px] font-medium text-on-surface-variant">
                                     {invoice.period}
                                   </span>
                                 </div>
@@ -664,7 +664,7 @@ export function Dues() {
             </div>
 
             <div className="flex items-center justify-between border-t border-outline-variant bg-surface-container-low px-6 py-3">
-              <span className="font-label-sm text-label-sm text-on-surface-variant">
+              <span className="font-sans text-[12px] font-medium text-on-surface-variant">
                 Showing {filtered.length} of {duesCustomers.length} customers with dues
               </span>
               <div className="flex items-center gap-2">
@@ -700,25 +700,25 @@ export function Dues() {
         <SheetContent
           side="right"
           showCloseButton={false}
-          className="w-full gap-0 border-l border-outline-variant bg-surface-container-lowest sm:max-w-[440px]"
+          className="w-full gap-0 border-l border-outline-variant bg-surface-container-lowest sm:max-w-[420px]"
         >
-          <div className="flex items-start justify-between gap-3 border-b border-outline-variant bg-surface-container-low px-6 py-5">
+          <div className="flex items-start justify-between gap-3 border-b border-outline-variant bg-surface-container-low px-5 py-4">
             <div className="flex items-start gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <SlidersHorizontal className="size-5" />
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <SlidersHorizontal className="size-[18px]" />
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <SheetTitle className="font-headline-md text-headline-md font-bold text-on-surface">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <SheetTitle className="font-sans text-[17px] leading-6 font-semibold tracking-tight text-on-surface">
                     Filter Dues
                   </SheetTitle>
                   {activeFilterCount > 0 ? (
-                    <span className="rounded-full bg-primary-fixed px-2 py-0.5 font-label-sm text-label-sm font-semibold text-on-primary-fixed">
+                    <span className="rounded-full bg-primary-fixed-dim px-2 py-0.5 font-sans text-[11px] font-semibold text-on-primary-fixed">
                       {activeFilterCount} active
                     </span>
                   ) : null}
                 </div>
-                <SheetDescription className="mt-0.5 font-body-md text-body-md text-on-surface-variant">
+                <SheetDescription className="mt-1 font-sans text-[13px] leading-5 text-on-surface-variant">
                   Refine outstanding invoices by urgency, customer, status, and amount.
                 </SheetDescription>
               </div>
@@ -728,17 +728,17 @@ export function Dues() {
                 variant="ghost"
                 size="icon-lg"
                 aria-label="Close"
-                className="size-9 shrink-0 rounded-lg bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
+                className="size-8 shrink-0 rounded-lg bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
               >
-                <X className="size-5" />
+                <X className="size-4" />
               </Button>
             </SheetClose>
           </div>
 
-          <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
+          <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
             <div className="flex flex-col gap-3">
-              <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
-                <Bookmark className="size-4 text-primary" />
+              <span className="flex items-center gap-1.5 font-label-sm text-[11px] leading-4 font-semibold tracking-[0.08em] text-on-surface-variant uppercase">
+                <Bookmark className="size-3.5 text-primary" />
                 Quick Views
               </span>
               <div className="flex flex-wrap gap-2">
@@ -748,10 +748,10 @@ export function Dues() {
                     type="button"
                     onClick={() => handlePresetPill(pill.value)}
                     className={cn(
-                      'flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-label-sm text-label-sm transition-colors',
+                      'flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-sans text-[12px] leading-4 font-medium transition-colors',
                       preset === pill.value
-                        ? 'bg-primary-fixed font-semibold text-on-primary-fixed'
-                        : 'bg-surface-container text-on-surface hover:bg-surface-container-high'
+                        ? 'bg-primary font-semibold text-on-primary shadow-sm'
+                        : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'
                     )}
                   >
                     {pill.label}
@@ -760,27 +760,27 @@ export function Dues() {
               </div>
             </div>
 
-            <div className="h-px w-full bg-surface-container-high" />
+            <div className="h-px w-full bg-outline-variant/60" />
 
             <div className="flex flex-col gap-3">
-              <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
-                <CalendarClock className="size-4 text-primary" />
+              <span className="flex items-center gap-1.5 font-label-sm text-[11px] leading-4 font-semibold tracking-[0.08em] text-on-surface-variant uppercase">
+                <CalendarClock className="size-3.5 text-primary" />
                 Aging
               </span>
               <div className="grid grid-cols-1 gap-2">
                 {agingOptions.map((option) => (
                   <label
                     key={option.value}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg bg-surface-container-low p-2.5 hover:bg-surface-container"
+                    className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-3 py-2.5 transition-colors hover:border-outline-variant hover:bg-surface-container-low"
                   >
                     <input
                       type="checkbox"
                       checked={aging.includes(option.value)}
                       onChange={() => toggleAging(option.value)}
-                      className="size-4 accent-primary"
+                      className="size-4 shrink-0 rounded accent-primary"
                     />
                     <span className={cn('size-2.5 rounded-full', option.dot)} />
-                    <span className="font-headline-md text-label-sm text-on-surface">
+                    <span className="font-sans text-[13px] leading-5 font-medium text-on-surface">
                       {option.label}
                     </span>
                   </label>
@@ -788,27 +788,27 @@ export function Dues() {
               </div>
             </div>
 
-            <div className="h-px w-full bg-surface-container-high" />
+            <div className="h-px w-full bg-outline-variant/60" />
 
             <div className="flex flex-col gap-3">
-              <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
-                <BadgeCheck className="size-4 text-primary" />
+              <span className="flex items-center gap-1.5 font-label-sm text-[11px] leading-4 font-semibold tracking-[0.08em] text-on-surface-variant uppercase">
+                <BadgeCheck className="size-3.5 text-primary" />
                 Payment Status
               </span>
               <div className="grid grid-cols-2 gap-2">
                 {paymentStatusOptions.map((option) => (
                   <label
                     key={option.value}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg bg-surface-container-low p-2.5 hover:bg-surface-container"
+                    className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-3 py-2.5 transition-colors hover:border-outline-variant hover:bg-surface-container-low"
                   >
                     <input
                       type="checkbox"
                       checked={statuses.includes(option.value)}
                       onChange={() => toggleStatus(option.value)}
-                      className="size-4 accent-primary"
+                      className="size-4 shrink-0 rounded accent-primary"
                     />
                     <span className={cn('size-2.5 rounded-full', option.dot)} />
-                    <span className="font-headline-md text-label-sm text-on-surface">
+                    <span className="font-sans text-[13px] leading-5 font-medium text-on-surface">
                       {option.label}
                     </span>
                   </label>
@@ -816,28 +816,28 @@ export function Dues() {
               </div>
             </div>
 
-            <div className="h-px w-full bg-surface-container-high" />
+            <div className="h-px w-full bg-outline-variant/60" />
 
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
-                  <Users className="size-4 text-primary" />
+                <span className="flex items-center gap-1.5 font-label-sm text-[11px] leading-4 font-semibold tracking-[0.08em] text-on-surface-variant uppercase">
+                  <Users className="size-3.5 text-primary" />
                   Customer &amp; Account
                 </span>
                 {customerIds.length > 0 ? (
-                  <span className="font-label-sm text-label-sm font-semibold text-secondary">
+                  <span className="font-sans text-[12px] font-semibold text-secondary">
                     {customerIds.length} Selected
                   </span>
                 ) : null}
               </div>
-              <div className="flex h-10 items-center gap-2 rounded-lg bg-surface-container-low px-3 transition-all focus-within:bg-surface-container-lowest focus-within:ring-2 focus-within:ring-primary">
+              <div className="flex h-10 items-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-3 transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/30">
                 <Search className="size-4 shrink-0 text-outline" />
                 <input
                   type="text"
                   value={customerQuery}
                   onChange={(e) => setCustomerQuery(e.target.value)}
                   placeholder="Search customer name or ID..."
-                  className="w-full bg-transparent font-body-md text-label-sm text-on-surface outline-none placeholder:text-outline"
+                  className="w-full bg-transparent font-sans text-[13px] text-on-surface outline-none placeholder:text-outline"
                 />
                 {customerQuery ? (
                   <button
@@ -855,7 +855,7 @@ export function Dues() {
                   {selectedCustomerChips.map((c) => (
                     <span
                       key={c.id}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 font-headline-md text-label-sm text-primary"
+                      className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 font-sans text-[12px] leading-4 font-medium text-primary"
                     >
                       <CheckCircle2 className="size-3.5" />
                       {c.name}
@@ -871,28 +871,28 @@ export function Dues() {
                   ))}
                 </div>
               ) : null}
-              <div className="flex max-h-36 flex-col gap-1 overflow-y-auto rounded-lg bg-surface-container-low p-2">
+              <div className="flex max-h-44 flex-col gap-0.5 overflow-y-auto rounded-lg border border-outline-variant/70 bg-surface-container-lowest p-1">
                 {filteredCustomers.length === 0 ? (
-                  <div className="px-2 py-4 text-center font-body-md text-body-md text-on-surface-variant">
+                  <div className="px-2 py-4 text-center font-sans text-[13px] text-on-surface-variant">
                     No customers found.
                   </div>
                 ) : (
                   filteredCustomers.map((c) => (
                     <label
                       key={c.id}
-                      className="flex cursor-pointer items-center gap-2.5 rounded px-2 py-1.5 hover:bg-surface-container"
+                      className="flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 transition-colors hover:bg-surface-container-low"
                     >
                       <input
                         type="checkbox"
                         checked={customerIds.includes(c.id)}
                         onChange={() => toggleCustomer(c.id)}
-                        className="size-4 rounded accent-primary"
+                        className="size-4 shrink-0 rounded accent-primary"
                       />
                       <div className="flex min-w-0 flex-col">
-                        <span className="truncate font-headline-md text-label-sm text-on-surface">
+                        <span className="truncate font-sans text-[13px] leading-5 font-medium text-on-surface">
                           {c.name}
                         </span>
-                        <span className="font-label-sm text-[10px] text-on-surface-variant">
+                        <span className="font-sans text-[11px] leading-4 text-on-surface-variant">
                           ID: #{c.id}
                         </span>
                       </div>
@@ -902,16 +902,16 @@ export function Dues() {
               </div>
             </div>
 
-            <div className="h-px w-full bg-surface-container-high" />
+            <div className="h-px w-full bg-outline-variant/60" />
 
             <div className="flex flex-col gap-3">
-              <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
-                <Wallet className="size-4 text-primary" />
+              <span className="flex items-center gap-1.5 font-label-sm text-[11px] leading-4 font-semibold tracking-[0.08em] text-on-surface-variant uppercase">
+                <Wallet className="size-3.5 text-primary" />
                 Due Amount Range
               </span>
               <div className="grid grid-cols-2 gap-3">
-                <div className="flex h-10 items-center gap-2 rounded-lg bg-surface-container-low px-3">
-                  <span className="font-label-sm text-label-sm text-on-surface-variant">Min:</span>
+                <div className="flex h-10 items-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-3 transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/30">
+                  <span className="font-sans text-[12px] font-medium text-on-surface-variant">Min:</span>
                   <input
                     type="number"
                     min="0"
@@ -919,11 +919,11 @@ export function Dues() {
                     value={minAmount}
                     onChange={(e) => setMinAmount(e.target.value)}
                     placeholder="0"
-                    className="w-full bg-transparent text-right font-label-sm text-label-sm text-on-surface outline-none"
+                    className="w-full bg-transparent text-right font-sans text-[13px] font-medium text-on-surface outline-none placeholder:text-outline"
                   />
                 </div>
-                <div className="flex h-10 items-center gap-2 rounded-lg bg-surface-container-low px-3">
-                  <span className="font-label-sm text-label-sm text-on-surface-variant">Max:</span>
+                <div className="flex h-10 items-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-3 transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/30">
+                  <span className="font-sans text-[12px] font-medium text-on-surface-variant">Max:</span>
                   <input
                     type="number"
                     min="0"
@@ -931,21 +931,21 @@ export function Dues() {
                     value={maxAmount}
                     onChange={(e) => setMaxAmount(e.target.value)}
                     placeholder="∞"
-                    className="w-full bg-transparent text-right font-label-sm text-label-sm text-on-surface outline-none"
+                    className="w-full bg-transparent text-right font-sans text-[13px] font-medium text-on-surface outline-none placeholder:text-outline"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="h-px w-full bg-surface-container-high" />
+            <div className="h-px w-full bg-outline-variant/60" />
 
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
-                  <CalendarDays className="size-4 text-primary" />
+                <span className="flex items-center gap-1.5 font-label-sm text-[11px] leading-4 font-semibold tracking-[0.08em] text-on-surface-variant uppercase">
+                  <CalendarDays className="size-3.5 text-primary" />
                   Due Date Window
                 </span>
-                <span className="font-label-sm text-label-sm text-on-surface-variant">
+                <span className="font-sans text-[12px] font-medium text-on-surface-variant">
                   {dueWindowLabel}
                 </span>
               </div>
@@ -956,10 +956,10 @@ export function Dues() {
                     type="button"
                     onClick={() => setDueWindow(option.value)}
                     className={cn(
-                      'rounded-lg px-3 py-2 text-center font-headline-md text-label-sm transition-colors',
+                      'rounded-lg px-3 py-2 text-center font-sans text-[13px] leading-5 font-medium transition-colors',
                       dueWindow === option.value
                         ? 'bg-primary text-on-primary shadow-sm'
-                        : 'bg-surface-container text-on-surface hover:bg-surface-container-high'
+                        : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'
                     )}
                   >
                     {option.label}
@@ -969,10 +969,10 @@ export function Dues() {
                   type="button"
                   onClick={() => setDueWindow('custom')}
                   className={cn(
-                    'col-span-2 rounded-lg px-3 py-2 text-center font-headline-md text-label-sm transition-colors',
+                    'col-span-2 rounded-lg px-3 py-2 text-center font-sans text-[13px] leading-5 font-medium transition-colors',
                     dueWindow === 'custom'
                       ? 'bg-primary text-on-primary shadow-sm'
-                      : 'bg-surface-container text-on-surface hover:bg-surface-container-high'
+                      : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'
                   )}
                 >
                   Custom Date Range
@@ -981,43 +981,43 @@ export function Dues() {
               {dueWindow === 'custom' ? (
                 <div className="mt-1 grid grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1">
-                    <label className="font-label-sm text-label-sm text-on-surface-variant">
+                    <label className="font-sans text-[12px] font-medium text-on-surface-variant">
                       From Date
                     </label>
                     <input
                       type="date"
                       value={dueFrom}
                       onChange={(e) => setDueFrom(e.target.value)}
-                      className="h-10 rounded-lg bg-surface-container-low px-3 font-label-sm text-label-sm text-on-surface outline-none transition-colors focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary"
+                      className="h-10 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-3 font-sans text-[13px] text-on-surface outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/30"
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="font-label-sm text-label-sm text-on-surface-variant">
+                    <label className="font-sans text-[12px] font-medium text-on-surface-variant">
                       To Date
                     </label>
                     <input
                       type="date"
                       value={dueTo}
                       onChange={(e) => setDueTo(e.target.value)}
-                      className="h-10 rounded-lg bg-surface-container-low px-3 font-label-sm text-label-sm text-on-surface outline-none transition-colors focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary"
+                      className="h-10 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-3 font-sans text-[13px] text-on-surface outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/30"
                     />
                   </div>
                 </div>
               ) : null}
             </div>
 
-            <div className="h-px w-full bg-surface-container-high" />
+            <div className="h-px w-full bg-outline-variant/60" />
 
             <div className="flex flex-col gap-3">
-              <span className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold tracking-wider text-on-surface-variant uppercase">
-                <ArrowUpDown className="size-4 text-primary" />
+              <span className="flex items-center gap-1.5 font-label-sm text-[11px] leading-4 font-semibold tracking-[0.08em] text-on-surface-variant uppercase">
+                <ArrowUpDown className="size-3.5 text-primary" />
                 Sort By
               </span>
               <div className="relative">
                 <select
                   value={sort}
                   onChange={(e) => setSort(e.target.value as SortKey)}
-                  className="h-10 w-full cursor-pointer appearance-none rounded-lg bg-surface-container-low pr-8 pl-3 font-headline-md text-label-sm text-on-surface outline-none transition-colors focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary"
+                  className="h-10 w-full cursor-pointer appearance-none rounded-lg border border-outline-variant/70 bg-surface-container-lowest pr-9 pl-3 font-sans text-[13px] font-medium text-on-surface outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/30"
                 >
                   {sortOptions.map((option) => (
                     <option key={option}>{option}</option>
@@ -1028,12 +1028,12 @@ export function Dues() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-3 border-t border-outline-variant bg-surface-container-lowest px-6 py-4 shadow-lg">
+          <div className="flex items-center gap-2.5 border-t border-outline-variant bg-surface-container-lowest px-5 py-3.5">
             <Button
               type="button"
               variant="ghost"
               onClick={handleClearFilters}
-              className="h-11 gap-2 rounded-lg bg-surface-container px-4 font-headline-md text-label-md text-on-surface hover:bg-surface-container-high"
+              className="h-11 gap-2 rounded-lg bg-surface-container px-4 font-sans text-[13px] font-medium text-on-surface hover:bg-surface-container-high"
             >
               <RotateCcw className="size-4" />
               Reset All
@@ -1041,10 +1041,10 @@ export function Dues() {
             <Button
               type="button"
               onClick={() => setFilterOpen(false)}
-              className="h-11 flex-1 gap-2 rounded-lg bg-primary px-5 font-headline-md text-label-md font-semibold text-on-primary shadow-sm hover:bg-primary-container hover:text-on-primary-container"
+              className="h-11 flex-1 gap-2 rounded-lg bg-primary px-5 font-sans text-[13px] font-semibold text-on-primary shadow-sm hover:bg-primary-container hover:text-on-primary-container"
             >
               Apply Filters
-              <span className="rounded-full bg-primary-container px-2 py-0.5 font-label-sm text-label-sm text-on-primary-container">
+              <span className="rounded-full bg-primary-container px-2 py-0.5 font-label-sm text-[11px] font-semibold text-on-primary-container">
                 {filtered.length.toLocaleString()} Results
               </span>
               <ArrowRight className="size-4" />

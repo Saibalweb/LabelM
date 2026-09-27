@@ -88,15 +88,27 @@ The payment flow requirements below are tracked **here** so payment UX and Dues 
 | 2 | Live seed-data pass for the §2 combination matrix (rows 1–5) | TODO — later |
 | 3 | E2E: record a second payment via "Pay full remaining" and confirm the invoice flips to Paid | TODO — later |
 
+## 5. Filter sidebar — typography/spacing + Quick Views selected state
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | Filter sheet restyled to the refined reference (13px sans option text, 11px mono section labels, bordered option rows/inputs, normalised spacing, 420px width) | Done |
+| 2 | "Quick Views" active pill now renders **solid primary blue** instead of a grey background | Done |
+| 3 | Root cause: the active style used `bg-primary-fixed`, a colour token not defined in `index.css`, so no background ever rendered — switched to `bg-primary text-on-primary` | Root-caused |
+| 4 | "N active" badge switched from the undefined `bg-primary-fixed` to the defined `bg-primary-fixed-dim` | Done |
+| 5 | Same treatment applied to the Invoices and Dashboard/Labels filter sheets for consistency | Done |
+
+**Verdict: FIXED** — Quick Views selection is now unmistakably blue, matching the other selected controls (segmented duration buttons). Verified live via headless screenshots.
+
 ## Verification
 
-- [x] Unit tests: **passed** (incl. new `paymentDialog` coverage: max clamp attribute, cash/today defaults, quick-fill button; `duesFilters` suite; `listDue` service filter mapping)
+- [x] Unit tests: **229 passed** (incl. new `paymentDialog` coverage: max clamp attribute, cash/today defaults, quick-fill button; `duesFilters` suite; `listDue` service filter mapping)
 - [x] `tsc -b` clean
 - [x] `oxlint` clean (no new warnings)
 - [x] Production build succeeds
 
 **Files changed:**
-- `src/pages/dues.tsx` — filter sheet (quick views, aging, status, customer, amount, due window, sort) + server/client two-tier filtering
+- `src/pages/dues.tsx` — filter sheet (quick views, aging, status, customer, amount, due window, sort) + server/client two-tier filtering; §5 restyle + Quick Views active state
 - `src/services/invoices.ts` — `invoiceService.listDue` (server-side dues query)
 - `src/hooks/queries.ts` — `useDueInvoicesQuery`
 - `src/lib/types.ts` — `DuePreset`, `DueAgingBucket`, `DueWindow`, `DueFilters`

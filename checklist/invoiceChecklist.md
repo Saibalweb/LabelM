@@ -166,16 +166,32 @@ serialized by three layers:
 | 3 | Concurrent bulk generation same period → confirm whole second run rolls back cleanly (no partial invoices) | TODO — test later |
 | 4 | Sequential overlap (invoice already committed) → `skipped='overlap'` message shown, only that customer skipped | TODO — test later |
 
+## 10. Filter sidebar — typography, spacing & selected-state polish
+
+The right-side filter sheet was restyled to match the refined reference design; the same
+treatment was applied to the Dues and Dashboard/Labels filter sheets for consistency.
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | Header retuned — title 17px semibold, description 13px (was 20px/16px), icon tile 36px, close button 32px | Done |
+| 2 | Section labels now a tighter 11px mono uppercase; option/value text switched from the mismatched `font-headline-md text-label-sm` (Hanken 12px + label tracking) to `font-sans` 13px | Done |
+| 3 | Option rows, search, amount/date inputs and the sort select now share a bordered rounded shell with a subtle focus ring | Done |
+| 4 | Spacing normalised (px-5/py-4 header, space-y-5 body, lighter dividers); customer list taller (max-h-44); footer compacted | Done |
+| 5 | Panel width normalised to 420px on every page | Done |
+| 6 | "N active" badge switched from the undefined `bg-primary-fixed` token to the defined `bg-primary-fixed-dim` | Done |
+
+**Verdict: FIXED** — filter sheet typography/spacing is consistent across Invoices, Dues and Dashboard/Labels. (Selected preset pills + their root cause are documented in the Dues §5 / Labels §10 checklists.)
+
 ## Verification
 
-- [x] Unit tests: **205 passed**
+- [x] Unit tests: **229 passed**
 - [x] `tsc -b` clean
 - [x] `oxlint` clean (no new warnings)
 - [x] Production build succeeds
 - [x] Live headless-browser checks for items 2, 3, 5, 6, 7, 8
 
 **Files changed:**
-- `src/pages/invoices.tsx` — items 1–3, 8, 2b (status color code on avatar)
+- `src/pages/invoices.tsx` — items 1–3, 8, 2b (status color code on avatar), 10 (filter sidebar restyle + active badge token)
 - `src/pages/createInvoice.tsx` — items 4–7
 - `src/components/ui/loading-overlay.tsx` — new reusable loading overlay (item 4)
 - `checklist/labelChecklist.md` — moved here from repo root (checklist folder)

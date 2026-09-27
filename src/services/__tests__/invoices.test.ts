@@ -375,14 +375,20 @@ describe('invoiceService rpc wrappers', () => {
       ],
       error: null,
     })
-    const result = await invoiceService.generate(2, 'a', 'b')
+    const result = await invoiceService.generate(2, 'a', 'b', '2026-11-01')
+    expect(supabaseMock.rpc).toHaveBeenCalledWith('generate_invoice_for_customer', {
+      p_customer_id: 2,
+      p_period_start: 'a',
+      p_period_end: 'b',
+      p_due_date: '2026-11-01',
+    })
     expect(result.skipped).toBe('overlap')
     expect(result.invoiceId).toBeNull()
   })
 
   it('throws when generate returns no rows', async () => {
     supabaseMock.rpc.mockResolvedValue({ data: [], error: null })
-    await expect(invoiceService.generate(1, 'a', 'b')).rejects.toThrow(
+    await expect(invoiceService.generate(1, 'a', 'b', '2026-11-01')).rejects.toThrow(
       'Invoice generation returned no result'
     )
   })
@@ -413,7 +419,12 @@ describe('invoiceService rpc wrappers', () => {
       ],
       error: null,
     })
-    const results = await invoiceService.bulkGenerate('2026-09-01', '2026-10-01')
+    const results = await invoiceService.bulkGenerate('2026-09-01', '2026-10-01', '2026-11-01')
+    expect(supabaseMock.rpc).toHaveBeenCalledWith('generate_invoices_for_period', {
+      p_period_start: '2026-09-01',
+      p_period_end: '2026-10-01',
+      p_due_date: '2026-11-01',
+    })
     expect(results).toHaveLength(2)
     expect(results[0].invoiceNumber).toBe('INV-0009')
     expect(results[1].skipped).toBe('no_labels')

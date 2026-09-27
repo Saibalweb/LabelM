@@ -6,6 +6,13 @@ export function isoDate(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
+export function addDays(iso: string, days: number): string {
+  const [year, month, day] = iso.split('-').map(Number)
+  if (!year || !month || !day) return iso
+  const d = new Date(year, month - 1, day + days)
+  return isoDate(d)
+}
+
 export function currentMonthValue(): string {
   const now = new Date()
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}`
@@ -55,4 +62,30 @@ export function rangeLabel(from: string, to: string): string {
 
 export function isValidRange(from: string, to: string): boolean {
   return !!from && !!to && from < to
+}
+
+export type DueTerms = 'on-receipt' | 'net15' | 'net30' | 'custom'
+
+export const DUE_TERM_OPTIONS: { value: DueTerms; label: string }[] = [
+  { value: 'on-receipt', label: 'On Receipt' },
+  { value: 'net15', label: 'Net 15' },
+  { value: 'net30', label: 'Net 30' },
+  { value: 'custom', label: 'Custom' },
+]
+
+export function dueDateForTerms(
+  terms: DueTerms,
+  today: string,
+  custom: string
+): string {
+  switch (terms) {
+    case 'on-receipt':
+      return today
+    case 'net15':
+      return addDays(today, 15)
+    case 'net30':
+      return addDays(today, 30)
+    case 'custom':
+      return custom
+  }
 }

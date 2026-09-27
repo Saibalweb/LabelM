@@ -270,11 +270,13 @@ export function useGenerateInvoice() {
       customerId,
       from,
       to,
+      dueDate,
     }: {
       customerId: number
       from: string
       to: string
-    }) => invoiceService.generate(customerId, from, to),
+      dueDate: string
+    }) => invoiceService.generate(customerId, from, to, dueDate),
     onSuccess: () => invalidateInvoiceData(queryClient),
   })
 }
@@ -282,8 +284,8 @@ export function useGenerateInvoice() {
 export function useBulkGenerateInvoices() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ from, to }: { from: string; to: string }) =>
-      invoiceService.bulkGenerate(from, to),
+    mutationFn: ({ from, to, dueDate }: { from: string; to: string; dueDate: string }) =>
+      invoiceService.bulkGenerate(from, to, dueDate),
     onSuccess: () => invalidateInvoiceData(queryClient),
   })
 }

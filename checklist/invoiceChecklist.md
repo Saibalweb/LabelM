@@ -182,16 +182,73 @@ treatment was applied to the Dues and Dashboard/Labels filter sheets for consist
 
 **Verdict: FIXED** — filter sheet typography/spacing is consistent across Invoices, Dues and Dashboard/Labels. (Selected preset pills + their root cause are documented in the Dues §5 / Labels §10 checklists.)
 
+## 11. Due date selection during invoice generation (single + bulk)
+
+Previously the due date was hardcoded server-side as `period_end + 30` and the wizard only
+printed the literal `Due Net 30`. The due date is now selected at generation time and persisted.
+
+**Model:** anchored on the **generation (issue) date**, independent of the billing period.
+Presets: `On Receipt (today)` · `Net 15` · `Net 30 (default)` · `Custom` (free date picker).
+A null `p_due_date` falls back to `current_date + 30`. No range guard (a due date may precede
+the period start when back-billing or invoicing a future-dated period).
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | Migration `20260927120000_invoice_due_date.sql` drops the old 3-arg / 2-arg RPCs and recreates them with `p_due_date` | Done |
+| 2 | `generate_invoice_for_customer` stores `coalesce(p_due_date, current_date + 30)` | Done |
+| 3 | `generate_invoices_for_period` passes one `p_due_date` through to every invoice in the run | Done |
+| 4 | Old signatures removed — calling the 3-arg / 2-arg forms returns `PGRST202` (verified against hosted Supabase) | Verified |
+| 5 | Shared `DueDateSelect` component (presets + custom date + live "Due …" preview) used by the wizard and bulk dialog | Done |
+| 6 | Wizard Confirm panel shows the real selected date instead of "Due Net 30" | Done |
+| 7 | Bulk dialog preview header shows the due date; Preview disabled until a date is chosen | Done |
+
+### Combination matrix (real data, live against hosted Supabase)
+
+Automated by `e2e/invoice-due-date.spec.ts` (4 tests). Each case creates a real customer + label(s),
+generates through the UI, then reads the invoice's `Due Date:` value.
+
+| # | Flow | Term | Expected due date | Result |
+|---|------|------|-------------------|--------|
+| 1 | Single wizard | Net 30 (default) | today + 30 | Pass |
+| 2 | Single wizard | Net 15 | today + 15 | Pass |
+| 3 | Single wizard | On Receipt | today | Pass |
+| 4 | Single wizard | Custom (today + 90) | picked date | Pass |
+| 5 | Single wizard | Custom (today − 30) | picked date; shows under **Overdue** pill | Pass |
+| 6 | Single wizard | Net 15 | Confirm panel previews `Due <date>` before generating | Pass |
+| 7 | Bulk (all customers) | Custom (today + 45) | picked date on every generated invoice | Pass |
+| 8 | RPC direct | `p_due_date = null` | stored `current_date + 30` (fallback) | Pass |
+
+**Verdict: DONE** — due date is selectable in both flows, persists correctly, drives the Overdue
+filter, and the null fallback preserves the old default shape.
+
 ## Verification
 
-- [x] Unit tests: **229 passed**
+- [x] Unit tests: **234 passed**
+- [x] e2e (Playwright, live hosted Supabase): **33 passed**
 - [x] `tsc -b` clean
 - [x] `oxlint` clean (no new warnings)
 - [x] Production build succeeds
-- [x] Live headless-browser checks for items 2, 3, 5, 6, 7, 8
 
 **Files changed:**
 - `src/pages/invoices.tsx` — items 1–3, 8, 2b (status color code on avatar), 10 (filter sidebar restyle + active badge token)
-- `src/pages/createInvoice.tsx` — items 4–7
+- `src/pages/createInvoice.tsx` — items 4–7; §11 (due-date presets + confirm-panel date)
 - `src/components/ui/loading-overlay.tsx` — new reusable loading overlay (item 4)
 - `checklist/labelChecklist.md` — moved here from repo root (checklist folder)
+- `src/components/invoices/DueDateSelect.tsx` — §11 shared due-date selector (new)
+- `src/components/invoices/BulkInvoiceDialog.tsx` — §11 due-date control + preview
+- `src/services/invoices.ts`, `src/hooks/queries.ts` — §11 `dueDate` threaded to `p_due_date`
+- `src/lib/period.ts` — §11 `addDays`, `DueTerms`, `dueDateForTerms`
+- `supabase/migrations/20260927120000_invoice_due_date.sql` — §11 RPC migration
+- `e2e/invoice-due-date.spec.ts` — §11 combination matrix (new)
+- `e2e/helpers.ts` — `addCustomer` now searches after create (customers list paginates 25/page)
+
+### Pre-existing e2e drift fixed alongside §11
+
+These were already broken before this work (unrelated to due dates) and are noted here for traceability:
+
+| Spec | Issue | Fix |
+|------|-------|-----|
+| `filters.spec.ts`, `invoices.spec.ts` | Dashboard search placeholder renamed to `Search customer or SL No..` | Updated selector |
+| `dues.spec.ts` | Empty-state text changed to `No customers match your search or filters.`; filter sheet leaves `main` `aria-hidden` | Updated text; close sheet + re-scope after Reset All |
+| `auth-basic.spec.ts` | `Customers` heading exists twice (banner + main) → strict-mode violation | Scoped to `main` |
+| `invoices.spec.ts` | Bulk test reused the wizard test's customer name → 2 rows matched once `addCustomer` searched | Added unique `bulkCustName` |

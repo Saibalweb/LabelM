@@ -19,19 +19,22 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { DueDateSelect } from '@/components/invoices/DueDateSelect'
 import {
   useBulkGenerateInvoices,
   useInvoicePreviewQuery,
 } from '@/hooks/queries'
 import {
+  dueDateForTerms,
   isValidRange,
   monthBounds,
   monthLabel,
   monthRangeLabel,
   previousMonthValue,
   rangeLabel,
+  type DueTerms,
 } from '@/lib/period'
-import { formatCurrency } from '@/lib/format'
+import { formatCurrency, formatDate, todayInputValue } from '@/lib/format'
 import type { InvoiceGenerationResult } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -58,6 +61,10 @@ export function BulkInvoiceDialog({ open, onOpenChange }: BulkInvoiceDialogProps
   const [monthValue, setMonthValue] = useState(previousMonthValue())
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
+  const today = useMemo(() => todayInputValue(), [])
+  const [dueTerms, setDueTerms] = useState<DueTerms>('net30')
+  const [customDue, setCustomDue] = useState('')
+  const dueDate = dueDateForTerms(dueTerms, today, customDue)
   const [results, setResults] = useState<InvoiceGenerationResult[] | null>(null)
   const [progressIndex, setProgressIndex] = useState(0)
 
@@ -76,8 +83,17 @@ export function BulkInvoiceDialog({ open, onOpenChange }: BulkInvoiceDialogProps
     setMonthValue(previousMonthValue())
     setCustomFrom('')
     setCustomTo('')
+    setDueTerms('net30')
+    setCustomDue('')
     setResults(null)
     setProgressIndex(0)
+  }
+
+  const handleTermsChange = (next: DueTerms) => {
+    if (next === 'custom' && !customDue) {
+      setCustomDue(dueDateForTerms('net30', today, ''))
+    }
+    setDueTerms(next)
   }
 
   const { data: preview = [], isFetching: previewLoading } = useInvoicePreviewQuery(
@@ -107,11 +123,11 @@ export function BulkInvoiceDialog({ open, onOpenChange }: BulkInvoiceDialogProps
   const periodLabel = monthBounds(monthValue) ? monthLabel(monthValue) : rangeLabel(customFrom, customTo)
 
   const handleGenerate = async () => {
-    if (!periodValid) return
+    if (!periodValid || !dueDate) return
     setStep('generating')
     setProgressIndex(0)
     try {
-      const rows = await bulkGenerate.mutateAsync({ from, to })
+      const rows = await bulkGenerate.mutateAsync({ from, to, dueDate })
       setResults(rows)
       setStep('result')
       const count = rows.filter((row) => row.invoiceId != null).length
@@ -233,6 +249,15 @@ export function BulkInvoiceDialog({ open, onOpenChange }: BulkInvoiceDialogProps
                 </p>
               </div>
             )}
+
+            <DueDateSelect
+              terms={dueTerms}
+              onTermsChange={handleTermsChange}
+              customDate={customDue}
+              onCustomDateChange={setCustomDue}
+              dueDate={dueDate}
+              inputClassName={inputClasses}
+            />
           </div>
         ) : null}
 
@@ -245,6 +270,11 @@ export function BulkInvoiceDialog({ open, onOpenChange }: BulkInvoiceDialogProps
                 <p className="font-label-sm text-label-sm text-on-surface-variant">
                   {rangeLabel(from, to)}
                 </p>
+                {dueDate ? (
+                  <p className="font-label-sm text-label-sm text-on-surface-variant">
+                    Due {formatDate(dueDate)}
+                  </p>
+                ) : null}
               </div>
               <Button
                 type="button"
@@ -427,7 +457,7 @@ export function BulkInvoiceDialog({ open, onOpenChange }: BulkInvoiceDialogProps
             <Button
               type="button"
               onClick={() => setStep('preview')}
-              disabled={!periodValid}
+              disabled={!periodValid || !dueDate}
               className="h-12 w-full gap-2 rounded-lg font-label-md text-label-md sm:w-auto"
             >
               Preview

@@ -15,6 +15,7 @@ import { TopNav } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
 import { LoadingOverlay } from '@/components/ui/loading-overlay'
 import { BulkInvoiceDialog } from '@/components/invoices/BulkInvoiceDialog'
+import { DueDateSelect } from '@/components/invoices/DueDateSelect'
 import {
   useCustomersQuery,
   useGenerateInvoice,
@@ -22,14 +23,16 @@ import {
 } from '@/hooks/queries'
 import {
   currentMonthValue,
+  dueDateForTerms,
   isValidRange,
   monthBounds,
   monthLabel,
   monthRangeLabel,
   rangeLabel,
+  type DueTerms,
 } from '@/lib/period'
 import type { Customer, Label } from '@/lib/types'
-import { formatCurrency, formatDate } from '@/lib/format'
+import { formatCurrency, formatDate, todayInputValue } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 const inputClasses =
@@ -120,6 +123,11 @@ export function CreateInvoice() {
   const [monthValue, setMonthValue] = useState(currentMonthValue())
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
+
+  const today = useMemo(() => todayInputValue(), [])
+  const [dueTerms, setDueTerms] = useState<DueTerms>('net30')
+  const [customDue, setCustomDue] = useState('')
+  const dueDate = dueDateForTerms(dueTerms, today, customDue)
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null)
   const [customerQuery, setCustomerQuery] = useState('')
@@ -221,7 +229,15 @@ export function CreateInvoice() {
     setShowCustomerList(false)
   }
 
-  const canGenerate = !includeAll && !!selectedCustomer && bounds != null && selectedLabels.length > 0
+  const handleTermsChange = (next: DueTerms) => {
+    if (next === 'custom' && !customDue) {
+      setCustomDue(dueDateForTerms('net30', today, ''))
+    }
+    setDueTerms(next)
+  }
+
+  const canGenerate =
+    !includeAll && !!selectedCustomer && bounds != null && selectedLabels.length > 0 && !!dueDate
 
   const noLabelsForCustomer =
     !!selectedCustomerId &&
@@ -237,6 +253,7 @@ export function CreateInvoice() {
         customerId: selectedCustomerId,
         from: bounds.from,
         to: bounds.to,
+        dueDate,
       })
       if (result.invoiceId != null) {
         toast.success(`Invoice ${result.invoiceNumber} generated`)
@@ -512,6 +529,15 @@ export function CreateInvoice() {
                     )}
                   </div>
 
+                  <DueDateSelect
+                    terms={dueTerms}
+                    onTermsChange={handleTermsChange}
+                    customDate={customDue}
+                    onCustomDateChange={setCustomDue}
+                    dueDate={dueDate}
+                    inputClassName={inputClasses}
+                  />
+
                   <label className="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border border-outline-variant bg-surface-container-low px-4">
                     <CheckBox
                       checked={includeAll}
@@ -722,7 +748,7 @@ export function CreateInvoice() {
                         Total Amount Due
                       </p>
                       <p className="mt-1 font-body-md text-body-md text-on-surface-variant">
-                        Due Net 30
+                        {dueDate ? `Due ${formatDate(dueDate)}` : 'Select a due date'}
                       </p>
                     </div>
                     <p className="font-headline-lg text-headline-lg font-bold text-primary">

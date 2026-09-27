@@ -31,6 +31,9 @@ export async function addCustomer(
   await page.getByLabel('Name').fill(name)
   await page.getByLabel('Rate (₹ per kg)').fill(rate)
   await page.getByRole('button', { name: 'Add Customer' }).click()
+  // The list paginates 25/page ordered by ascending id and accumulates E2E rows,
+  // so a freshly created customer is rarely on page 1. Search to surface it.
+  await page.getByPlaceholder('Search name or ID...').fill(name)
   await expect(page.getByText(name)).toBeVisible({ timeout: 10_000 })
 }
 

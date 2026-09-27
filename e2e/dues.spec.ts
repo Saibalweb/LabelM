@@ -38,7 +38,7 @@ test('dues aggregation, search, sort, expand and record-payment link', async ({ 
 
   // Dues overview aggregates this customer
   await page.goto('/dues')
-  await expect(page.getByText(custName)).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByRole('main').getByText(custName).first()).toBeVisible({ timeout: 10_000 })
   await expect(
     page.getByRole('button', { name: new RegExp(custName) })
   ).toContainText('₹1,000.00') // remaining due
@@ -46,15 +46,15 @@ test('dues aggregation, search, sort, expand and record-payment link', async ({ 
   // Search
   const search = page.getByRole('main').getByPlaceholder('Search customer or invoice...')
   await search.fill('zzz-nope')
-  await expect(page.getByText('No customers match your search.')).toBeVisible()
+  await expect(page.getByText('No customers match your search or filters.')).toBeVisible()
   await search.fill(custName)
-  await expect(page.getByText(custName)).toBeVisible()
+  await expect(page.getByRole('main').getByText(custName).first()).toBeVisible()
 
   // Sort options are functional (moved inside the filter sheet)
   await page.getByRole('button', { name: /Filters/ }).click()
   await page.getByRole('combobox').selectOption('Name A-Z')
   await page.getByRole('button', { name: /Apply Filters/ }).click()
-  await expect(page.getByText(custName)).toBeVisible()
+  await expect(page.getByRole('main').getByText(custName).first()).toBeVisible()
 
   // Expand the row to reveal the invoice
   await page.getByRole('button', { name: new RegExp(custName) }).click()
@@ -72,11 +72,14 @@ test('dues aggregation, search, sort, expand and record-payment link', async ({ 
   await page.getByLabel('Partial').check()
   await expect(page.getByText('1 active')).toBeVisible()
   await page.getByRole('button', { name: /Apply Filters/ }).click()
-  await expect(page.getByText(custName)).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByRole('main').getByText(custName).first()).toBeVisible({ timeout: 10_000 })
 
   // Reset all restores the default view
   await page.getByRole('button', { name: /Filters/ }).click()
   await page.getByRole('button', { name: /Reset All/ }).click()
   await expect(page.getByText('1 active')).not.toBeVisible()
-  await expect(page.getByText(custName)).toBeVisible()
+  // Reset clears the search too; close the sheet, then re-scope so the row is visible.
+  await page.keyboard.press('Escape')
+  await search.fill(custName)
+  await expect(page.getByRole('main').getByText(custName).first()).toBeVisible({ timeout: 10_000 })
 })

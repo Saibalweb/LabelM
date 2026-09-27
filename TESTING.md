@@ -256,7 +256,7 @@ Deferred on purpose. Nothing in Stage 1 changes; this only **adds** on top.
 - [ ] Single + bulk generation
 - [ ] Skipped reasons: `overlap`, `no_labels`
 - [ ] Overlap detection with half-open `daterange`
-- [ ] `due_date = period_end + 30`
+- [ ] `due_date` = chosen payment terms (issue date + N, custom, or `current_date + 30` fallback)
 - [ ] Status recalc on payment insert/update/delete (Unpaid / Partial / Paid)
 - [ ] Payment amount > due rejected; negative/zero rejected
 - [ ] Every payment mode (cash / upi / bank_transfer / cheque)

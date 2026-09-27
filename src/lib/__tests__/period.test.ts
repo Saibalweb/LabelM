@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  addDays,
   currentMonthValue,
+  dueDateForTerms,
   isoDate,
   isValidRange,
   monthBounds,
@@ -112,6 +114,35 @@ describe('isValidRange', () => {
     expect(isValidRange('', '2026-02-01')).toBe(false)
     expect(isValidRange('2026-01-01', '')).toBe(false)
     expect(isValidRange('', '')).toBe(false)
+  })
+})
+
+describe('addDays', () => {
+  it('adds days within a month', () => {
+    expect(addDays('2026-09-27', 15)).toBe('2026-10-12')
+    expect(addDays('2026-09-27', 30)).toBe('2026-10-27')
+  })
+
+  it('rolls across month and year boundaries', () => {
+    expect(addDays('2026-12-20', 15)).toBe('2027-01-04')
+    expect(addDays('2026-01-31', 1)).toBe('2026-02-01')
+  })
+
+  it('returns the input unchanged when it is not a valid date', () => {
+    expect(addDays('', 30)).toBe('')
+    expect(addDays('2026-09', 30)).toBe('2026-09')
+  })
+})
+
+describe('dueDateForTerms', () => {
+  it('anchors presets on the generation date', () => {
+    expect(dueDateForTerms('on-receipt', '2026-09-27', '')).toBe('2026-09-27')
+    expect(dueDateForTerms('net15', '2026-09-27', '')).toBe('2026-10-12')
+    expect(dueDateForTerms('net30', '2026-09-27', '')).toBe('2026-10-27')
+  })
+
+  it('returns the custom date verbatim', () => {
+    expect(dueDateForTerms('custom', '2026-09-27', '2026-11-05')).toBe('2026-11-05')
   })
 })
 

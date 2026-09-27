@@ -5,6 +5,7 @@ test.describe.configure({ mode: 'serial' })
 
 const suffix = Date.now().toString(36)
 const custName = `E2E Inv Cust ${suffix}`
+const bulkCustName = `E2E Inv Bulk ${suffix}`
 const emptyCustName = `E2E Empty ${suffix}`
 
 test('invoice wizard, payment lifecycle and status recalculation', async ({ page }) => {
@@ -56,7 +57,7 @@ test('invoice wizard, payment lifecycle and status recalculation', async ({ page
 
   // Billed labels are locked on the preview page
   await page.goto('/')
-  await page.getByPlaceholder('Search customer, SL No or date...').fill(custName)
+  await page.getByPlaceholder('Search customer or SL No..').fill(custName)
   await expect(page.getByText(/Showing 1-2 of 2/)).toBeVisible({ timeout: 10_000 })
   await page.locator('[role="button"]').filter({ hasText: /#LBL-/ }).first().click()
   await page.waitForURL(/\/preview\/\d+/)
@@ -73,8 +74,8 @@ test('bulk generation skips customers with no uninvoiced labels', async ({ page 
   const from = '2026-01-01'
   const to = '2026-02-01'
 
-  await addCustomer(page, { name: custName, rate: '100' })
-  const row = page.getByRole('row', { name: new RegExp(custName) })
+  await addCustomer(page, { name: bulkCustName, rate: '100' })
+  const row = page.getByRole('row', { name: new RegExp(bulkCustName) })
   const customerId = (await row.locator('td').first().innerText()).trim()
   await addCustomer(page, { name: emptyCustName, rate: '100' })
 
@@ -94,11 +95,11 @@ test('bulk generation skips customers with no uninvoiced labels', async ({ page 
   await bulkDialog.locator('input[type="date"]').nth(1).fill(to)
   await page.getByRole('button', { name: 'Preview' }).click()
   // The preview lists every customer with uninvoiced labels in this period
-  await expect(bulkDialog.getByText(custName)).toBeVisible({ timeout: 10_000 })
+  await expect(bulkDialog.getByText(bulkCustName)).toBeVisible({ timeout: 10_000 })
   await page.getByRole('button', { name: /Generate \d+ invoices/ }).click()
   await expect(page.getByText(/Created — \d+/)).toBeVisible({ timeout: 20_000 })
   // Our uniquely-named customer's invoice is among the created ones
-  await expect(bulkDialog.getByText(custName)).toBeVisible()
+  await expect(bulkDialog.getByText(bulkCustName)).toBeVisible()
   await page.getByRole('button', { name: 'Done' }).click()
 })
 
@@ -111,7 +112,7 @@ test('overdue pill filters invoices past their due date', async ({ page }) => {
   const row = page.getByRole('row', { name: new RegExp(overdueCust) })
   const customerId = (await row.locator('td').first().innerText()).trim()
 
-  // Label dated in May 2026 → invoice due 30 Jun 2026, before today
+  // Label dated in May 2026; pick a past custom due date so the invoice is overdue
   await page.goto('/create')
   await selectCustomerById(page, customerId)
   await page.locator('input[type="date"]').fill('2026-05-15')
@@ -124,6 +125,8 @@ test('overdue pill filters invoices past their due date', async ({ page }) => {
   await page.getByRole('button', { name: new RegExp(overdueCust) }).first().click()
   await page.locator('input[type="month"]').fill('2026-05')
   await expect(page.getByText('1 of 1 labels selected')).toBeVisible({ timeout: 10_000 })
+  await page.getByRole('button', { name: 'Custom', exact: true }).click()
+  await page.locator('input[type="date"]').fill('2026-06-30')
   await page.getByRole('button', { name: 'Generate Invoice' }).click()
   await page.waitForURL(/\/invoice\/\d+/, { timeout: 15_000 })
   await expect(page.getByText('Unpaid', { exact: true })).toBeVisible()

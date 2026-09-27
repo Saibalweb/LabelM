@@ -28,7 +28,7 @@ test('dashboard search, filters, presets and sorting', async ({ page }) => {
   await page.goto('/')
 
   // Search narrows the list to this customer's labels
-  const search = page.getByPlaceholder('Search customer, SL No or date...')
+  const search = page.getByPlaceholder('Search customer or SL No..')
   await search.fill(custName)
   await expect(page.getByText(/Showing 1-3 of 3/)).toBeVisible({ timeout: 10_000 })
 

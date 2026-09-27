@@ -326,12 +326,14 @@ export const invoiceService = {
   async generate(
     customerId: number,
     from: string,
-    to: string
+    to: string,
+    dueDate: string
   ): Promise<InvoiceGenerationResult> {
     const { data, error } = await supabase.rpc('generate_invoice_for_customer', {
       p_customer_id: customerId,
       p_period_start: from,
       p_period_end: to,
+      p_due_date: dueDate,
     })
     if (error) throw new Error(error.message)
     const row = (data ?? [])[0]
@@ -339,10 +341,15 @@ export const invoiceService = {
     return toGenerationResult(row)
   },
 
-  async bulkGenerate(from: string, to: string): Promise<InvoiceGenerationResult[]> {
+  async bulkGenerate(
+    from: string,
+    to: string,
+    dueDate: string
+  ): Promise<InvoiceGenerationResult[]> {
     const { data, error } = await supabase.rpc('generate_invoices_for_period', {
       p_period_start: from,
       p_period_end: to,
+      p_due_date: dueDate,
     })
     if (error) throw new Error(error.message)
     return (data ?? []).map(toGenerationResult)

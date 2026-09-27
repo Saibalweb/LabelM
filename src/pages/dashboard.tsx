@@ -13,8 +13,8 @@ import {
   ChevronRight,
   Download,
   Dumbbell,
-  Eye,
   Lock,
+  MoreVertical,
   Package,
   Pencil,
   Printer,
@@ -25,6 +25,7 @@ import {
   Search,
   SlidersHorizontal,
   Tag,
+  Trash2,
   TrendingUp,
   Users,
   X,
@@ -34,6 +35,24 @@ import { TopNav } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
   Sheet,
   SheetClose,
   SheetContent,
@@ -42,14 +61,16 @@ import {
 } from '@/components/ui/sheet'
 import {
   useCustomersQuery,
+  useDeleteLabel,
   useLabelCountsByCustomerQuery,
   useLabelsQuery,
   useLabelStatsQuery,
+  useUpdateLabel,
 } from '@/hooks/queries'
 import { LabelEditDialog } from '@/components/labels/LabelEditDialog'
-import { useAppSelector } from '@/store/hooks'
-import { hasRole } from '@/lib/roles'
+import { LabelPrintCard } from '@/components/labels/LabelPrintCard'
 import { formatCurrency, formatDate } from '@/lib/format'
+import { runLabelPrint } from '@/lib/printLabel'
 import type {
   BillingFilter,
   Label,
@@ -196,14 +217,16 @@ function StatCard({
 
 export function Dashboard() {
   const navigate = useNavigate()
-  const role = useAppSelector((state) => state.auth.user?.role)
-  const canEditLabels = hasRole(role, 'admin')
   const { data: customers = [] } = useCustomersQuery()
   const { data: stats } = useLabelStatsQuery()
   const { data: counts = [] } = useLabelCountsByCustomerQuery()
+  const updateLabel = useUpdateLabel()
+  const deleteLabel = useDeleteLabel()
   const [query, setQuery] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
   const [editLabel, setEditLabel] = useState<Label | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Label | null>(null)
+  const [printTarget, setPrintTarget] = useState<Label | null>(null)
   const [duration, setDuration] = useState<DurationFilter>('all')
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
@@ -375,6 +398,33 @@ export function Dashboard() {
     setSortBy('newest')
   }
 
+  const handlePrint = (label: Label) => {
+    if (label.status === 'draft') {
+      updateLabel.mutate({ id: label.id, patch: { status: 'printed' } })
+    }
+    setPrintTarget(label)
+  }
+
+  useEffect(() => {
+    if (!printTarget) return
+    runLabelPrint('printLabel')
+    const clear = () => setPrintTarget(null)
+    window.addEventListener('afterprint', clear)
+    return () => window.removeEventListener('afterprint', clear)
+  }, [printTarget])
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return
+    try {
+      await deleteLabel.mutateAsync(deleteTarget.id)
+      toast.success(`Label ${deleteTarget.slNo} deleted`)
+    } catch {
+      toast.error('Failed to delete label.')
+    } finally {
+      setDeleteTarget(null)
+    }
+  }
+
   const listStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
   const listEnd = total === 0 ? 0 : Math.min(page * PAGE_SIZE, total)
   const hasNoLabels = !loading && total === 0 && activeFilterCount === 0 && query.trim() === ''
@@ -485,12 +535,12 @@ export function Dashboard() {
             />
           ) : (
           <div className="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm">
-            <div className="hidden grid-cols-12 gap-4 border-b border-outline-variant bg-surface-container-low px-6 py-4 font-label-md text-label-md tracking-wider text-on-surface-variant uppercase md:grid">
-              <div className="col-span-2">SL No</div>
-              <div className="col-span-4">Customer / Rate</div>
-              <div className="col-span-3">Date / Time</div>
-              <div className="col-span-2 text-right">Amount</div>
-              <div className="col-span-1 text-center">Actions</div>
+            <div className="hidden gap-x-6 gap-y-4 border-b border-outline-variant bg-surface-container-low px-6 py-4 font-label-md text-label-md tracking-wider text-on-surface-variant uppercase lg:grid lg:grid-cols-[6rem_minmax(0,1fr)_8rem_8rem_6rem] xl:grid-cols-[7rem_minmax(0,1fr)_9rem_9rem_7rem] xl:gap-x-10">
+              <div>SL No</div>
+              <div>Customer / Rate</div>
+              <div>Date / Time</div>
+              <div className="text-right">Amount</div>
+              <div className="text-right">Actions</div>
             </div>
 
             <div className="flex flex-col">
@@ -515,34 +565,60 @@ export function Dashboard() {
                         navigate(`/preview/${label.id}`)
                       }
                     }}
-                    className="group grid min-h-16 cursor-pointer grid-cols-1 items-center gap-4 border-b border-outline-variant px-6 py-4 transition-colors last:border-b-0 hover:bg-surface focus-visible:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 md:grid-cols-12"
+                    className="group grid min-h-16 cursor-pointer grid-cols-1 items-center gap-x-6 gap-y-4 border-b border-outline-variant px-6 py-5 transition-colors last:border-b-0 hover:bg-surface focus-visible:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 lg:grid-cols-[6rem_minmax(0,1fr)_8rem_8rem_6rem] xl:grid-cols-[7rem_minmax(0,1fr)_9rem_9rem_7rem] xl:gap-x-10"
                   >
-                    <div className="col-span-12 flex items-center justify-between md:col-span-2 md:justify-start">
-                      <span className="font-label-sm text-label-sm text-on-surface-variant uppercase md:hidden">
+                    <div className="flex items-center justify-between lg:block">
+                      <span className="font-label-sm text-label-sm text-on-surface-variant uppercase lg:hidden">
                         SL No
                       </span>
-                      <span className="font-label-md text-label-md font-bold text-on-surface">
-                        #{label.slNo}
-                      </span>
+                      <div className="flex flex-col items-end gap-1 lg:items-start">
+                        <span className="font-label-md text-label-md font-bold text-on-surface">
+                          #{label.slNo}
+                        </span>
+                        {label.invoiceId != null ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-secondary/10 px-2 py-0.5 font-label-sm text-[10px] font-semibold tracking-wide text-secondary uppercase">
+                            <Lock className="size-3" />
+                            Billed
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-full bg-tertiary/10 px-2 py-0.5 font-label-sm text-[10px] font-semibold tracking-wide text-tertiary uppercase">
+                            Unbilled
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="col-span-12 flex items-center justify-between md:col-span-4 md:justify-start">
-                      <span className="font-label-sm text-label-sm text-on-surface-variant uppercase md:hidden">
+                    <div className="flex min-w-0 items-center justify-between lg:justify-start">
+                      <span className="font-label-sm text-label-sm text-on-surface-variant uppercase lg:hidden">
                         Customer / Batch
                       </span>
-                      <div>
-                        <div className="font-body-md text-body-md font-medium text-on-surface">
-                          {label.customerName || '—'}
+                      <div className="flex min-w-0 items-center gap-3 text-right lg:text-left">
+                        <div
+                          className={cn(
+                            'flex h-10 min-w-10 shrink-0 items-center justify-center rounded-full px-2 font-label-sm text-[11px] font-semibold',
+                            label.invoiceId != null
+                              ? 'bg-secondary-container text-on-secondary-container'
+                              : 'bg-tertiary-container text-on-tertiary-container'
+                          )}
+                        >
+                          #{label.customerId}
                         </div>
-                        <div className="mt-0.5 inline-block rounded bg-surface-container-high px-2 py-0.5 font-label-sm text-label-sm text-on-surface-variant">
-                          {formatCurrency(label.rate)}/kg
+                        <div className="min-w-0">
+                          <div className="truncate font-body-md text-body-md font-medium text-on-surface">
+                            {label.customerName || '—'}
+                          </div>
+                          <div className="mt-0.5">
+                            <span className="inline-block rounded bg-surface-container-high px-2 py-0.5 font-label-sm text-label-sm text-on-surface-variant">
+                              {formatCurrency(label.rate)}/kg
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                    <div className="col-span-12 flex items-center justify-between md:col-span-3 md:justify-start">
-                      <span className="font-label-sm text-label-sm text-on-surface-variant uppercase md:hidden">
+                    <div className="flex items-center justify-between whitespace-nowrap lg:justify-start">
+                      <span className="font-label-sm text-label-sm text-on-surface-variant uppercase lg:hidden">
                         Date / Time
                       </span>
-                      <div className="text-right md:text-left">
+                      <div className="text-right lg:text-left">
                         <div className="font-body-md text-body-md text-on-surface">
                           {formatDate(label.date)}
                         </div>
@@ -554,71 +630,75 @@ export function Dashboard() {
                         </div>
                       </div>
                     </div>
-                    <div className="col-span-12 flex items-center justify-between md:col-span-2 md:justify-end">
-                      <span className="font-label-sm text-label-sm text-on-surface-variant uppercase md:hidden">
+                    <div className="flex items-center justify-between whitespace-nowrap lg:justify-end">
+                      <span className="font-label-sm text-label-sm text-on-surface-variant uppercase lg:hidden">
                         Amount
                       </span>
                       <span className="font-label-md text-label-md text-on-surface">
                         {formatCurrency(label.amount)}
                       </span>
                     </div>
-                    <div className="col-span-12 flex items-center justify-end gap-2 transition-opacity md:col-span-1 md:opacity-0 md:group-hover:opacity-100">
+                    <div
+                      className="flex items-center justify-end gap-1 lg:gap-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon-lg"
                         className="size-10 rounded-full text-on-surface-variant hover:bg-surface-container-high"
-                        title="View Details"
+                        title="Print Label"
+                        aria-label="Print Label"
                         onClick={(e) => {
                           e.stopPropagation()
-                          navigate(`/preview/${label.id}`)
-                        }}
-                      >
-                        <Eye className="size-5" />
-                      </Button>
-                      {label.invoiceId != null ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-lg"
-                          className="size-10 rounded-full text-outline"
-                          title="Invoiced label — locked"
-                          aria-label="Invoiced label — locked"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            toast.info('This label is billed to an invoice and cannot be edited.')
-                          }}
-                        >
-                          <Lock className="size-5" />
-                        </Button>
-                      ) : canEditLabels ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-lg"
-                          className="size-10 rounded-full text-on-surface-variant hover:bg-surface-container-high hover:text-primary"
-                          title="Edit Label"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setEditLabel(label)
-                          }}
-                        >
-                          <Pencil className="size-5" />
-                        </Button>
-                      ) : null}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-lg"
-                        className="size-10 rounded-full text-on-surface-variant hover:bg-surface-container-high"
-                        title="Print Again"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          toast.info('Print again coming soon')
+                          handlePrint(label)
                         }}
                       >
                         <Printer className="size-5" />
                       </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-lg"
+                            className="size-10 rounded-full text-on-surface-variant hover:bg-surface-container-high"
+                            title="Label actions"
+                            aria-label="Label actions"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreVertical className="size-5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
+                          {label.invoiceId != null ? (
+                            <>
+                              <DropdownMenuLabel>Label {label.slNo}</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem disabled>
+                                <Lock className="size-4" />
+                                Invoiced — Locked
+                              </DropdownMenuItem>
+                            </>
+                          ) : (
+                            <>
+                              <DropdownMenuLabel>Label {label.slNo}</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onSelect={() => setEditLabel(label)}>
+                                <Pencil className="size-4" />
+                                Edit Label
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                variant="destructive"
+                                onSelect={() => setDeleteTarget(label)}
+                              >
+                                <Trash2 className="size-4" />
+                                Delete Label
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 ))
@@ -1099,6 +1179,35 @@ export function Dashboard() {
         }}
         label={editLabel}
       />
+
+      <AlertDialog
+        open={deleteTarget != null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete label {deleteTarget?.slNo}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the label. Only unbilled labels can be deleted and this
+              cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={handleConfirmDelete}>
+              Delete Label
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {printTarget ? (
+        <div id="printLabel" className="hidden">
+          <LabelPrintCard label={printTarget} />
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -16,6 +16,7 @@ const hooks = vi.hoisted(() => ({
   useLabelsQuery: vi.fn(),
   useLabelStatsQuery: vi.fn(),
   useUpdateLabel: vi.fn(),
+  useDeleteLabel: vi.fn(),
 }))
 
 vi.mock('@/hooks/queries', () => ({
@@ -24,6 +25,7 @@ vi.mock('@/hooks/queries', () => ({
   useLabelsQuery: hooks.useLabelsQuery,
   useLabelStatsQuery: hooks.useLabelStatsQuery,
   useUpdateLabel: hooks.useUpdateLabel,
+  useDeleteLabel: hooks.useDeleteLabel,
 }))
 
 vi.mock('@/lib/supabase', () => ({ supabase: {} }))
@@ -106,6 +108,7 @@ beforeEach(() => {
     data: { totalLabels: 0, totalWeight: 0, minWeight: 0, maxWeight: 0, minAmount: 0, maxAmount: 0, printQueue: 0 },
   })
   hooks.useUpdateLabel.mockReturnValue({ mutateAsync: vi.fn() })
+  hooks.useDeleteLabel.mockReturnValue({ mutateAsync: vi.fn() })
 })
 
 describe('Dashboard filter sheet — presets', () => {

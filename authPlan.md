@@ -26,7 +26,8 @@ invited company members can authenticate. Backend: Supabase (Auth + Postgres + R
 |---|---|---|---|
 | Create/edit customers | ✓ | ✓ | ✓ |
 | Create labels (from printed batches) | ✓ | ✓ | ✓ |
-| Edit labels (uninvoiced only) | ✓ | ✓ | ✗ |
+| Edit labels (uninvoiced only) | ✓ | ✓ | ✓ |
+| Delete labels (uninvoiced only) | ✓ | ✓ | ✓ |
 | Generate invoices (single + bulk) | ✓ | ✓ | ✗ |
 | View all invoices | ✓ | ✓ | ✓ |
 | Record payments / view dues & totals | ✓ | ✓ | ✓ |
@@ -38,9 +39,10 @@ invited company members can authenticate. Backend: Supabase (Auth + Postgres + R
 | Invite/promote admins | ✓ | ✗ | ✗ |
 | Transfer ownership / delete workspace | ✓ | ✗ | ✗ |
 
-> **Note:** Label editing is only allowed while a label is **uninvoiced**
-> (`invoice_id IS NULL`). The DB enforces this via the `labels_lock_billed`
-> trigger; once billed, labels are immutable. Invoice generation runs
+> **Note:** Label editing and deletion are only allowed while a label is
+> **uninvoiced** (`invoice_id IS NULL`), for every role (owner/admin/staff). The
+> DB enforces this via the `labels_lock_billed` / `labels_lock_billed_delete`
+> triggers; once billed, labels are immutable. Invoice generation runs
 > server-side (`generate_invoice_for_customer` / `generate_invoices_for_period`)
 > as owner/admin-only transactions.
 

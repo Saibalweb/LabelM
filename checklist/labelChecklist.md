@@ -164,6 +164,25 @@ delete the labels with `sl_no` between `LBL-0453` and `LBL-0745` and their invoi
 
 **Verdict: FIXED** — saved-preset selection is now unmistakably blue, matching the other selected controls (segmented duration buttons). Verified live via headless screenshots.
 
+## 11. Dashboard label row — redesign, direct print, role-gated actions, billed status
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | **UI overlap fixed + columns aligned** — the amount and the action icons no longer collide, and the Date/Amount/Actions columns line up across every row. Each row is its own grid, so content-sized `auto` columns drifted per row; switched to fixed tracks `lg:grid-cols-[6rem_minmax(0,1fr)_8rem_8rem_6rem]` / `xl:grid-cols-[7rem_minmax(0,1fr)_9rem_9rem_7rem]` with `gap-x-6`/`xl:gap-x-10` and `py-5` rows. Date is left-aligned under its header; Amount and Actions are right-aligned. | Done |
+| 2 | **Row layout** — SL No + **Billed/Unbilled** status pill (left); customer **avatar showing the customer `#id`** + name + rate chip; Date/Time; Amount; Actions. | Done |
+| 3 | **Avatar colour follows status** — green (`bg-secondary-container`) for **Billed**, peach (`bg-tertiary-container`) for **Unbilled**, matching the status pill. | Done |
+| 4 | **Actions simplified** — the redundant Eye/view button was removed (the whole row is clickable to preview). Actions are now **Print** + a vertical **⋮ actions menu**. | Done |
+| 5 | **Actions always visible** — Print + ⋮ are shown at all times (removed the `lg:opacity-0` hover-reveal that hid the whole actions cell while the menu was open). Clicking ⋮ only toggles the menu; clicks inside the actions cell stop propagation so they never trigger row navigation. | Done |
+| 6 | **⋮ actions menu** (`DropdownMenu`) — for an **unbilled** label: **Edit Label** + **Delete Label** (destructive). For a **billed** label: a disabled **Invoiced — Locked** item. The menu is shown to every role. | Done |
+| 7 | **Responsive** — the 5-column table starts at `lg` (the sidebar eats 256px from `md`, so the table cannot fit at `md`); mobile/tablet keep the stacked label/value card layout. Verified with real screenshots at 390 / 820 / 1440px. | Done |
+| 8 | **Edge cases** — very long customer names truncate (`minmax(0,1fr)` + `min-w-0` + `truncate`) and large amounts (`₹1,23,45,678.90`) fit the fixed Amount track without pushing neighbours; covered by a unit test. | Done |
+| 9 | **Direct print** — the printer icon prints that label immediately (no trip to the preview page). Extracted the 60×40mm markup to `src/components/labels/LabelPrintCard.tsx` and the print CSS/flow to `src/lib/printLabel.ts` (`runLabelPrint(areaId)`), shared with the preview page. A hidden `#printLabel` area is rendered on demand and revealed only for print. Draft labels flip to `printed` after printing. | Done |
+| 10 | **Delete for unbilled labels** — available to **all roles** (owner/admin/staff) for uninvoiced labels only; opens a red confirmation dialog. Billed rows never expose delete (the menu shows a locked item). Enforced at the DB by the `labels_lock_billed_delete` trigger; no extra migration needed. | Done |
+| 11 | Preview page refactored to reuse `LabelPrintCard` + `runLabelPrint` (single-label behavior unchanged); fixed the pre-existing `height: 100% !importantf` typo in the print CSS. | Done |
+| 12 | Unit tests: `src/pages/__tests__/dashboardLabelActions.test.tsx` covers the avatar/id/badge layout, avatar status colour, always-visible buttons, absence of the eye button, the ⋮ menu (edit/delete/locked), staff visibility, the delete confirm flow, and direct print. | Done |
+
+**Verdict: FIXED + IMPLEMENTED.** Staff can edit and delete **unbilled** labels too; billed labels stay locked for everyone (billed-lock triggers). No new migration required.
+
 ## Verification
 
 - [x] Unit tests: **229 passed** (incl. service RPC tests + customers-page component tests)

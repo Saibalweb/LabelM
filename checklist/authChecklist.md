@@ -91,9 +91,31 @@ Fixtures: `e2e/fixtures/admin.ts` (service role, link minting, provisioning),
 | 36 | suspended can still read own profile | 200 | 1 | ✅ pass |
 | 37 | reactivate | access restored | 1 | ✅ pass |
 | 38 | admin cannot suspend admin | RPC error | 1 | ✅ pass |
-| 39 | admin "Remove member" | suspends (row kept) | 1 | ✅ pass |
-| 40 | owner "Remove member" | purges (row gone) | 1 | ✅ pass |
-| 41 | purge leaves orphaned `auth.users` | known; self-healed on re-invite | 1 | ⚠️ known |
+| 39 | admin "Suspend member" | suspends (row kept) | 1 | ✅ pass |
+| 40 | owner "Suspend member" | suspends (row kept) | 1 | ✅ pass |
+| 41 | hard delete (purge) in UI | not offered; RPC left optional (authPlan §15) | 1 | ⛔ removed |
+
+### Team management UI (client-side gating + feedback)
+
+The menu now mirrors the `admin_update_member_status` rule: the owner manages
+any admin/staff, an admin manages staff only, and the owner row is never
+manageable. Removal is **soft only** — the "Remove member" hard-delete action
+was removed from the UI; members are suspended (and reactivated) instead. The
+`owner_purge_member` RPC still exists but is intentionally unused (authPlan §15).
+Unit-tested in `src/pages/__tests__/team.test.tsx` (Vitest, mocked `teamService`);
+the same gating is asserted end-to-end (staging, Tier 1) by
+`auth-membership.spec.ts` → "the Team UI hides admin actions an admin may not
+perform" and "the Team UI removes members by suspension only — no hard delete".
+
+| # | Case | Expected | Tier | Status |
+|---|---|---|---|---|
+| 58 | admin opens menu on another admin | no Suspend; shows "Only the owner can manage admins" | unit | ✅ pass |
+| 59 | admin opens menu on staff | Suspend shown; no Remove member | unit | ✅ pass |
+| 60 | owner opens menu on admin | Demote + Suspend shown; no Remove member | unit | ✅ pass |
+| 61 | non-owner opens menu on owner | no "Transfer ownership" | unit | ✅ pass |
+| 62 | action in flight | row trigger disabled + spinner; duplicate click ignored | unit | ✅ pass |
+| 63 | signed-in user in list | row pinned to top, highlighted, "You" chip | unit | ✅ pass |
+| 64 | owner/admin menu (any target) | no hard-delete "Remove member" | unit | ✅ pass |
 
 ### Login / magic / reset
 | # | Case | Expected | Tier | Status |
@@ -138,8 +160,9 @@ Fixtures: `e2e/fixtures/admin.ts` (service role, link minting, provisioning),
 3. **`revoke-user` does not require owner/admin.**
    It only checks the caller is active, so staff can revoke pending invites.
 4. **Purge leaves an orphaned `auth.users` row** (known). `invite-user`
-   self-heals it on re-invite; a future pass should route purge through the same
-   auth cleanup.
+   self-heals it on re-invite. The UI no longer exposes purge, so this is only
+   reachable via a direct RPC call; kept as an optional future feature
+   (authPlan §15).
 5. **Emailed invite link lands on `/`, not `/accept-invite`.** Supabase rejects
    the invite redirect target and falls back to the **Site URL**, which drops the
    path. Probe output: `http://192.168.1.106:5173?token_hash=…&type=invite`.
@@ -164,7 +187,7 @@ these are fixed; remove the markers once green.
 |---|---|---|
 | 1 | `npm run lint` | ✅ clean (only pre-existing warnings) |
 | 2 | `npm run build` (tsc + vite) | ✅ |
-| 3 | `npm test` | ✅ 234 passed |
+| 3 | `npm test` | ✅ 245 passed |
 | 4 | `npm run test:e2e:auth` vs staging | ✅ 33 passed (3 expected failures) |
 | 5 | Staging test users cleaned up | ✅ 58 removed |
 
@@ -176,7 +199,9 @@ these are fixed; remove the markers once green.
 - [ ] Fix BUG 5/6 — Supabase Auth URL config: set **Site URL** to the app origin
       and allowlist `/accept-invite` + `/reset-password` (dashboard, both
       staging and prod).
-- [ ] Route `owner_purge_member` through auth cleanup (remove the orphan).
+- [ ] (Optional) Re-enable member hard-delete: route `owner_purge_member` through
+      auth cleanup (delete the `auth.users` row too) and wire the UI — see
+      `authPlan.md` §15.
 - [ ] **Accept-invite while already signed in (explicit switch confirmation).**
       Today `/accept-invite` is public and unguarded, so a signed-in user who
       opens an invite for a *different* email silently has their session swapped
@@ -191,7 +216,7 @@ these are fixed; remove the markers once green.
       where `onAuthStateChange` fetches the invitee's profile before
       `activate_my_membership` flips it to `active`.
 - [ ] Next phase: RBAC capability matrix (`roles.spec.ts`) — create invoice,
-      edit label, archive customer, payment delete, settings, promote/purge.
+      edit label, archive customer, payment delete, settings, promote/suspend.
 
 ## 6. Tier 2 results (real SMTP, 2026-09-27)
 

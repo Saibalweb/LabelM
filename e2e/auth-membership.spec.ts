@@ -1,10 +1,12 @@
-// Auth E2E — membership lifecycle: suspend / reactivate / purge and the
+// Auth E2E — membership lifecycle: suspend / reactivate and the
 // "can a removed user still use the site?" question.
 //
-// The app has no "revoke" for active members: admins suspend, owners purge.
-// RLS gates every business table on the live `is_active_member()` check, so a
-// suspended member's existing JWT loses database access immediately even though
-// the token itself is still cryptographically valid.
+// The app soft-removes members by suspending them; there is no hard delete in
+// the UI (the owner-only `owner_purge_member` RPC exists but is intentionally
+// not wired up — see authPlan.md §15). RLS gates every business table on the
+// live `is_active_member()` check, so a suspended member's existing JWT loses
+// database access immediately even though the token itself is still
+// cryptographically valid.
 
 import { expect, test } from '@playwright/test'
 import {
@@ -14,7 +16,6 @@ import {
   cleanupTrackedUsers,
   cleanupUsersByEmailPrefix,
   createActiveUser,
-  getAuthUserByEmail,
   getEmployeeById,
   hasServiceRole,
   restRequest,
@@ -110,20 +111,21 @@ test.describe('membership lifecycle', () => {
     expect(JSON.stringify(res.body)).toMatch(/admins can only manage staff|not authorized/i)
   })
 
-  test('admin "Remove member" suspends; owner "Remove member" purges', async ({ page }) => {
+  test('the Team UI removes members by suspension only — no hard delete', async ({ page }) => {
     const admin = await createActiveUser({ email: testEmail('remove-admin'), role: 'admin' })
     const staff = await createActiveUser({ email: testEmail('remove-staff'), role: 'staff' })
 
-    // Admin path: remove = suspend (row kept).
+    // Admin path: the menu offers suspend, never a hard delete.
     await login(page, { email: admin.email, password: admin.password })
     await page.goto('/team')
     const staffRow = page.getByRole('row', { name: new RegExp(staff.email) })
     await staffRow.getByRole('button', { name: 'Member options' }).click()
-    await page.getByRole('button', { name: 'Remove member' }).click()
+    await expect(page.getByRole('button', { name: 'Remove member' })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Suspend member' }).click()
     await expect(page.getByText('Member suspended')).toBeVisible({ timeout: 10_000 })
     expect((await getEmployeeById(staff.id))?.status).toBe('suspended')
 
-    // Owner path: remove = purge (row gone, auth user left orphaned).
+    // Owner path: a suspended member can only be reactivated, still no hard delete.
     await page.getByRole('button', { name: 'User menu' }).click()
     await page.getByRole('button', { name: 'Sign out' }).click()
     await login(page, { email: OWNER_EMAIL, password: OWNER_PASSWORD })
@@ -131,11 +133,39 @@ test.describe('membership lifecycle', () => {
     await page.goto('/team')
     const suspendedRow = page.getByRole('row', { name: new RegExp(staff.email) })
     await suspendedRow.getByRole('button', { name: 'Member options' }).click()
-    await page.getByRole('button', { name: 'Remove member' }).click()
-    await expect(page.getByText('Member removed')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByRole('button', { name: 'Remove member' })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Reactivate member' }).click()
+    await expect(page.getByText('Member reactivated')).toBeVisible({ timeout: 10_000 })
+    expect((await getEmployeeById(staff.id))?.status).toBe('active')
+  })
 
-    expect(await getEmployeeById(staff.id)).toBeNull()
-    // Documents the known orphan: purge does not delete the auth.users row.
-    expect(await getAuthUserByEmail(staff.email)).not.toBeNull()
+  test('the Team UI hides admin actions an admin may not perform', async ({ page }) => {
+    const actor = await createActiveUser({ email: testEmail('ui-admin-actor'), role: 'admin' })
+    const targetAdmin = await createActiveUser({ email: testEmail('ui-admin-target'), role: 'admin' })
+    const targetStaff = await createActiveUser({ email: testEmail('ui-staff-target'), role: 'staff' })
+
+    await login(page, { email: actor.email, password: actor.password })
+    await page.goto('/team')
+
+    // The signed-in admin is pinned + labelled in the list.
+    await expect(
+      page.getByRole('row', { name: new RegExp(actor.email) }).getByText('You')
+    ).toBeVisible()
+
+    // Another admin's menu offers no suspend/remove — only the owner may manage admins.
+    await page
+      .getByRole('row', { name: new RegExp(targetAdmin.email) })
+      .getByRole('button', { name: 'Member options' })
+      .click()
+    await expect(page.getByText('Only the owner can manage admins')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Suspend member' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Remove member' })).toHaveCount(0)
+
+    // Staff remain manageable by an admin.
+    await page
+      .getByRole('row', { name: new RegExp(targetStaff.email) })
+      .getByRole('button', { name: 'Member options' })
+      .click()
+    await expect(page.getByRole('button', { name: 'Suspend member' })).toBeVisible()
   })
 })

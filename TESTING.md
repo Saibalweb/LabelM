@@ -16,7 +16,7 @@ to run each layer.
   flag anymore). All business rules that live in Postgres (RLS, triggers, RPCs)
   behave exactly like production when tested here.
 - **Never run auth E2E tests against the client's DB.** They mutate data
-  (invites create real users, suspend/purge change members). Auth tests run on
+  (invites create real users, suspend/reactivate change members). Auth tests run on
   staging only.
 
 ### Rule of thumb
@@ -200,7 +200,7 @@ member JWTs; accept links are minted via the Admin API, never read from email.
 | Spec | Covers |
 |---|---|
 | `auth-invite.spec.ts` | invite staff/admin, role gating, resend/re-invite, 409s, revoke (pending vs active vs owner vs admin), orphan self-heal, accept happy path / tampered / revoked / missing type, Team-page UI invite + revoke |
-| `auth-membership.spec.ts` | suspend → `/unauthorized`, live RLS lock-out, reactivate, admin-remove=suspend vs owner-remove=purge, admin-cannot-suspend-admin |
+| `auth-membership.spec.ts` | suspend → `/unauthorized`, live RLS lock-out, reactivate, soft-remove (suspend) only — no UI hard delete, admin-cannot-suspend-admin, Team UI role gating + current-user highlight |
 | `auth-login.spec.ts` | wrong password, unknown email (no enumeration), forgot-password + magic-link request confirmations, non-member with valid credentials |
 
 Fixtures: `e2e/fixtures/admin.ts` (service role), `e2e/fixtures/identities.ts`
@@ -221,7 +221,8 @@ works and the link host is the app origin.
 3. **`revoke-user` does not require owner/admin** — it only checks that the
    caller is active, so staff can revoke pending invites.
 4. Purge (`owner_purge_member`) leaves an orphaned `auth.users` row (known;
-   `invite-user` self-heals it on re-invite).
+   `invite-user` self-heals it on re-invite). Purge is no longer exposed in the
+   UI — members are soft-removed via suspend (see `authPlan.md` §15).
 
 ### 6.3 Flip to full auth on prod
 

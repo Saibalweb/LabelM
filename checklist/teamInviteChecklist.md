@@ -58,7 +58,9 @@ Covers the **invite / resend / revoke** flow between the Team page and the
 ## Notes / follow-ups
 
 - `owner_purge_member` has the same orphan shape (deletes the `employees` row
-  but not `auth.users`). The new self-heal in `invite-user` covers it for
-  re-invites; a future pass should route purge through the same auth cleanup.
+  but not `auth.users`). The self-heal in `invite-user` covers it for re-invites.
+  Purge is no longer exposed in the UI; it is kept as an optional future feature
+  (see `authPlan.md` §15) and, if enabled, should route through the same auth
+  cleanup.
 - Deploy the new function: `supabase functions deploy revoke-user` (and redeploy
   `invite-user`).

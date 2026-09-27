@@ -98,10 +98,11 @@ Notes:
 - Business tables: any authenticated member (single company).
 - Role checks via `get_my_role()` for team management, settings, purge.
 - `employees`: read own row; read team (admin+); direct update limited to
-  `full_name`/`avatar` via column privileges. Role/status changes and purges are
-  only possible through `SECURITY DEFINER` RPCs (`admin_update_member_status`,
-  `owner_update_member_role`, `owner_purge_member`). Inserts happen only via the
-  invite Edge Function (service role).
+  `full_name`/`avatar` via column privileges. Role/status changes are only
+  possible through `SECURITY DEFINER` RPCs (`admin_update_member_status`,
+  `owner_update_member_role`). Inserts happen only via the invite Edge Function
+  (service role). `owner_purge_member` (hard delete) also exists but is **not
+  exposed in the UI** — see §15.
 - Soft-delete: default queries filter `deleted_at IS NULL`.
 - Customer soft-delete is owner/admin only, via `soft_delete_customer` (SECURITY
   DEFINER RPC — plain table updates can no longer set `deleted_at`; direct hard
@@ -216,3 +217,51 @@ full auth flow. It must NOT be the production sender. Before go-live:
       project env var for production.
 - [ ] Disable/remove the interim `saibal.dev` sender so it cannot send in prod.
 - [ ] Send a real invite + magic link + password reset; confirm inbox delivery.
+
+## 15. OPTIONAL — Member Hard-Delete (Purge) [not enabled]
+
+**Status:** the `owner_purge_member(member_id)` RPC and
+`teamService.purge()` still exist, but the UI no longer exposes a "Remove
+member" hard delete. Members are **soft-removed by suspending** them
+(`admin_update_member_status` → `status = 'suspended'`), which immediately
+revokes all data access via RLS and is reversible.
+
+### Why it is disabled
+1. **Orphaned auth account.** `owner_purge_member` deletes only the `employees`
+   row; the `auth.users` row survives (`employees.id` cascades *from*
+   `auth.users`, not the other way). The ex-member keeps a valid credential:
+   - they cannot sign up again (Supabase rejects the duplicate email, and public
+     signups are off);
+   - logging in with the old password "succeeds" but there is no profile, so the
+     app sets status `idle` and bounces them back to `/login` with no error — a
+     confusing dead end (`AuthListener.tsx` / `RequireAuth.tsx`).
+2. **Lost attribution.** Every FK to `employees` is `on delete set null`, so a
+   purge nulls the "who" columns on historical records — `labels.created_by` /
+   `updated_by`, `invoices.generated_by`, `invoice_payments.received_by`,
+   `customers.created_by` / `updated_by` / `deleted_by`,
+   `customer_prices.created_by` / `updated_by`. The records themselves survive,
+   but you lose the audit trail.
+3. Suspension already satisfies the practical need (revoke access now, keep the
+   history intact, stay reversible).
+
+### How to re-enable later
+1. **Clean up auth, not just the profile.** A Postgres RPC cannot call the Auth
+   Admin API, so add a `purge-user` Edge Function (mirroring `revoke-user`) that
+   uses the service role to `auth.admin.deleteUser(id)`; the `employees` row
+   then cascades away (`employees.id → auth.users(id) ON DELETE CASCADE`).
+   Alternatively call `owner_purge_member` first, then delete the auth user.
+2. **Preserve attribution (recommended).** Before deleting, snapshot the actor's
+   name onto the affected rows (add denormalized `created_by_name` /
+   `generated_by_name` / `received_by_name` columns) or write a tombstone/audit
+   row, so history does not render blank.
+3. **Re-wire the UI.** Re-add a destructive, owner-only "Remove member" action
+   in `src/pages/team.tsx` (with a confirmation dialog), call
+   `teamService.purge()`, and re-introduce the `isOwner` branch that previously
+   hard-deleted instead of suspending.
+4. **Tests + checklist.** Unit: owner sees the action, admin/staff do not.
+   E2E: purge removes the `employees` row **and** the `auth.users` row; labels /
+   invoices remain with their attribution intact; the same email can be
+   re-invited without the self-heal path.
+5. **Keep the pieces.** Because the RPC and service method are retained, this is
+   a UI + Edge-Function change only — no schema migration required unless you
+   adopt the snapshot columns from step 2.

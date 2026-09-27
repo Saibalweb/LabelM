@@ -273,10 +273,19 @@ export function Team() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [inviteOpen, setInviteOpen] = useState(false)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
+  const [pendingId, setPendingId] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
   const canInviteAdmin = currentUser?.role === 'owner'
   const isOwner = currentUser?.role === 'owner'
+
+  // Mirrors the backend rule in `admin_update_member_status`: the owner manages
+  // any admin or staff, an admin manages staff only, and the owner row is never
+  // manageable. Keeps the menu from offering actions the RPC will reject.
+  function canManageTarget(member: TeamMember): boolean {
+    if (member.role === 'owner') return false
+    return isOwner || member.role === 'staff'
+  }
 
   useEffect(() => {
     let active = true
@@ -324,6 +333,16 @@ export function Team() {
     })
   }, [members, query, roleFilter, statusFilter])
 
+  // Pin the signed-in user to the top of the list so they can spot themselves.
+  const ordered = useMemo(() => {
+    if (!currentUser) return filtered
+    const index = filtered.findIndex((m) => m.id === currentUser.id)
+    if (index <= 0) return filtered
+    const next = filtered.slice()
+    const [me] = next.splice(index, 1)
+    return [me, ...next]
+  }, [filtered, currentUser])
+
   const stats = useMemo(
     () => ({
       total: members.length,
@@ -340,62 +359,61 @@ export function Team() {
   }
 
   async function handleResend(member: TeamMember) {
+    if (pendingId) return
     setOpenMenu(null)
+    setPendingId(member.id)
     try {
       await teamService.invite({ email: member.email, role: member.role })
       toast.success(`Invite resent to ${member.email}`)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Unable to resend the invite')
+    } finally {
+      setPendingId(null)
     }
   }
 
   async function handleRevoke(member: TeamMember) {
+    if (pendingId) return
     setOpenMenu(null)
+    setPendingId(member.id)
     try {
       await teamService.revokeInvite(member.id)
       setMembers((prev) => prev.filter((m) => m.id !== member.id))
       toast.success('Invitation revoked')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Unable to revoke the invitation')
+    } finally {
+      setPendingId(null)
     }
   }
 
   async function handleSetStatus(member: TeamMember, status: Exclude<MemberStatus, 'invited'>) {
+    if (pendingId) return
     setOpenMenu(null)
+    setPendingId(member.id)
     try {
       await teamService.setStatus(member.id, status)
       await reload()
       toast.success(status === 'suspended' ? 'Member suspended' : 'Member reactivated')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Unable to update the member')
+    } finally {
+      setPendingId(null)
     }
   }
 
   async function handleSetRole(member: TeamMember, role: Role) {
+    if (pendingId) return
     setOpenMenu(null)
+    setPendingId(member.id)
     try {
       await teamService.setRole(member.id, role)
       await reload()
       toast.success(`Role updated to ${roleLabels[role].toLowerCase()}`)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Unable to update the role')
-    }
-  }
-
-  async function handleRemove(member: TeamMember) {
-    setOpenMenu(null)
-    try {
-      if (isOwner) {
-        await teamService.purge(member.id)
-        setMembers((prev) => prev.filter((m) => m.id !== member.id))
-        toast.success('Member removed')
-      } else {
-        await teamService.setStatus(member.id, 'suspended')
-        await reload()
-        toast.success('Member suspended')
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Unable to remove the member')
+    } finally {
+      setPendingId(null)
     }
   }
 
@@ -553,8 +571,18 @@ export function Team() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant/50">
-                  {filtered.map((member, index) => (
-                    <tr key={member.id} className="group transition-colors hover:bg-surface-container-low/40">
+                  {ordered.map((member, index) => {
+                    const isCurrentUser = member.id === currentUser?.id
+                    const isPending = pendingId === member.id
+                    return (
+                    <tr
+                      key={member.id}
+                      className={cn(
+                        'group transition-colors hover:bg-surface-container-low/40',
+                        isCurrentUser && 'bg-primary/5',
+                        isPending && 'opacity-60'
+                      )}
+                    >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3.5">
                           <Avatar name={member.name} index={index} />
@@ -563,6 +591,11 @@ export function Team() {
                               <span className="truncate font-body-md text-body-md font-semibold text-on-surface">
                                 {member.name}
                               </span>
+                              {isCurrentUser ? (
+                                <span className="rounded-full bg-primary/15 px-2 py-0.5 font-label-sm text-label-sm font-semibold text-primary">
+                                  You
+                                </span>
+                              ) : null}
                               {member.role === 'owner' ? (
                                 <BadgeCheck className="size-4 text-primary" />
                               ) : null}
@@ -589,14 +622,22 @@ export function Team() {
                           <button
                             type="button"
                             aria-label="Member options"
+                            disabled={isPending}
                             onClick={() =>
                               setOpenMenu((prev) => (prev === member.id ? null : member.id))
                             }
-                            className="flex size-9 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container-high"
+                            className={cn(
+                              'flex size-9 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container-high',
+                              isPending && 'cursor-not-allowed opacity-60 hover:bg-transparent'
+                            )}
                           >
-                            <MoreVertical className="size-5" />
+                            {isPending ? (
+                              <Loader2 className="size-5 animate-spin text-primary" />
+                            ) : (
+                              <MoreVertical className="size-5" />
+                            )}
                           </button>
-                          {openMenu === member.id ? (
+                          {openMenu === member.id && !isPending ? (
                             <div
                               ref={menuRef}
                               className="absolute right-0 z-20 mt-1 w-56 rounded-xl border border-outline-variant bg-surface-container-lowest py-1.5 shadow-xl"
@@ -609,17 +650,19 @@ export function Team() {
                                       Owner cannot be removed
                                     </span>
                                   </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenMenu(null)
-                                      toast.info('Ownership transfer requires confirmation')
-                                    }}
-                                    className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-on-surface hover:bg-surface-container-low"
-                                  >
-                                    <RefreshCw className="size-4" />
-                                    Transfer ownership
-                                  </button>
+                                  {isOwner ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenMenu(null)
+                                        toast.info('Ownership transfer requires confirmation')
+                                      }}
+                                      className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-on-surface hover:bg-surface-container-low"
+                                    >
+                                      <RefreshCw className="size-4" />
+                                      Transfer ownership
+                                    </button>
+                                  ) : null}
                                 </>
                               ) : null}
 
@@ -666,28 +709,28 @@ export function Team() {
                                       Demote to staff
                                     </button>
                                   ) : null}
-                                  <button
-                                    type="button"
-                                    onClick={() => handleSetStatus(member, 'suspended')}
-                                    className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-on-surface hover:bg-surface-container-low"
-                                  >
-                                    <Pause className="size-4" />
-                                    Suspend member
-                                  </button>
-                                  <div className="my-1 h-px bg-surface-container-high" />
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemove(member)}
-                                    className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-destructive hover:bg-destructive/10"
-                                  >
-                                    <Trash2 className="size-4" />
-                                    Remove member
-                                  </button>
+                                  {canManageTarget(member) ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSetStatus(member, 'suspended')}
+                                      className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-on-surface hover:bg-surface-container-low"
+                                    >
+                                      <Pause className="size-4" />
+                                      Suspend member
+                                    </button>
+                                  ) : (
+                                    <div className="mx-1.5 my-1 flex items-center gap-2 rounded-lg bg-surface-container-low/60 px-3.5 py-2">
+                                      <Lock className="size-4 text-outline" />
+                                      <span className="font-label-sm text-label-sm text-on-surface-variant">
+                                        Only the owner can manage admins
+                                      </span>
+                                    </div>
+                                  )}
                                 </>
                               ) : null}
 
-                              {member.status === 'suspended' ? (
-                                <>
+                              {member.status === 'suspended' && member.role !== 'owner' ? (
+                                canManageTarget(member) ? (
                                   <button
                                     type="button"
                                     onClick={() => handleSetStatus(member, 'active')}
@@ -696,23 +739,22 @@ export function Team() {
                                     <Play className="size-4" />
                                     Reactivate member
                                   </button>
-                                  <div className="my-1 h-px bg-surface-container-high" />
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemove(member)}
-                                    className="flex w-full items-center gap-2 px-4 py-2 text-left font-body-md text-body-md text-destructive hover:bg-destructive/10"
-                                  >
-                                    <Trash2 className="size-4" />
-                                    Remove member
-                                  </button>
-                                </>
+                                ) : (
+                                  <div className="mx-1.5 my-1 flex items-center gap-2 rounded-lg bg-surface-container-low/60 px-3.5 py-2">
+                                    <Lock className="size-4 text-outline" />
+                                    <span className="font-label-sm text-label-sm text-on-surface-variant">
+                                      Only the owner can manage admins
+                                    </span>
+                                  </div>
+                                )
                               ) : null}
                             </div>
                           ) : null}
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                   {filtered.length === 0 && !loading ? (
                     <tr>
                       <td

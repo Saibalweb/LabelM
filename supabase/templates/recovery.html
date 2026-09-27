@@ -1,0 +1,123 @@
+<!--
+  LabelMaster Pro — Supabase Auth email template: "Reset Password" (recovery)
+  Subject: Reset your LabelMaster Pro password
+  Variables used: .ConfirmationURL, .Email
+  The app requests this via resetPasswordForEmail(email, { redirectTo: '.../reset-password' })
+  (src/services/auth.ts) — the default .ConfirmationURL flow needs no code change.
+-->
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light only" />
+    <meta name="supported-color-schemes" content="light only" />
+    <title>Reset your LabelMaster Pro password</title>
+    <style>
+      body { margin: 0; padding: 0; width: 100% !important; background-color: #f9f9fc; }
+      table { border-collapse: collapse; }
+      a { color: #0058bc; }
+      .lm-link { word-break: break-all; }
+      @media (max-width: 600px) {
+        .lm-container { width: 100% !important; border-radius: 0 !important; }
+        .lm-px { padding-left: 22px !important; padding-right: 22px !important; }
+        .lm-btn a { display: block !important; }
+      }
+    </style>
+  </head>
+  <body style="margin:0;padding:0;background-color:#f9f9fc;color:#1a1c1e;">
+    <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">
+      Reset the password for your LabelMaster Pro account. This link expires in 15 minutes.
+    </div>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9f9fc;">
+      <tr>
+        <td align="center" style="padding:32px 16px;">
+          <table role="presentation" class="lm-container" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background-color:#ffffff;border:1px solid #e2e2e5;border-radius:12px;overflow:hidden;">
+            <tr>
+              <td style="height:4px;line-height:4px;font-size:0;background-color:#0058bc;">&nbsp;</td>
+            </tr>
+
+            <!-- Brand -->
+            <tr>
+              <td class="lm-px" style="padding:28px 32px 0;">
+                <table role="presentation" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td width="40" height="40" align="center" valign="middle" style="width:40px;height:40px;background-color:#0058bc;border-radius:10px;font-family:'Hanken Grotesk',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;font-weight:700;color:#ffffff;letter-spacing:0.5px;">LM</td>
+                    <td style="padding-left:12px;">
+                      <div style="font-family:'Hanken Grotesk',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:18px;line-height:22px;font-weight:700;color:#1a1c1e;">LabelMaster <span style="color:#0058bc;">Pro</span></div>
+                      <div style="font-family:'JetBrains Mono',ui-monospace,Consolas,monospace;font-size:10px;line-height:14px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:#717786;">Labeling &amp; Inventory Platform</div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Badge -->
+            <tr>
+              <td class="lm-px" style="padding:28px 32px 0;">
+                <span style="display:inline-block;background-color:#d8e2ff;color:#001a41;font-family:'JetBrains Mono',ui-monospace,Consolas,monospace;font-size:10px;line-height:14px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;padding:6px 12px;border-radius:9999px;">Password reset</span>
+              </td>
+            </tr>
+
+            <!-- Heading + body -->
+            <tr>
+              <td class="lm-px" style="padding:16px 32px 0;">
+                <h1 style="margin:0;font-family:'Hanken Grotesk',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:26px;line-height:32px;font-weight:700;color:#1a1c1e;">Reset your LabelMaster&nbsp;Pro password</h1>
+                <p style="margin:14px 0 0;font-family:'Hanken Grotesk',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;color:#414755;">
+                  We received a request to reset the password for your LabelMaster&nbsp;Pro account. Click the button below to choose a new password.
+                </p>
+              </td>
+            </tr>
+
+            <!-- CTA -->
+            <tr>
+              <td class="lm-px lm-btn" style="padding:28px 32px 0;">
+                <table role="presentation" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td align="center" bgcolor="#0058bc" style="border-radius:9999px;">
+                      <a href="{{ .ConfirmationURL }}" target="_blank" style="display:inline-block;padding:15px 34px;font-family:'Hanken Grotesk',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:20px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:9999px;">Reset password</a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Fallback link -->
+            <tr>
+              <td class="lm-px" style="padding:22px 32px 0;">
+                <p style="margin:0 0 6px;font-family:'Hanken Grotesk',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#717786;">Button not working? Copy and paste this link into your browser:</p>
+                <p class="lm-link" style="margin:0;font-family:'JetBrains Mono',ui-monospace,Consolas,monospace;font-size:12px;line-height:18px;color:#0058bc;">{{ .ConfirmationURL }}</p>
+              </td>
+            </tr>
+
+            <!-- Divider -->
+            <tr>
+              <td class="lm-px" style="padding:26px 32px 0;">
+                <div style="height:1px;line-height:1px;font-size:0;background-color:#e2e2e5;">&nbsp;</div>
+              </td>
+            </tr>
+
+            <!-- Security note -->
+            <tr>
+              <td class="lm-px" style="padding:16px 32px 28px;">
+                <p style="margin:0;font-family:'Hanken Grotesk',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#717786;">
+                  This reset link expires in 15 minutes and can only be used once. If you didn't request a password reset, you can safely ignore this email — your password will not change.
+                </p>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td class="lm-px" style="padding:20px 32px;background-color:#f3f3f6;border-top:1px solid #e2e2e5;">
+                <p style="margin:0;font-family:'Hanken Grotesk',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;font-weight:600;color:#414755;">LabelMaster&nbsp;Pro</p>
+                <p style="margin:4px 0 0;font-family:'JetBrains Mono',ui-monospace,Consolas,monospace;font-size:10px;line-height:16px;letter-spacing:0.4px;color:#717786;">Access is limited to authorized company members.</p>
+                <p style="margin:8px 0 0;font-family:'Hanken Grotesk',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:11px;line-height:16px;color:#8f95a3;">This is an automated message — please do not reply.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

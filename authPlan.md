@@ -161,7 +161,8 @@ configured. When moving off the built-in relay:
 
 1. Buy/point a domain, then add the provider's DNS records (SPF, DKIM, DMARC) —
    ideally on a sending subdomain such as `mail.yourdomain.com`. Missing DKIM is
-   the #1 cause of auth emails landing in spam.
+   the #1 cause of auth emails landing in spam. (Interim domain only — see §14
+   for the company-domain switch.)
 2. Supabase dashboard → Authentication → SMTP Settings: enable **Custom SMTP**,
    enter host / port (587) / user / password, set Sender email
    (`no-reply@mail.yourdomain.com`) and Sender name.
@@ -194,3 +195,24 @@ configured. When moving off the built-in relay:
 - Note: the built-in SMTP relay only sends to the organization's team-member
   email addresses (2 emails/hour) — use Mailpit locally or add test addresses to
   the org team for invite testing.
+
+## 14. TODO — Switch to the Real Company Domain (before production)
+
+Custom SMTP currently uses an INTERIM domain (`saibal.dev`) only to exercise the
+full auth flow. It must NOT be the production sender. Before go-live:
+
+- [ ] Add the real company domain in ZeptoMail (Domains → Add Domain) and
+      associate it with `agent_1`.
+- [ ] Publish the DKIM TXT + CNAME records at the DNS provider (Vercel/Porkbun),
+      click Verify, and wait for status `verified`.
+- [ ] Add the production sender address (e.g. `noreply@<company-domain>`).
+- [ ] Supabase → Auth → SMTP Settings: change **Sender email** to the company
+      domain and **Sender name** to the company name (host `smtp.zeptomail.in`,
+      port 587, user `emailapikey`, token stay the same). Currently the interim
+      values are Sender email `noreply@saibal.dev` and Sender name `LabelM`.
+- [ ] Supabase → Auth → URL Configuration: update Site URL + redirect URLs to the
+      production origin.
+- [ ] Update `.env` (comment + confirm `VITE_TRIAL_MODE=false`) and the Vercel
+      project env var for production.
+- [ ] Disable/remove the interim `saibal.dev` sender so it cannot send in prod.
+- [ ] Send a real invite + magic link + password reset; confirm inbox delivery.

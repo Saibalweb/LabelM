@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Download, FileText, Lock, Pencil, Printer, Share2 } from 'lucide-react'
+import { Download, FileText, Lock, Pencil, Printer } from 'lucide-react'
 import { TopNav } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
 import { LabelEditDialog } from '@/components/labels/LabelEditDialog'
@@ -49,7 +49,6 @@ export function Preview() {
       toast.error('Failed to generate PDF.')
     }
   }
-  const handleWhatsApp = () => toast.info('WhatsApp sharing coming soon')
 
   if (!label) {
     return (
@@ -68,8 +67,8 @@ export function Preview() {
     <div className="flex h-full flex-col">
       <TopNav title="Label Preview" backTo="/" />
 
-      <main className="flex flex-1 flex-col gap-8 overflow-y-auto bg-surface-bright p-4 md:p-8 lg:flex-row">
-        <div id='printLabel' className="flex flex-1 items-start justify-center lg:items-center">
+      <main className="flex flex-1 flex-col gap-8 overflow-y-auto bg-surface-bright p-4 md:p-8 lg:flex-row lg:items-center">
+        <div id='printLabel' className="flex flex-1 items-start justify-center">
           <div className="label-sheet flex w-full justify-center">
             <LabelPrintCard label={label} company={company} options={settings?.labelOptions} />
           </div>
@@ -120,30 +119,7 @@ export function Preview() {
                 <Download className="size-5" />
                 Download PDF
               </Button>
-              <div className="my-2 h-px w-full bg-outline-variant" />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleWhatsApp}
-                className="min-h-[52px] w-full gap-3 rounded-xl border-outline-variant bg-surface-container-lowest font-label-md text-label-md text-on-surface hover:bg-surface-container-low"
-              >
-                <Share2 className="size-5" />
-                Share via WhatsApp
-              </Button>
             </div>
-          </div>
-
-          <div className="flex flex-col gap-3 rounded-xl border border-outline-variant bg-surface-container-lowest p-6">
-            <h4 className="font-label-sm text-label-sm tracking-wider text-outline uppercase">
-              Printer Status
-            </h4>
-            <div className="flex items-center gap-3">
-              <div className="size-3 rounded-full bg-secondary" />
-              <span className="font-body-md text-body-md text-on-surface">Zebra ZT411 Ready</span>
-            </div>
-            <span className="font-label-sm text-label-sm text-on-surface-variant">
-              Queue: 0 jobs
-            </span>
           </div>
 
           <div className="hidden items-center gap-2 rounded-xl border border-outline-variant bg-surface-container-lowest p-4 lg:flex">

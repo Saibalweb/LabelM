@@ -109,7 +109,6 @@ redirect allowlist is incomplete. Apply on **both staging and prod**
 |---------|----------|----------------|
 | **Export labels** | `src/pages/dashboard.tsx` | ✅ **Done as PDF** — header button exports the selection, else the full filtered set; bulk bar exports selected labels (`src/lib/documentPdf.ts`). **CSV** still not implemented. |
 | **Download PDF** (label) | `src/pages/preview.tsx` | ✅ **Done** — jsPDF, configured label size, `₹`→`Rs ` sanitised. |
-| **Share via WhatsApp** | `src/pages/preview.tsx` | `wa.me` deep link |
 | **Saved filter presets** | `src/pages/dashboard.tsx:801` | Persist named filter sets |
 | **Change password** | `src/components/settings/ChangePasswordDialog.tsx` | ✅ **Done** — settings modal with strength meter + rules; `authService.updatePassword` |
 | **Sign out of all devices** | `src/pages/settings.tsx` | ✅ **Done** — `authService.signOutAllDevices()` (`signOut({ scope: 'global' })`); this-device sign-out has a confirm dialog too |
@@ -148,10 +147,11 @@ Status: **done** (`20260928120000_company_settings_and_bulk_print.sql`, `src/pag
 | **Multi-tenant / `company_id` isolation** | `authPlan.md §11` | Future |
 | **2FA / SSO** | `authPlan.md §11` | Future |
 | **Dedicated Label History page** | stitch reference (desktop/mobile) | Dashboard "Recent Labels" covers it; separate page optional |
-| **Real printer integration** | `preview.tsx` "Zebra ZT411 Ready" is hardcoded | Optional |
+| **Real printer integration** | Hardcoded "Printer Status" card removed from `preview.tsx`; wire to a real status source if needed | Optional |
 | **Filter-sheet server-side customer search** | `customersChecklist.md §5` | Keep full-list fetch until ~1,000+ customers; migration path documented |
 | **Configurable default payment mode** | `duesChecklist.md §4` | Settings-driven, later |
 | **Custom SMTP domain on Supabase** | `authPlan.md §12` | Optional polish |
+| **Share via WhatsApp** | `preview.tsx` | Not implementing — UI stub removed; deferred (would need a `wa.me` deep link) |
 
 ---
 

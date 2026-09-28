@@ -309,7 +309,7 @@ export function BulkInvoiceDialog({ open, onOpenChange }: BulkInvoiceDialogProps
                     <tr className="border-b border-outline-variant bg-surface-container-low font-label-sm text-label-sm tracking-wider text-on-surface-variant uppercase">
                       <th className="p-3 font-semibold">Customer</th>
                       <th className="p-3 text-right font-semibold">Labels</th>
-                      <th className="p-3 text-right font-semibold">Weight (kg)</th>
+                      <th className="p-3 text-right font-semibold">Weight (g)</th>
                       <th className="p-3 text-right font-semibold">Amount (₹)</th>
                       <th className="p-3 text-center font-semibold">Status</th>
                     </tr>

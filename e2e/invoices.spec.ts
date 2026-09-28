@@ -16,7 +16,7 @@ test('invoice wizard, payment lifecycle and status recalculation', async ({ page
   const row = page.getByRole('row', { name: new RegExp(custName) })
   const customerId = (await row.locator('td').first().innerText()).trim()
 
-  // Two labels → total 8kg × ₹200 = ₹1,600
+  // Two labels → total 8g × ₹200 = ₹1,600
   await createLabel(page, { customerId, weight: '5' })
   await page.goto('/create')
   await selectCustomerById(page, customerId)

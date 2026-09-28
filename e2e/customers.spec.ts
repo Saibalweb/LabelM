@@ -16,7 +16,7 @@ test('customer CRUD: create, search, edit, rate change', async ({ page }) => {
   await page.getByRole('button', { name: 'New Customer' }).click()
   await page.getByLabel('Name').fill(custName)
   await page.getByLabel('Phone (optional)').fill('+91 90000 11111')
-  await page.getByLabel('Rate (₹ per kg)').fill('100')
+  await page.getByLabel('Rate (₹ per gram)').fill('100')
   await page.getByRole('button', { name: 'Add Customer' }).click()
 
   // Search (server-side, by name) to bring the new customer into view
@@ -33,7 +33,7 @@ test('customer CRUD: create, search, edit, rate change', async ({ page }) => {
 
   // Rate change
   await row.getByRole('button', { name: /₹100\.00/ }).click()
-  await page.getByLabel('Rate (₹ per kg)').fill('150')
+  await page.getByLabel('Rate (₹ per gram)').fill('150')
   await page.getByRole('button', { name: 'Save Rate' }).click()
   await expect(row).toContainText('₹150.00', { timeout: 10_000 })
 
@@ -53,7 +53,7 @@ test('admin delete archives a customer and restore brings it back', async ({ pag
   await page.goto('/customers')
   await page.getByRole('button', { name: 'New Customer' }).click()
   await page.getByLabel('Name').fill(delName)
-  await page.getByLabel('Rate (₹ per kg)').fill('60')
+  await page.getByLabel('Rate (₹ per gram)').fill('60')
   await page.getByRole('button', { name: 'Add Customer' }).click()
 
   // Search (server-side, by name) to bring the new customer into view

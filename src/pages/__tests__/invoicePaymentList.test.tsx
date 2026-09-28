@@ -27,7 +27,7 @@ const data = vi.hoisted(() => ({
     companySnapshot: null,
     customerSnapshot: null,
     lineItems: [
-      { id: 11, slNo: 'LBL-0001', date: '2026-09-20', weightKg: 10, rate: 100, amount: 1000 },
+      { id: 11, slNo: 'LBL-0001', date: '2026-09-20', weightG: 10, rate: 100, amount: 1000 },
     ],
     payments: [
       {

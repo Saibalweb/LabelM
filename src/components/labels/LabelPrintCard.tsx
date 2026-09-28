@@ -54,7 +54,7 @@ export function LabelPrintCard({
           {options.showWeight ? (
             <div className="flex items-baseline justify-center gap-2">
               <span className="font-label-md font-medium tracking-wider text-outline uppercase">
-                WT (kg) -
+                WT (g) -
               </span>
               <span className="text-lg font-bold text-on-surface">{label.weight}</span>
             </div>
@@ -65,7 +65,7 @@ export function LabelPrintCard({
                 RATE -
               </span>
               <span className="text-lg font-bold text-on-surface">
-                {formatCurrency(label.rate)}/kg
+                {formatCurrency(label.rate)}/g
               </span>
             </div>
           ) : null}

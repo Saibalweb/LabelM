@@ -139,7 +139,7 @@ export function InvoicePrintCard({
                 Date
               </th>
               <th className="px-2 py-4 text-right font-label-sm text-label-sm text-on-surface-variant uppercase">
-                Weight (kg)
+                Weight (g)
               </th>
               <th className="px-2 py-4 text-right font-label-sm text-label-sm text-on-surface-variant uppercase">
                 Rate (₹)
@@ -157,7 +157,7 @@ export function InvoicePrintCard({
               >
                 <td className="px-2 py-4">{item.slNo}</td>
                 <td className="px-2 py-4">{formatDate(item.date)}</td>
-                <td className="px-2 py-4 text-right">{toAmount(item.weightKg)}</td>
+                <td className="px-2 py-4 text-right">{toAmount(item.weightG)}</td>
                 <td className="px-2 py-4 text-right">{toAmount(item.rate)}</td>
                 <td className="px-2 py-4 text-right font-bold">{toAmount(item.amount)}</td>
               </tr>
@@ -170,7 +170,7 @@ export function InvoicePrintCard({
         <div className="w-64 border-t-2 border-outline-variant pt-4">
           <div className="mb-4 flex justify-between font-label-md text-label-md">
             <span className="text-on-surface-variant">Total Weight</span>
-            <span className="text-on-surface">{toAmount(invoice.totalWeight)} kg</span>
+            <span className="text-on-surface">{toAmount(invoice.totalWeight)} g</span>
           </div>
           <div className="flex items-center justify-between border-t border-surface-variant pt-4">
             <span className="font-headline-md text-headline-md text-on-surface">Total</span>

@@ -274,7 +274,7 @@ works and the link host is the app origin.
 - [ ] Date ranges: `from > to`, `from == to`, boundary inclusivity (half-open `to`)
 - [ ] Min > max amounts/weights; negative values; non-numeric input
 - [ ] Search special chars: `%`, `_`, quotes, spaces (`ilike` behavior)
-- [ ] Presets toggle on/off (unprinted, high-weight >5kg, last 48h)
+- [ ] Presets toggle on/off (unprinted, high-weight >5g, last 48h)
 - [ ] Every sort key, asc + desc, stable id tiebreak
 - [ ] Custom range vs monthly vs all-time
 

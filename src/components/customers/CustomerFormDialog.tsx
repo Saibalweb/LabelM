@@ -197,7 +197,7 @@ export function CustomerFormDialog({
               htmlFor="customer-rate"
               className="font-label-md text-label-md text-on-surface-variant"
             >
-              Rate (₹ per kg)
+              Rate (₹ per gram)
             </Label>
             <div className="relative">
               <span className="absolute top-1/2 left-4 -translate-y-1/2 font-body-md text-body-md text-on-surface-variant">

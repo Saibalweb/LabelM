@@ -194,7 +194,7 @@ export function Create() {
                           )}
                         >
                           {rate != null
-                            ? `${formatCurrency(rate)}/kg`
+                            ? `${formatCurrency(rate)}/g`
                             : 'No rate set — set it to generate labels'}
                         </p>
                       </div>
@@ -288,7 +288,7 @@ export function Create() {
                             </span>
                             <span className="block truncate font-label-sm text-label-sm text-on-surface-variant">
                               {c.currentRate != null
-                                ? `${formatCurrency(c.currentRate)}/kg`
+                                ? `${formatCurrency(c.currentRate)}/g`
                                 : 'No rate'}
                             </span>
                           </span>
@@ -302,7 +302,7 @@ export function Create() {
               <div className="border-t border-outline-variant pt-4">
                 <div>
                   <FormLabel className="mb-2 block font-label-md text-label-md text-on-surface-variant">
-                    Total Weight (kg)
+                    Total Weight (g)
                   </FormLabel>
                   <div className="relative">
                     <input
@@ -319,7 +319,7 @@ export function Create() {
                       )}
                     />
                     <span className="absolute top-1/2 right-4 -translate-y-1/2 font-label-md text-label-md text-on-surface-variant">
-                      kg
+                      g
                     </span>
                   </div>
                   <div className="mt-3 flex items-center justify-between rounded-lg border border-outline-variant bg-surface-container-low px-4 py-2.5">
@@ -375,13 +375,13 @@ export function Create() {
                   <div className="flex items-center justify-between">
                     <span className="text-on-surface-variant">Rate</span>
                     <span className="font-label-md text-label-md text-on-surface">
-                      {rate != null ? `${formatCurrency(rate)}/kg` : '—'}
+                      {rate != null ? `${formatCurrency(rate)}/g` : '—'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-on-surface-variant">Weight</span>
                     <span className="font-label-md text-label-md text-on-surface">
-                      {weight > 0 ? `${weight.toFixed(2)} kg` : '—'}
+                      {weight > 0 ? `${weight.toFixed(2)} g` : '—'}
                     </span>
                   </div>
                   <div className="mt-4 flex items-center justify-between border-t border-outline-variant pt-4">

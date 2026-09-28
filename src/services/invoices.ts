@@ -91,7 +91,7 @@ function toLineItem(row: LabelEmbed): InvoiceLineItem {
     id: row.id,
     slNo: row.sl_no,
     date: row.label_date,
-    weightKg: row.weight,
+    weightG: row.weight,
     rate: row.rate,
     amount: row.amount,
   }

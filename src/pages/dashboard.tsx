@@ -115,7 +115,7 @@ const durationButtons: { value: DurationFilter; label: string }[] = [
 
 const presetList: { id: PresetId; label: string; Icon: LucideIcon }[] = [
   { id: 'unprinted', label: 'Unprinted Batches', Icon: Printer },
-  { id: 'highweight', label: 'High-weight (>5kg)', Icon: Dumbbell },
+  { id: 'highweight', label: 'High-weight (>5g)', Icon: Dumbbell },
   { id: '48h', label: 'Last 48 Hours', Icon: RefreshCw },
 ]
 
@@ -585,7 +585,7 @@ export function Dashboard() {
             />
             <StatCard
               label="Total Weight"
-              value={`${(stats?.totalWeight ?? 0).toFixed(1)} kg`}
+              value={`${(stats?.totalWeight ?? 0).toFixed(1)} g`}
               icon={<Scale className="size-6" />}
               iconClassName="text-secondary"
               decorClassName="bg-secondary-container/30"
@@ -783,7 +783,7 @@ export function Dashboard() {
                           </div>
                           <div className="mt-0.5">
                             <span className="inline-block rounded bg-surface-container-high px-2 py-0.5 font-label-sm text-label-sm text-on-surface-variant">
-                              {formatCurrency(label.rate)}/kg
+                              {formatCurrency(label.rate)}/g
                             </span>
                           </div>
                         </div>
@@ -1218,7 +1218,7 @@ export function Dashboard() {
             <div className="flex flex-col gap-3">
               <span className="flex items-center gap-1.5 font-label-sm text-[11px] leading-4 font-semibold tracking-[0.08em] text-on-surface-variant uppercase">
                 <Scale className="size-3.5 text-primary" />
-                Weight (KG) &amp; Total Value
+                Weight (g) &amp; Total Value
               </span>
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
@@ -1226,8 +1226,8 @@ export function Dashboard() {
                     Weight Range
                   </span>
                   <span className="font-sans text-[12px] font-semibold text-on-surface">
-                    {minWeight || dataRanges.minW.toFixed(1)} kg —{' '}
-                    {maxWeight || dataRanges.maxW.toFixed(1)} kg
+                    {minWeight || dataRanges.minW.toFixed(1)} g —{' '}
+                    {maxWeight || dataRanges.maxW.toFixed(1)} g
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -1242,7 +1242,7 @@ export function Dashboard() {
                       placeholder="0"
                       className="w-full bg-transparent text-right font-sans text-[13px] font-medium text-on-surface outline-none placeholder:text-outline"
                     />
-                    <span className="font-sans text-[12px] font-medium text-on-surface-variant">kg</span>
+                    <span className="font-sans text-[12px] font-medium text-on-surface-variant">g</span>
                   </div>
                   <div className="flex h-10 items-center gap-2 rounded-lg border border-outline-variant/70 bg-surface-container-lowest px-3 transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/30">
                     <span className="font-sans text-[12px] font-medium text-on-surface-variant">Max:</span>
@@ -1255,7 +1255,7 @@ export function Dashboard() {
                       placeholder="∞"
                       className="w-full bg-transparent text-right font-sans text-[13px] font-medium text-on-surface outline-none placeholder:text-outline"
                     />
-                    <span className="font-sans text-[12px] font-medium text-on-surface-variant">kg</span>
+                    <span className="font-sans text-[12px] font-medium text-on-surface-variant">g</span>
                   </div>
                 </div>
               </div>

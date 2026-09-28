@@ -441,7 +441,7 @@ export function CreateInvoice() {
                         ) : null}
                         {selectedCustomer.currentRate != null ? (
                           <span className="mt-2.5 inline-block rounded-full bg-secondary-container px-2.5 py-0.5 font-label-sm text-label-sm text-on-secondary-container uppercase">
-                            ₹{selectedCustomer.currentRate}/kg
+                            ₹{selectedCustomer.currentRate}/g
                           </span>
                         ) : null}
                       </div>
@@ -619,7 +619,7 @@ export function CreateInvoice() {
                           </th>
                           <th className="p-4 font-semibold">Sl No</th>
                           <th className="p-4 font-semibold">Date</th>
-                          <th className="p-4 text-right font-semibold">Weight (kg)</th>
+                          <th className="p-4 text-right font-semibold">Weight (g)</th>
                           <th className="p-4 text-right font-semibold">Rate (₹)</th>
                           <th className="p-4 text-right font-semibold">Amount (₹)</th>
                         </tr>
@@ -701,7 +701,7 @@ export function CreateInvoice() {
                     </span>
                     <span>
                       Total Weight:{' '}
-                      <span className="font-bold text-on-surface">{toAmount(totalWeight)} kg</span>
+                      <span className="font-bold text-on-surface">{toAmount(totalWeight)} g</span>
                     </span>
                   </div>
                 </section>

@@ -23,7 +23,7 @@ test('label lifecycle: create → preview → edit → print', async ({ page }) 
 
   // Edit: change weight to 10 → amount recomputes to 1000
   await page.getByRole('button', { name: 'Edit Label' }).click()
-  const weightInput = page.getByLabel('Weight (kg)')
+  const weightInput = page.getByLabel('Weight (g)')
   await weightInput.fill('10')
   await expect(page.getByText('₹1,000.00')).toBeVisible()
   await page.getByRole('button', { name: 'Save Changes' }).click()

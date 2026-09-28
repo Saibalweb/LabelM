@@ -51,7 +51,7 @@ PostgREST filter (name OR id-prefix), matching the pattern used on Invoices / La
 | 2 | Added a customer identity card at the top: ID chip + name + **current rate** (`font-body-md`/`font-label-sm`), so the user sees who they are editing and the existing value | Done |
 | 3 | Rate input upgraded to `h-12`, `font-body-md`, with the `₹` prefix left-aligned and `pl-9` | Done |
 | 4 | Label follows `font-label-md text-label-md text-on-surface-variant`; title follows `font-headline-md` | Done |
-| 5 | Helper text explains what the rate is used for: "charged per kilogram on every new label for …" | Done |
+| 5 | Helper text explains what the rate is used for: "charged per gram on every new label for …" | Done |
 | 6 | Save button includes a pencil icon for a stronger primary affordance | Done |
 | 7 | Mobile: dialog full-width minus 2rem, identity card truncates long names | Verified |
 

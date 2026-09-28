@@ -152,7 +152,7 @@ export interface InvoiceLineItem {
   id: number
   slNo: string
   date: string
-  weightKg: number
+  weightG: number
   rate: number
   amount: number
 }

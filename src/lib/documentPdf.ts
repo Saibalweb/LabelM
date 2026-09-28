@@ -66,11 +66,11 @@ function buildLines(
     lines.push({ text: `DATE - ${formatDate(label.date)}`, size: 8.5, bold: true, spaceAfter: 0.8 })
   }
   if (options.showWeight) {
-    lines.push({ text: `WT (kg) - ${label.weight}`, size: 8.5, bold: true, spaceAfter: 0.8 })
+    lines.push({ text: `WT (g) - ${label.weight}`, size: 8.5, bold: true, spaceAfter: 0.8 })
   }
   if (options.showRate) {
     lines.push({
-      text: `RATE - ${formatCurrency(label.rate)}/kg`,
+      text: `RATE - ${formatCurrency(label.rate)}/g`,
       size: 8.5,
       bold: true,
       spaceAfter: 0.8,
@@ -305,7 +305,7 @@ function drawInvoice(
   const drawTableHeader = () => {
     write('SL NO', colSl, y, { size: 8, bold: true })
     write('DATE', colDate, y, { size: 8, bold: true })
-    write('WEIGHT (KG)', colWeight, y, { size: 8, bold: true, align: 'right' })
+    write('WEIGHT (G)', colWeight, y, { size: 8, bold: true, align: 'right' })
     write('RATE', colRate, y, { size: 8, bold: true, align: 'right' })
     write('AMOUNT', colAmount, y, { size: 8, bold: true, align: 'right' })
     y += 2.5
@@ -325,7 +325,7 @@ function drawInvoice(
     }
     write(item.slNo, colSl, y, { size: 8.5 })
     write(formatDate(item.date), colDate, y, { size: 8.5 })
-    write(toAmount(item.weightKg), colWeight, y, { size: 8.5, align: 'right' })
+    write(toAmount(item.weightG), colWeight, y, { size: 8.5, align: 'right' })
     write(toAmount(item.rate), colRate, y, { size: 8.5, align: 'right' })
     write(toAmount(item.amount), colAmount, y, { size: 8.5, bold: true, align: 'right' })
     y += 1.5
@@ -347,7 +347,7 @@ function drawInvoice(
   doc.setLineWidth(0.2)
   y += 6
   write('Total Weight', totalsX, y, { size: 9 })
-  write(`${toAmount(invoice.totalWeight)} kg`, right, y, { size: 9, bold: true, align: 'right' })
+  write(`${toAmount(invoice.totalWeight)} g`, right, y, { size: 9, bold: true, align: 'right' })
   y += 8
   write('Total', totalsX, y, { size: 12, bold: true })
   write(formatCurrency(invoice.totalAmount), right, y, { size: 13, bold: true, align: 'right' })

@@ -63,8 +63,8 @@ describe('LabelEditDialog', () => {
   it('renders editable fields and a live amount preview', () => {
     renderDialog(editableLabel())
     expect(screen.getByRole('dialog')).toBeInTheDocument()
-    expect(screen.getByLabelText('Weight (kg)')).toHaveValue(12.5)
-    expect(screen.getByLabelText('Rate (₹/kg)')).toHaveValue(42)
+    expect(screen.getByLabelText('Weight (g)')).toHaveValue(12.5)
+    expect(screen.getByLabelText('Rate (₹/g)')).toHaveValue(42)
     expect(screen.getByText('₹525.00')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Save Changes' })).toBeEnabled()
   })
@@ -74,7 +74,7 @@ describe('LabelEditDialog', () => {
     expect(
       screen.getByText('This label is already billed to an invoice and cannot be edited.')
     ).toBeInTheDocument()
-    expect(screen.queryByLabelText('Weight (kg)')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Weight (g)')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Save Changes' })).toBeDisabled()
   })
 
@@ -82,7 +82,7 @@ describe('LabelEditDialog', () => {
     const user = userEvent.setup()
     renderDialog(editableLabel())
 
-    const weight = screen.getByLabelText('Weight (kg)')
+    const weight = screen.getByLabelText('Weight (g)')
     await user.clear(weight)
     await user.type(weight, '0')
 
@@ -95,7 +95,7 @@ describe('LabelEditDialog', () => {
     const user = userEvent.setup()
     renderDialog(editableLabel())
 
-    const rate = screen.getByLabelText('Rate (₹/kg)')
+    const rate = screen.getByLabelText('Rate (₹/g)')
     await user.clear(rate)
     await user.type(rate, '-5')
 
@@ -121,7 +121,7 @@ describe('LabelEditDialog', () => {
     const onOpenChange = vi.fn()
     renderDialog(editableLabel(), onOpenChange)
 
-    const weight = screen.getByLabelText('Weight (kg)')
+    const weight = screen.getByLabelText('Weight (g)')
     await user.clear(weight)
     await user.type(weight, '10')
 
@@ -146,13 +146,13 @@ describe('LabelEditDialog', () => {
     const user = userEvent.setup()
     renderDialog(editableLabel())
 
-    const weight = screen.getByLabelText('Weight (kg)')
+    const weight = screen.getByLabelText('Weight (g)')
     await user.clear(weight)
     await user.type(weight, '10')
 
     expect(screen.getByText('₹420.00')).toBeInTheDocument()
 
-    const rate = screen.getByLabelText('Rate (₹/kg)')
+    const rate = screen.getByLabelText('Rate (₹/g)')
     await user.clear(rate)
     await user.type(rate, '50')
 

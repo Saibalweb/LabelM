@@ -200,7 +200,7 @@ export function Customers() {
             <div>
               <h2 className="font-headline-lg text-headline-lg text-on-surface">Customers</h2>
               <p className="mt-1 font-body-md text-body-md text-on-surface-variant">
-                Manage clients and their per-kg rate. Press the number on the label screen to pick one.
+                Manage clients and their per-gram rate. Press the number on the label screen to pick one.
               </p>
             </div>
             <Button
@@ -267,7 +267,7 @@ export function Customers() {
                     <th className="min-w-[140px] p-4 font-medium">Phone</th>
                     <th className="min-w-[200px] p-4 font-medium">Email</th>
                     <th className="min-w-[180px] p-4 font-medium">Address</th>
-                    <th className="min-w-[140px] p-4 font-medium">Rate (₹/kg)</th>
+                    <th className="min-w-[140px] p-4 font-medium">Rate (₹/g)</th>
                     <th className="w-16 p-4 text-center font-medium">Actions</th>
                   </tr>
                 </thead>
@@ -516,7 +516,7 @@ export function Customers() {
               Edit Rate
             </DialogTitle>
             <DialogDescription className="font-body-md text-body-md">
-              Update the per-kg rate for this customer. New labels will use this rate.
+              Update the per-gram rate for this customer. New labels will use this rate.
             </DialogDescription>
           </DialogHeader>
 
@@ -530,7 +530,7 @@ export function Customers() {
                   {priceCustomer.name}
                 </p>
                 <p className="mt-0.5 font-label-sm text-label-sm text-on-surface-variant">
-                  Current rate: {formatCurrency(priceCustomer.currentRate ?? 0)}/kg
+                  Current rate: {formatCurrency(priceCustomer.currentRate ?? 0)}/g
                 </p>
               </div>
             </div>
@@ -541,7 +541,7 @@ export function Customers() {
               htmlFor="price-rate"
               className="font-label-md text-label-md text-on-surface-variant"
             >
-              Rate (₹ per kg)
+              Rate (₹ per gram)
             </Label>
             <div className="relative">
               <span className="absolute top-1/2 left-4 -translate-y-1/2 font-body-md text-body-md text-on-surface-variant">
@@ -561,7 +561,7 @@ export function Customers() {
               />
             </div>
             <p className="font-label-sm text-label-sm text-on-surface-variant">
-              This rate is charged per kilogram on every new label for{' '}
+              This rate is charged per gram on every new label for{' '}
               {priceCustomer?.name ?? 'this customer'}.
             </p>
           </div>

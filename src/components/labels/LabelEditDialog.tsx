@@ -162,7 +162,7 @@ export function LabelEditDialog({ open, onOpenChange, label }: LabelEditDialogPr
 
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <FieldLabel htmlFor="label-weight">Weight (kg)</FieldLabel>
+                <FieldLabel htmlFor="label-weight">Weight (g)</FieldLabel>
                 <Input
                   id="label-weight"
                   type="number"
@@ -175,7 +175,7 @@ export function LabelEditDialog({ open, onOpenChange, label }: LabelEditDialogPr
                 />
               </div>
               <div className="grid gap-2">
-                <FieldLabel htmlFor="label-rate">Rate (₹/kg)</FieldLabel>
+                <FieldLabel htmlFor="label-rate">Rate (₹/g)</FieldLabel>
                 <Input
                   id="label-rate"
                   type="number"

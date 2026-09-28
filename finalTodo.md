@@ -10,15 +10,25 @@ Legend: 🔴 blocker · 🟠 should-fix · 🟡 nice-to-have · ⚪ optional/fut
 
 ## 1. Bugs
 
-### 1.1 Auth Edge Function bugs (🔴 blockers for full auth)
+### 1.1 Auth Edge Function bugs (🔴 blockers for full auth) — ✅ fixed, Tier 1 green
+
+Fixed in `supabase/functions/invite-user/index.ts` + `revoke-user/index.ts`; the
+`test.fail` markers are removed. **Tier 1 (`npm run test:e2e:auth`, staging):
+34/34 passed (2026-09-28)**, verifying BUG 1, BUG 2 and BUG 3.
 
 | # | Bug | Location | Fix | Test marker |
 |---|-----|----------|-----|-------------|
-| BUG 1 | Re-invite/resend of a **pending** invite returns 500 (`employees_pkey`). `inviteUserByEmail` succeeds for an existing user, so the resend branch is skipped and the INSERT duplicates. | `supabase/functions/invite-user/index.ts:98-172` | Detect the existing `employees` row even when `inviteUserByEmail` returns no error; resend (pending) or 409 (active/suspended) instead of inserting. | `e2e/auth-invite.spec.ts:88`, `e2e/auth-email-delivery.spec.ts:131` (`test.fail`) |
-| BUG 2 | **Staff can invite staff** — only admin-granting is owner-gated; there is no owner/admin check for staff invites (privilege escalation). | `invite-user/index.ts:88-91` | Require `callerRole in ('owner','admin')`; admin may only invite staff. | `e2e/auth-invite.spec.ts:146` (`test.fail`) |
-| BUG 3 | **Staff can revoke pending invites** — only the caller's "active" status is checked. | `supabase/functions/revoke-user/index.ts:60-77` | Require owner/admin; admin may only revoke staff. | `e2e/auth-invite.spec.ts:250` (`test.fail`) |
+| BUG 1 ✅ | Re-invite/resend of a **pending** invite returns 500 (`employees_pkey`). `inviteUserByEmail` succeeds for an existing user, so the resend branch was skipped and the INSERT duplicated. | `supabase/functions/invite-user/index.ts` | The `employees` row is looked up **before** inviting: pending → re-call `inviteUserByEmail` to resend, active/suspended → 409, so the duplicate INSERT never runs. The original resend call (`admin.auth.admin.resend`) does not exist on the Admin API — it threw a `TypeError` → generic 500. | `e2e/auth-invite.spec.ts:87` — verified green (Tier 1); `e2e/auth-email-delivery.spec.ts:130` — marker removed (Tier 2, SMTP) |
+| BUG 2 ✅ | **Staff can invite staff** — only admin-granting is owner-gated; there is no owner/admin check for staff invites (privilege escalation). | `invite-user/index.ts` | Require `callerRole in ('owner','admin')`; admin may only invite staff. | `e2e/auth-invite.spec.ts:138` — verified green (Tier 1) |
+| BUG 3 ✅ | **Staff can revoke pending invites** — only the caller's "active" status is checked. | `supabase/functions/revoke-user/index.ts` | Require owner/admin; admin may only revoke staff. | `e2e/auth-invite.spec.ts:239` — verified green (Tier 1) |
 
-After fixing, remove the `test.fail` markers and confirm Tier 1 auth e2e is green.
+Both functions are deployed to **staging** and green. Still deploy them to
+**prod** at ship time — the fixes live in the Edge Functions, not migrations.
+
+Surfaced by the same run and fixed: the Team "Member options" dropdown couldn't
+be closed by re-clicking its trigger (the document `mousedown` close handler
+nulled the state before the button's `onClick` toggle re-opened it) —
+`src/pages/team.tsx` now stops that mousedown from propagating.
 
 ### 1.2 Auth dashboard config bugs (🔴 blockers — config, not code)
 
@@ -26,11 +36,22 @@ After fixing, remove the `test.fail` markers and confirm Tier 1 auth e2e is gree
 |---|-----|-----|
 | BUG 4 | Emailed **invite** link lands on `/`, not `/accept-invite` (Site-URL fallback). | Supabase Auth → URL Configuration: set **Site URL** to the app origin and allowlist `/accept-invite`. |
 | BUG 5 | **Password-reset** link lands on `/`, not `/reset-password` (user is signed in instead of asked to set a password). | Allowlist `/reset-password` in the same config. |
-| BUG 6 | Link host is `<ref>.supabase.co`, not the app origin. | Set Site URL / redirect URLs to the real origin; optionally add a custom Supabase domain. |
+| BUG 6 | Link host is `<ref>.supabase.co`, not the app origin. | **Not a config bug** — recovery/magic links go through the GoTrue verify endpoint (`.ConfirmationURL`) and 302 to `redirect_to`. Only a custom Supabase domain changes the host. To land recovery directly on the app, rewrite `recovery.html` to use `{{ .RedirectTo }}` like `invite.html`. |
 
 Root cause: hosted **Site URL is a LAN IP** (`http://192.168.1.106:5173`) and the
 redirect allowlist is incomplete. Apply on **both staging and prod**
 (`authChecklist.md §3`, `authPlan.md §13`).
+
+Concrete settings (Auth → URL Configuration):
+
+| Field | Value |
+|-------|-------|
+| **Site URL** | the real app origin (`https://labelm.saibal.dev` on prod; staging URL on staging) — **not** the LAN IP |
+| **Redirect URLs (prod)** | exact: `<origin>/accept-invite`, `<origin>/reset-password` (Supabase recommends exact paths in prod) |
+| **Redirect URLs (local/dev)** | `http://localhost:5173/**` and/or `http://192.168.1.106:5173/**` — `**` is valid (globstar, matches across `/`) but is intended for dev/preview only |
+
+`supabase/config.toml` mirrors the local-dev allowlist; the hosted dashboard is
+the source of truth for staging/prod.
 
 ### 1.3 Known non-blocking bugs / risks
 
@@ -58,6 +79,7 @@ redirect allowlist is incomplete. Apply on **both staging and prod**
 - [ ] Re-set per-project Auth settings (not carried by migrations): **Enable sign ups OFF**, Site URL + redirect URLs, email templates (`supabase/templates/`), SMTP, rate limits.
 - [ ] Deploy both Edge Functions to staging **and** prod:
       `supabase functions deploy invite-user` and `supabase functions deploy revoke-user`.
+      Set the `ALLOWED_ORIGINS` / `APP_URL` secrets first (see §2.8).
 - [ ] Run `supabase/seed-first-owner.sql` with the client's email + a fresh password.
 - [ ] Confirm free-tier project cap (staging + prod = 2).
 
@@ -80,7 +102,7 @@ redirect allowlist is incomplete. Apply on **both staging and prod**
 
 ### 2.5 Testing gaps (`TESTING.md`, checklists)
 
-- [ ] `e2e/roles.spec.ts` — RBAC capability matrix, **referenced but does not exist** (`TESTING.md §5.3`, `authChecklist.md §5`).
+- [ ] **`e2e/roles.spec.ts` — RBAC capability matrix (deferred; referenced but does not exist).** Drive the app as owner/admin/staff and assert the 13-capability matrix (`authPlan.md §3`) at the UI level: `/invoice/new` + `/team` blocked for staff (`App.tsx` `RequireRole role="admin"`), settings read-only for staff (`settings.tsx`), archive/restore hidden for staff (`customers.tsx`), payment delete owner/admin only (`invoiceDetails.tsx`), invite/promote admins owner-only. Prereqs: `SUPABASE_SERVICE_ROLE_KEY` + owner creds (same as Tier 1). Constraint: needs `VITE_TRIAL_MODE=false` (real `/team`), which conflicts with the trial-mode specs (`team-stub`, `navigation.spec.ts:26`, `smoke.spec.ts:12,19`, `auth-basic.spec.ts:36,43,50`) — gate those with a flag or run separately. See `TESTING.md §5.3`, `authChecklist.md §5`.
 - [ ] `scripts/seed-data.ts` + `scripts/reset-db.sql` — **referenced but missing**; large-data seed (12–15k labels) + `EXPLAIN ANALYZE` perf pass (`TESTING.md §5.4`).
 - [ ] Invoice-generation **concurrency** tests (`invoiceChecklist.md §9`, rows 1–4).
 - [ ] Dues seed-data **combination matrix** live pass (`duesChecklist.md §2`, rows 1–5).
@@ -100,6 +122,26 @@ redirect allowlist is incomplete. Apply on **both staging and prod**
 - [ ] `authPlan.md §8` references removed items: `usePermission()`, `VITE_USE_LOCAL`, `src/lib/repositories/*`.
 - [ ] `TESTING.md` references `VITE_USE_LOCAL`, `roles.spec.ts`, `scripts/*` that don't exist; stale test counts.
 - [ ] Stale test counts in `authChecklist.md` (245), `invoiceChecklist.md` / `duesChecklist.md` (234) vs current (256).
+
+### 2.8 Edge Function CORS hardening (🟠)
+
+`invite-user` + `revoke-user` previously sent `Access-Control-Allow-Origin: *`.
+CORS is **not** the auth boundary here (the gateway's `verify_jwt` + the
+in-function role checks are), but a wildcard is poor prod hygiene. Both functions
+now echo only allowlisted origins from the `ALLOWED_ORIGINS` secret (falling back
+to `APP_URL`, then `*` for local dev).
+
+- [x] Code: `corsHeaders(req)` in both functions, `Vary: Origin`, methods
+      restricted to `POST, OPTIONS`, plus `supabase/functions/.env.example`.
+- [ ] Set the secret on **staging** (Dashboard → Edge Functions → Secrets, or):
+      `supabase secrets set ALLOWED_ORIGINS="http://localhost:5173,http://192.168.1.106:5173" --project-ref hleadfeikniejvlhbqzd`
+      and `APP_URL=http://localhost:5173`.
+- [ ] Set it on **prod** when created: `ALLOWED_ORIGINS=https://labelm.saibal.dev`
+      (+ client domain later) and `APP_URL=https://labelm.saibal.dev`.
+- [ ] Redeploy both functions after setting secrets (secrets apply on the next
+      invocation; redeploy if a warm instance doesn't pick them up).
+- [ ] Do **not** set `SUPABASE_URL` / `SUPABASE_ANON_KEY` /
+      `SUPABASE_SERVICE_ROLE_KEY` — they are auto-injected.
 
 ---
 
@@ -157,7 +199,7 @@ Status: **done** (`20260928120000_company_settings_and_bulk_print.sql`, `src/pag
 
 ## 5. Recommended release order
 
-1. 🔴 Auth bugs BUG 1–3 (Edge Functions) + remove `test.fail` markers.
+1. ✅ ~~Auth bugs BUG 1–3 (Edge Functions) + remove `test.fail` markers~~ — fixed; Tier 1 34/34 green (§1.1).
 2. 🔴 Auth URL config BUG 4–6 (staging + prod).
 3. ✅ ~~`company_settings` (branding / tax / prefixes)~~ — shipped as `company_profile` + `app_settings` (§2.6, §3.1).
 4. 🟠 Prod deployment runbook (§2.1–2.4) + pending migrations (incl. `20260928120000_company_settings_and_bulk_print.sql`).

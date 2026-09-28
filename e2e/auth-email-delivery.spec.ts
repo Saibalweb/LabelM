@@ -128,7 +128,6 @@ test.describe('real email delivery (ZeptoMail → YOPmail)', () => {
   })
 
   test('re-invite sends a fresh email and invalidates the previous one', async () => {
-    test.fail(true, 'KNOWN BUG 1: re-invite 500s on employees_pkey before any email is sent')
     const email = testEmail('mail-resend')
 
     expect((await invokeFunction('invite-user', { email, role: 'staff' }, ownerToken)).status).toBe(200)

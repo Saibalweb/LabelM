@@ -7,42 +7,22 @@
 // Everything here runs against staging; `assertStaging()` refuses to mutate a
 // project whose ref does not match E2E_STAGING_REF when that guard is set.
 
-import fs from 'node:fs'
-import path from 'node:path'
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js'
+import { envValue } from './env'
 
 export type Role = 'owner' | 'admin' | 'staff'
 export type MemberStatus = 'invited' | 'active' | 'suspended'
 
 // ---------------------------------------------------------------------------
-// Env loading
+// Env loading (shell env first, then the gitignored .env)
 // ---------------------------------------------------------------------------
 
-function readDotEnv(): Record<string, string> {
-  const file = path.resolve(process.cwd(), '.env')
-  if (!fs.existsSync(file)) return {}
-  const out: Record<string, string> = {}
-  for (const raw of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
-    const line = raw.trim()
-    if (!line || line.startsWith('#')) continue
-    const eq = line.indexOf('=')
-    if (eq === -1) continue
-    const key = line.slice(0, eq).trim()
-    const value = line.slice(eq + 1).trim().replace(/^["']|["']$/g, '')
-    out[key] = value
-  }
-  return out
-}
-
-const fileEnv = readDotEnv()
-
-export const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? fileEnv.VITE_SUPABASE_URL ?? ''
-export const ANON_KEY =
-  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? fileEnv.VITE_SUPABASE_PUBLISHABLE_KEY ?? ''
-export const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
+export const SUPABASE_URL = envValue('VITE_SUPABASE_URL')
+export const ANON_KEY = envValue('VITE_SUPABASE_PUBLISHABLE_KEY')
+export const SERVICE_ROLE_KEY = envValue('SUPABASE_SERVICE_ROLE_KEY')
 export const PROJECT_REF =
   SUPABASE_URL.match(/^https:\/\/([a-z0-9]+)\.supabase\.co/)?.[1] ?? ''
-export const STAGING_REF = process.env.E2E_STAGING_REF ?? ''
+export const STAGING_REF = envValue('E2E_STAGING_REF')
 
 export const hasServiceRole = SERVICE_ROLE_KEY.length > 0
 

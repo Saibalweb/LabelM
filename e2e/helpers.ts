@@ -1,7 +1,9 @@
 import { expect, type Page } from '@playwright/test'
+import { envValue } from './fixtures/env'
 
-export const OWNER_EMAIL = 'saibalkole@gmail.com'
-export const OWNER_PASSWORD = 'ChangeMe123!'
+// Overridable via shell env or the gitignored .env (OWNER_EMAIL / OWNER_PASSWORD).
+export const OWNER_EMAIL = envValue('OWNER_EMAIL') || 'saibalkole@gmail.com'
+export const OWNER_PASSWORD = envValue('OWNER_PASSWORD') || 'ChangeMe123!'
 
 export function stubPrint(page: Page) {
   return page.addInitScript(() => {

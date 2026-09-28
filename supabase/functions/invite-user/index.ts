@@ -12,18 +12,29 @@ const admin = createClient(SERVICE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type, x-retry-count, traceparent, tracestate, baggage',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-}
+// CORS: echo only allowlisted origins. `ALLOWED_ORIGINS` is a comma-separated
+// list set as a Supabase secret (see supabase/functions/.env.example); it falls
+// back to APP_URL, then '*' for local dev. CORS is not an auth boundary — the
+// gateway's verify_jwt + the role checks below are.
+const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...CORS, 'Content-Type': 'application/json' },
-  })
+function corsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin') ?? ''
+  const allowed = ALLOWED_ORIGINS.length
+    ? ALLOWED_ORIGINS.includes(origin)
+      ? origin
+      : ALLOWED_ORIGINS[0]
+    : (Deno.env.get('APP_URL') ?? '*')
+  return {
+    'Access-Control-Allow-Origin': allowed,
+    'Access-Control-Allow-Headers':
+      'authorization, x-client-info, apikey, content-type, x-retry-count, traceparent, tracestate, baggage',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    Vary: 'Origin',
+  }
 }
 
 function nameFromEmail(email: string): string {
@@ -50,7 +61,14 @@ async function findUserByEmail(email: string) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
+  const cors = corsHeaders(req)
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...cors, 'Content-Type': 'application/json' },
+    })
+
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
   let input: { email?: string; role?: string }
@@ -86,6 +104,10 @@ Deno.serve(async (req) => {
   const callerRole = callerProfile?.role
   const callerActive = callerProfile?.status === 'active'
   if (!callerRole || !callerActive) return json({ error: 'Not an active member' }, 403)
+  // Only owners and admins may invite; admins may only invite staff (below).
+  if (callerRole !== 'owner' && callerRole !== 'admin') {
+    return json({ error: 'Only owners and admins can invite members' }, 403)
+  }
   if (role === 'admin' && callerRole !== 'owner') {
     return json({ error: 'Only the workspace owner can grant the Admin role' }, 403)
   }
@@ -94,6 +116,36 @@ Deno.serve(async (req) => {
   // send an Origin header; fall back to an env-provided app URL.
   const origin = req.headers.get('Origin') ?? Deno.env.get('APP_URL') ?? new URL(req.url).origin
   const redirectTo = `${origin}/accept-invite`
+
+  // Look up the membership BEFORE inviting. `inviteUserByEmail` can return
+  // success (no error) for an address that already has an auth user, so an
+  // error-only branch misses the pending re-invite and the INSERT below then
+  // hits employees_pkey. Resolve the existing row explicitly instead.
+  const { data: existing } = await admin
+    .from('employees')
+    .select('id, status')
+    .eq('email', email)
+    .maybeSingle()
+
+  // Active or suspended member: a real conflict.
+  if (existing && existing.status !== 'invited') {
+    return json({ error: 'That email already belongs to this workspace' }, 409)
+  }
+
+  // Still pending: resend the invite email, never insert a duplicate. Calling
+  // inviteUserByEmail again is the supported resend path — it returns success
+  // for an existing unconfirmed user and issues a fresh token. (The Admin API
+  // exposes no `resend`, and `auth.resend` rejects type 'invite'.)
+  if (existing?.status === 'invited') {
+    const { error: resendErr } = await admin.auth.admin.inviteUserByEmail(email, {
+      data: { role },
+      redirectTo,
+    })
+    if (resendErr) {
+      return json({ error: resendErr.message ?? 'Unable to resend the invitation' }, 500)
+    }
+    return json({ ok: true, id: existing.id })
+  }
 
   const { data: created, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, {
     data: { role },
@@ -105,30 +157,6 @@ Deno.serve(async (req) => {
   if (inviteErr) {
     if (!/already|registered|exists/i.test(inviteErr.message)) {
       return json({ error: inviteErr.message ?? 'Unable to send the invitation' }, 500)
-    }
-
-    const { data: existing } = await admin
-      .from('employees')
-      .select('id, status')
-      .eq('email', email)
-      .maybeSingle()
-
-    // Still pending: resend the existing invite link.
-    if (existing?.status === 'invited') {
-      const { error: resendErr } = await admin.auth.admin.resend({
-        type: 'invite',
-        email,
-        options: { emailRedirectTo: redirectTo },
-      })
-      if (resendErr) {
-        return json({ error: resendErr.message ?? 'Unable to resend the invitation' }, 500)
-      }
-      return json({ ok: true, id: existing.id })
-    }
-
-    // Active or suspended member: a real conflict.
-    if (existing) {
-      return json({ error: 'That email already belongs to this workspace' }, 409)
     }
 
     // Orphaned auth user — an invite/revoke left the auth.users row behind but

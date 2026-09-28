@@ -161,6 +161,14 @@ test.describe('membership lifecycle', () => {
     await expect(page.getByRole('button', { name: 'Suspend member' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Remove member' })).toHaveCount(0)
 
+    // Close the custom dropdown by re-toggling it; otherwise it overlays the
+    // next row's button and Playwright refuses the covered click.
+    await page
+      .getByRole('row', { name: new RegExp(targetAdmin.email) })
+      .getByRole('button', { name: 'Member options' })
+      .click()
+    await expect(page.getByText('Only the owner can manage admins')).toHaveCount(0)
+
     // Staff remain manageable by an admin.
     await page
       .getByRole('row', { name: new RegExp(targetStaff.email) })

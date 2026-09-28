@@ -26,7 +26,12 @@ port = 54324
 [auth]
 enabled = true
 site_url = "http://localhost:5173"
-additional_redirect_urls = ["http://localhost:5173/accept-invite"]
+# Mirror of the hosted Auth -> URL Configuration. Keep the exact app paths so
+# both the invite and password-reset links land on their real routes.
+additional_redirect_urls = [
+  "http://localhost:5173/accept-invite",
+  "http://localhost:5173/reset-password",
+]
 
 # Invite-only product: public sign-ups stay disabled.
 [auth.email]

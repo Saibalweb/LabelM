@@ -148,17 +148,26 @@ perform" and "the Team UI removes members by suspension only — no hard delete"
 
 ## 3. Bugs found (Tier 1)
 
-1. **Re-invite/resend of a pending invite returns 500.**
+1. ✅ **FIXED — Re-invite/resend of a pending invite returned 500.**
    `inviteUserByEmail` returns success (no error) for an already-invited user, so
-   `invite-user` skips its resend branch and the `employees` INSERT hits
+   `invite-user` skipped its resend branch and the `employees` INSERT hit
    `employees_pkey`. Breaks the "Resend invite" button. Probe-confirmed:
    `{"error":"duplicate key value violates unique constraint \"employees_pkey\""}`.
-2. **`invite-user` does not require owner/admin for staff invites.**
-   It only blocks non-active callers and admin-granting, so a staff JWT can
+   Fix: `invite-user` now looks up the `employees` row **before** inviting —
+   pending → re-call `inviteUserByEmail` to resend, active/suspended → 409, so
+   the duplicate INSERT never runs. Root cause of the *first* fix attempt's 500:
+   the original resend used `admin.auth.admin.resend`, which does **not** exist
+   on the Admin API (only `GoTrueClient.resend`, which rejects `type: 'invite'`)
+   — it threw a `TypeError` → generic 500. Calling `inviteUserByEmail` again is
+   the supported resend path.
+2. ✅ **FIXED — `invite-user` did not require owner/admin for staff invites.**
+   It only blocked non-active callers and admin-granting, so a staff JWT could
    invite staff directly — privilege escalation. The Edge Function is the
-   security boundary (the UI is gated, but direct calls bypass it).
-3. **`revoke-user` does not require owner/admin.**
-   It only checks the caller is active, so staff can revoke pending invites.
+   security boundary (the UI is gated, but direct calls bypass it). Fix: require
+   `callerRole in ('owner','admin')`; admin may only invite staff.
+3. ✅ **FIXED — `revoke-user` did not require owner/admin.**
+   It only checked the caller is active, so staff could revoke pending invites.
+   Fix: require `callerRole in ('owner','admin')`; admin may only revoke staff.
 4. **Purge leaves an orphaned `auth.users` row** (known). `invite-user`
    self-heals it on re-invite. The UI no longer exposes purge, so this is only
    reachable via a direct RPC call; kept as an optional future feature
@@ -178,8 +187,15 @@ perform" and "the Team UI removes members by suspension only — no hard delete"
 > `/accept-invite` (and `/reset-password`). This is dashboard config, not code —
 > `supabase/config.toml` only covers local dev.
 
-Tests 10, 11, 25 (Tier 1) and 54/55/56 (Tier 2) are marked `test.fail` until
-these are fixed; remove the markers once green.
+The `test.fail` markers for BUG 1–3 (Tier 1 tests 10/11/25 and Tier 2 test 56)
+are **removed**. **Tier 1 on staging (2026-09-28): 34/34 passed**, verifying BUG
+1, BUG 2 and BUG 3. BUG 4/5 are config-blocked, so their Tier 2 markers (tests
+54/55) stay until the Auth URL config is applied.
+
+Also fixed from the same run: the Team "Member options" dropdown could not be
+closed by re-clicking its trigger — the document `mousedown` close handler ran
+first and the button's `onClick` toggle then re-opened it. `src/pages/team.tsx`
+now stops the trigger's `mousedown` from reaching the document handler.
 
 ## 4. Verification (Phase 1)
 
@@ -187,15 +203,19 @@ these are fixed; remove the markers once green.
 |---|---|---|
 | 1 | `npm run lint` | ✅ clean (only pre-existing warnings) |
 | 2 | `npm run build` (tsc + vite) | ✅ |
-| 3 | `npm test` | ✅ 245 passed |
-| 4 | `npm run test:e2e:auth` vs staging | ✅ 33 passed (3 expected failures) |
+| 3 | `npm test` | ✅ 324 passed |
+| 4 | `npm run test:e2e:auth` vs staging (2026-09-28) | ✅ 34/34 passed (BUG 1–3 green) |
 | 5 | Staging test users cleaned up | ✅ 58 removed |
 
 ## 5. Follow-ups
 
-- [ ] Fix BUG 1 (resend duplicate key) — the resend path must detect an existing
-      `employees` row even when `inviteUserByEmail` does not error.
-- [ ] Fix BUG 2/3 — require owner/admin in `invite-user` and `revoke-user`.
+- [x] Fix BUG 1 (resend duplicate key) — `invite-user` now checks the existing
+      `employees` row up front (pending → resend, active/suspended → 409) so the
+      duplicate INSERT can never run.
+- [x] Fix BUG 2/3 — owner/admin now required in `invite-user` and `revoke-user`.
+- [x] Redeploy `invite-user` + `revoke-user` to **staging** and rerun
+      `npm run test:e2e:auth` → 34/34 green (2026-09-28).
+- [ ] Deploy both functions to **prod** at ship time (same code).
 - [ ] Fix BUG 5/6 — Supabase Auth URL config: set **Site URL** to the app origin
       and allowlist `/accept-invite` + `/reset-password` (dashboard, both
       staging and prod).
@@ -215,8 +235,18 @@ these are fixed; remove the markers once green.
       `src/components/auth/AuthListener.tsx`), and remove the `restricted` race
       where `onAuthStateChange` fetches the invitee's profile before
       `activate_my_membership` flips it to `active`.
-- [ ] Next phase: RBAC capability matrix (`roles.spec.ts`) — create invoice,
-      edit label, archive customer, payment delete, settings, promote/suspend.
+- [ ] **Next phase (deferred): RBAC capability matrix — `e2e/roles.spec.ts`.**
+      Drive the app as owner/admin/staff and assert the 13-capability matrix
+      (`authPlan.md §3`) at the UI level: `/invoice/new` + `/team` blocked for
+      staff (`App.tsx` `RequireRole role="admin"`), settings read-only for staff
+      (`settings.tsx`), archive/restore hidden for staff (`customers.tsx`),
+      payment delete owner/admin only (`invoiceDetails.tsx`), invite/promote
+      admins owner-only. Prereqs: `SUPABASE_SERVICE_ROLE_KEY` (to create the
+      admin/staff users) + owner creds — same as Tier 1. Constraint: needs
+      `VITE_TRIAL_MODE=false` so `/team` renders the real page, which conflicts
+      with the trial-mode specs (`team-stub.spec.ts`, `navigation.spec.ts:26`,
+      `smoke.spec.ts:12,19`, `auth-basic.spec.ts:36,43,50`) — gate those with a
+      flag or run in a separate pass. Also tracked in `finalTodo.md §2.5`.
 
 ## 6. Tier 2 results (real SMTP, 2026-09-27)
 
@@ -226,7 +256,7 @@ these are fixed; remove the markers once green.
 | magic-link email + click logs in | ✅ (proven on first run) |
 | emailed invite link completes onboarding | ❌ BUG 5 (Site-URL fallback) |
 | reset link sets a new password | ❌ BUG 6 (Site-URL fallback) |
-| re-invite sends a fresh email | ❌ BUG 1 |
+| re-invite sends a fresh email | 🔧 BUG 1 fixed in code — rerun pending |
 
 **YOPmail availability caveat.** After a burst of sends/polls, YOPmail started
 serving a **Cloudflare Turnstile challenge** on the inbox frame, so the headless

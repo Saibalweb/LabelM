@@ -85,10 +85,6 @@ test.describe('invite-user edge cases', () => {
   })
 
   test('re-inviting a pending invite resends without creating a duplicate row', async () => {
-    test.fail(
-      true,
-      'KNOWN BUG: inviteUserByEmail returns success (no error) for an already-invited user, so invite-user skips its resend branch and the INSERT hits employees_pkey'
-    )
     const email = testEmail('resend')
     expect((await invokeFunction('invite-user', { email, role: 'staff' }, ownerToken)).status).toBe(200)
 
@@ -139,11 +135,7 @@ test.describe('invite-user edge cases', () => {
     expect(row?.email).toBe(mixed.toLowerCase())
   })
 
-  // KNOWN BUG (authPlan §3: staff cannot invite). The function only blocks
-  // non-active callers and admin-granting; it never requires owner/admin. This
-  // test is marked as an expected failure so the suite stays green until fixed.
   test('staff caller cannot invite staff', async () => {
-    test.fail(true, 'KNOWN BUG: invite-user does not require owner/admin for staff invites')
     const res = await invokeFunction('invite-user', { email: testEmail('staff-invite-by-staff'), role: 'staff' }, staffToken)
     expect(res.status).toBe(403)
   })
@@ -244,10 +236,7 @@ test.describe('revoke-user edge cases', () => {
     expect(noToken.status).toBe(401)
   })
 
-  // KNOWN BUG (authPlan §3: only owner/admin manage members). revoke-user checks
-  // only that the caller is active, never their role, so staff can revoke.
   test('staff caller cannot revoke an invite', async () => {
-    test.fail(true, 'KNOWN BUG: revoke-user does not require owner/admin')
     const staffCaller = await createActiveUser({ email: testEmail('revoke-staff-caller'), role: 'staff' })
     const staffCallerToken = await accessTokenFor(staffCaller.email, staffCaller.password)
     const invite = await createInvitedUser({ email: testEmail('revoke-by-staff'), role: 'staff' })

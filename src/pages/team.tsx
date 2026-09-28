@@ -623,6 +623,10 @@ export function Team() {
                             type="button"
                             aria-label="Member options"
                             disabled={isPending}
+                            // Keep this mousedown from reaching the document
+                            // close handler, otherwise it nulls `openMenu`
+                            // first and the onClick toggle immediately re-opens.
+                            onMouseDown={(event) => event.stopPropagation()}
                             onClick={() =>
                               setOpenMenu((prev) => (prev === member.id ? null : member.id))
                             }

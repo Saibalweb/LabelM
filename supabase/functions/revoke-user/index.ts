@@ -13,22 +13,40 @@ const admin = createClient(SERVICE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type, x-retry-count, traceparent, tracestate, baggage',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-}
+// CORS: echo only allowlisted origins. `ALLOWED_ORIGINS` is a comma-separated
+// list set as a Supabase secret (see supabase/functions/.env.example); it falls
+// back to APP_URL, then '*' for local dev. CORS is not an auth boundary — the
+// gateway's verify_jwt + the role checks below are.
+const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...CORS, 'Content-Type': 'application/json' },
-  })
+function corsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin') ?? ''
+  const allowed = ALLOWED_ORIGINS.length
+    ? ALLOWED_ORIGINS.includes(origin)
+      ? origin
+      : ALLOWED_ORIGINS[0]
+    : (Deno.env.get('APP_URL') ?? '*')
+  return {
+    'Access-Control-Allow-Origin': allowed,
+    'Access-Control-Allow-Headers':
+      'authorization, x-client-info, apikey, content-type, x-retry-count, traceparent, tracestate, baggage',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    Vary: 'Origin',
+  }
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
+  const cors = corsHeaders(req)
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...cors, 'Content-Type': 'application/json' },
+    })
+
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
   let input: { memberId?: string }
@@ -58,6 +76,10 @@ Deno.serve(async (req) => {
   const callerRole = callerProfile?.role
   const callerActive = callerProfile?.status === 'active'
   if (!callerRole || !callerActive) return json({ error: 'Not an active member' }, 403)
+  // Only owners and admins may revoke; admins may only revoke staff (below).
+  if (callerRole !== 'owner' && callerRole !== 'admin') {
+    return json({ error: 'Only owners and admins can revoke invitations' }, 403)
+  }
 
   const { data: target } = await admin
     .from('employees')

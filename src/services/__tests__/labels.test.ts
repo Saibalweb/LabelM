@@ -410,3 +410,39 @@ describe('labelService.listUnbilled', () => {
     expect(calls.find((c) => c.method === 'eq')?.args).toEqual(['customer_id', 9])
   })
 })
+
+describe('labelService.listAll', () => {
+  it('orders without a range and maps rows', async () => {
+    const { query, calls } = createChain(() => ({ data: [labelRow], error: null }))
+    supabaseMock.from.mockReturnValue(query)
+
+    const rows = await labelService.listAll({}, 'newest')
+
+    expect(calls.some((c) => c.method === 'range')).toBe(false)
+    expect(filterCalls(calls, 'order')).toEqual([
+      ['label_date', { ascending: false }],
+      ['id', { ascending: false }],
+    ])
+    expect(rows[0].slNo).toBe('LBL-0001')
+  })
+})
+
+describe('labelService.markPrinted', () => {
+  it('calls the rpc with p_ids and returns the affected count', async () => {
+    supabaseMock.rpc.mockResolvedValue({ data: 2, error: null })
+    const count = await labelService.markPrinted([1, 2])
+    expect(supabaseMock.rpc).toHaveBeenCalledWith('mark_labels_printed', { p_ids: [1, 2] })
+    expect(count).toBe(2)
+  })
+
+  it('skips the rpc for an empty id list', async () => {
+    const count = await labelService.markPrinted([])
+    expect(count).toBe(0)
+    expect(supabaseMock.rpc).not.toHaveBeenCalled()
+  })
+
+  it('propagates an rpc error', async () => {
+    supabaseMock.rpc.mockResolvedValue({ data: null, error: new Error('not authorized') })
+    await expect(labelService.markPrinted([1])).rejects.toThrow('not authorized')
+  })
+})

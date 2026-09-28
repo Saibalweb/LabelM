@@ -6,26 +6,49 @@ import { TopNav } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
 import { LabelEditDialog } from '@/components/labels/LabelEditDialog'
 import { LabelPrintCard } from '@/components/labels/LabelPrintCard'
-import { useLabelQuery, useUpdateLabel } from '@/hooks/queries'
+import {
+  useAppSettingsQuery,
+  useCompanyProfileQuery,
+  useLabelQuery,
+  useUpdateLabel,
+} from '@/hooks/queries'
+import { exportLabelPdf } from '@/lib/labelPdf'
 import { runLabelPrint } from '@/lib/printLabel'
 
 export function Preview() {
   const { id } = useParams<{ id: string }>()
   const { data: label, isPending: loading } = useLabelQuery(Number(id))
+  const { data: company } = useCompanyProfileQuery()
+  const { data: settings } = useAppSettingsQuery()
   const updateLabel = useUpdateLabel()
   const [editOpen, setEditOpen] = useState(false)
 
   const billed = label?.invoiceId != null
+  const dims = settings
+    ? { widthMm: settings.labelWidthMm, heightMm: settings.labelHeightMm }
+    : {}
 
   const handlePrint = () => {
     if (!label) return
     if (label.status === 'draft') {
       updateLabel.mutate({ id: label.id, patch: { status: 'printed' } })
     }
-    runLabelPrint('printLabel')
+    runLabelPrint('printLabel', dims)
   }
 
-  const handlePdf = () => toast.info('PDF download coming soon')
+  const handlePdf = async () => {
+    if (!label) return
+    try {
+      await exportLabelPdf(label, {
+        ...dims,
+        company,
+        options: settings?.labelOptions,
+      })
+      toast.success('PDF downloaded')
+    } catch {
+      toast.error('Failed to generate PDF.')
+    }
+  }
   const handleWhatsApp = () => toast.info('WhatsApp sharing coming soon')
 
   if (!label) {
@@ -47,7 +70,9 @@ export function Preview() {
 
       <main className="flex flex-1 flex-col gap-8 overflow-y-auto bg-surface-bright p-4 md:p-8 lg:flex-row">
         <div id='printLabel' className="flex flex-1 items-start justify-center lg:items-center">
-          <LabelPrintCard label={label} />
+          <div className="label-sheet flex w-full justify-center">
+            <LabelPrintCard label={label} company={company} options={settings?.labelOptions} />
+          </div>
         </div>
 
         <div className="flex w-full shrink-0 flex-col gap-4 lg:w-80 print:hidden">

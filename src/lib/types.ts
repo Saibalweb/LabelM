@@ -166,6 +166,103 @@ export interface InvoicePayment {
   receivedBy: string | null
 }
 
+export interface CompanyPhone {
+  id: string
+  label: string
+  value: string
+  showOnLabel: boolean
+  showOnInvoice: boolean
+}
+
+export interface CompanyProfile {
+  companyName: string
+  tagline: string | null
+  address: string | null
+  contactPerson: string | null
+  phones: CompanyPhone[]
+  email: string | null
+  website: string | null
+  gstNumber: string | null
+  logoUrl: string | null
+}
+
+export interface CompanyProfileInput {
+  companyName: string
+  tagline: string | null
+  address: string | null
+  contactPerson: string | null
+  phones: CompanyPhone[]
+  email: string | null
+  website: string | null
+  gstNumber: string | null
+  logoUrl: string | null
+}
+
+export interface LabelOptions {
+  showCompanyName: boolean
+  showCustomerName: boolean
+  showSlNo: boolean
+  showDate: boolean
+  showWeight: boolean
+  showAmount: boolean
+  showRate: boolean
+  showPhone: boolean
+  showAddress: boolean
+}
+
+export interface InvoiceOptions {
+  showTagline: boolean
+  showAddress: boolean
+  showGst: boolean
+  showPhones: boolean
+  showEmail: boolean
+  showWebsite: boolean
+  showContactPerson: boolean
+  showDueDate: boolean
+}
+
+export interface AppSettings {
+  labelPreset: string
+  labelWidthMm: number
+  labelHeightMm: number
+  labelPrefix: string
+  invoicePrefix: string
+  autoMarkPrinted: boolean
+  labelOptions: LabelOptions
+  invoiceOptions: InvoiceOptions
+}
+
+export interface AppSettingsInput {
+  labelPreset: string
+  labelWidthMm: number
+  labelHeightMm: number
+  labelPrefix: string
+  invoicePrefix: string
+  autoMarkPrinted: boolean
+  labelOptions: LabelOptions
+  invoiceOptions: InvoiceOptions
+}
+
+export interface CompanySnapshot {
+  name: string | null
+  tagline: string | null
+  address: string | null
+  contactPerson: string | null
+  phones: CompanyPhone[]
+  email: string | null
+  website: string | null
+  gstNumber: string | null
+  logoUrl: string | null
+}
+
+export interface CustomerSnapshot {
+  name: string | null
+  address: string | null
+  email: string | null
+  phone: string | null
+  gstNumber: string | null
+}
+
 export interface Invoice {
   id: number
   invoiceNumber: string
@@ -185,6 +282,8 @@ export interface Invoice {
   createdAt: string
   paid: number
   due: number
+  companySnapshot: CompanySnapshot | null
+  customerSnapshot: CustomerSnapshot | null
   lineItems: InvoiceLineItem[]
   payments: InvoicePayment[]
 }

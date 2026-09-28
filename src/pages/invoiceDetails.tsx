@@ -33,12 +33,21 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAppSelector } from '@/store/hooks'
 import {
+  useAppSettingsQuery,
+  useCompanyProfileQuery,
   useDeletePayment,
   useInvoiceQuery,
   useRecordPayment,
   useUpdatePayment,
 } from '@/hooks/queries'
-import type { InvoicePayment, InvoiceStatus, PaymentMode } from '@/lib/types'
+import { resolveInvoiceOptions } from '@/lib/documentOptions'
+import type {
+  CompanyProfile,
+  CompanySnapshot,
+  InvoicePayment,
+  InvoiceStatus,
+  PaymentMode,
+} from '@/lib/types'
 import { formatCurrency, formatDate, todayInputValue } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -66,6 +75,38 @@ function toAmount(value: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })
+}
+
+function resolveCompanyHeader(
+  snapshot: CompanySnapshot | null,
+  profile: CompanyProfile | null
+): CompanyProfile {
+  if (snapshot) {
+    return {
+      companyName: snapshot.name ?? '',
+      tagline: snapshot.tagline,
+      address: snapshot.address,
+      contactPerson: snapshot.contactPerson,
+      phones: snapshot.phones ?? [],
+      email: snapshot.email,
+      website: snapshot.website,
+      gstNumber: snapshot.gstNumber,
+      logoUrl: snapshot.logoUrl,
+    }
+  }
+  return (
+    profile ?? {
+      companyName: 'My Company',
+      tagline: null,
+      address: null,
+      contactPerson: null,
+      phones: [],
+      email: null,
+      website: null,
+      gstNumber: null,
+      logoUrl: null,
+    }
+  )
 }
 
 const paymentModes: { label: string; value: PaymentMode }[] = [
@@ -258,6 +299,16 @@ export function InvoiceDetails() {
   const role = useAppSelector((state) => state.auth.user?.role)
   const canManagePayments = role === 'owner' || role === 'admin'
 
+  const { data: companyProfile } = useCompanyProfileQuery()
+  const { data: appSettings } = useAppSettingsQuery()
+  const invoiceOptions = resolveInvoiceOptions(appSettings?.invoiceOptions)
+  const company = resolveCompanyHeader(invoice?.companySnapshot ?? null, companyProfile ?? null)
+  const customer = invoice?.customerSnapshot ?? null
+  const customerName = customer?.name ?? invoice?.customerName ?? ''
+  const customerAddress = customer?.address ?? invoice?.customerAddress ?? null
+  const customerEmail = customer?.email ?? invoice?.customerEmail ?? null
+  const customerPhone = customer?.phone ?? invoice?.customerPhone ?? null
+
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [editingPayment, setEditingPayment] = useState<InvoicePayment | null>(null)
   const [menuFor, setMenuFor] = useState<InvoicePayment | null>(null)
@@ -368,24 +419,63 @@ export function InvoiceDetails() {
               <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-8 shadow-sm print:rounded-none print:border-none print:p-0 print:shadow-none">
                 {/* Invoice Header */}
                 <div className="mb-12 flex flex-col justify-between gap-6 border-b border-surface-variant pb-8 sm:flex-row sm:items-start">
-                  <div className="flex items-center gap-4">
-                    <div className="flex size-12 items-center justify-center rounded bg-primary text-on-primary">
+                  <div className="flex items-start gap-4">
+                    <div className="flex size-12 shrink-0 items-center justify-center rounded bg-primary text-on-primary">
                       <Layers className="size-7" />
                     </div>
                     <div>
                       <h2 className="font-headline-md text-headline-md text-primary">
-                        LabelMaster
+                        {company.companyName || 'My Company'}
                       </h2>
-                      <p className="font-label-md text-label-md text-on-surface-variant">
-                        Enterprise Labeling Solutions
-                      </p>
+                      {invoiceOptions.showTagline && company.tagline ? (
+                        <p className="font-label-md text-label-md text-on-surface-variant">
+                          {company.tagline}
+                        </p>
+                      ) : null}
+                      {invoiceOptions.showAddress && company.address ? (
+                        <p className="mt-1 max-w-xs whitespace-pre-line font-label-sm text-label-sm text-on-surface-variant">
+                          {company.address}
+                        </p>
+                      ) : null}
+                      {invoiceOptions.showPhones && company.phones.length > 0 ? (
+                        <p className="mt-1 font-label-sm text-label-sm text-on-surface-variant">
+                          {company.phones
+                            .map((phone) => `${phone.label ? `${phone.label}: ` : ''}${phone.value}`)
+                            .join(' · ')}
+                        </p>
+                      ) : null}
+                      {invoiceOptions.showEmail && company.email ? (
+                        <p className="font-label-sm text-label-sm text-on-surface-variant">
+                          {company.email}
+                        </p>
+                      ) : null}
+                      {invoiceOptions.showWebsite && company.website ? (
+                        <p className="font-label-sm text-label-sm text-on-surface-variant">
+                          {company.website}
+                        </p>
+                      ) : null}
+                      {invoiceOptions.showGst && company.gstNumber ? (
+                        <p className="font-label-sm text-label-sm text-on-surface-variant">
+                          GSTIN: {company.gstNumber}
+                        </p>
+                      ) : null}
+                      {invoiceOptions.showContactPerson && company.contactPerson ? (
+                        <p className="font-label-sm text-label-sm text-on-surface-variant">
+                          {company.contactPerson}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                   <div className="sm:text-right">
                     <div className="grid grid-cols-2 gap-x-8 gap-y-2">
                       <MetaRow label="Invoice No:" value={`#${invoice.invoiceNumber}`} />
                       <MetaRow label="Date Issued:" value={formatDate(invoice.createdAt)} />
-                      <MetaRow label="Due Date:" value={invoice.dueDate ? formatDate(invoice.dueDate) : '—'} />
+                      {invoiceOptions.showDueDate ? (
+                        <MetaRow
+                          label="Due Date:"
+                          value={invoice.dueDate ? formatDate(invoice.dueDate) : '—'}
+                        />
+                      ) : null}
                       <MetaRow label="Billing Period:" value={invoice.billingPeriod} />
                     </div>
                   </div>
@@ -397,11 +487,11 @@ export function InvoiceDetails() {
                     Bill To
                   </h3>
                   <div className="mb-1 font-headline-md text-headline-md text-on-surface">
-                    {invoice.customerName}
+                    {customerName}
                   </div>
-                  {invoice.customerAddress ? (
+                  {customerAddress ? (
                     <p className="font-body-md text-body-md text-on-surface">
-                      {invoice.customerAddress.split('\n').map((line) => (
+                      {customerAddress.split('\n').map((line) => (
                         <span key={line} className="block">
                           {line}
                         </span>
@@ -409,9 +499,9 @@ export function InvoiceDetails() {
                     </p>
                   ) : null}
                   <p className="mt-2 font-label-md text-label-md text-on-surface-variant">
-                    {invoice.customerEmail}
+                    {customerEmail}
                     <br />
-                    {invoice.customerPhone}
+                    {customerPhone}
                   </p>
                 </div>
 

@@ -17,6 +17,9 @@ const hooks = vi.hoisted(() => ({
   useLabelStatsQuery: vi.fn(),
   useUpdateLabel: vi.fn(),
   useDeleteLabel: vi.fn(),
+  useBulkMarkPrinted: vi.fn(),
+  useCompanyProfileQuery: vi.fn(),
+  useAppSettingsQuery: vi.fn(),
 }))
 
 vi.mock('@/hooks/queries', () => ({
@@ -26,6 +29,9 @@ vi.mock('@/hooks/queries', () => ({
   useLabelStatsQuery: hooks.useLabelStatsQuery,
   useUpdateLabel: hooks.useUpdateLabel,
   useDeleteLabel: hooks.useDeleteLabel,
+  useBulkMarkPrinted: hooks.useBulkMarkPrinted,
+  useCompanyProfileQuery: hooks.useCompanyProfileQuery,
+  useAppSettingsQuery: hooks.useAppSettingsQuery,
 }))
 
 vi.mock('@/lib/supabase', () => ({ supabase: {} }))
@@ -96,6 +102,9 @@ beforeEach(() => {
   })
   hooks.useUpdateLabel.mockReturnValue({ mutate: vi.fn(), mutateAsync: vi.fn() })
   hooks.useDeleteLabel.mockReturnValue({ mutateAsync: deleteMutateAsync })
+  hooks.useBulkMarkPrinted.mockReturnValue({ mutate: vi.fn(), mutateAsync: vi.fn() })
+  hooks.useCompanyProfileQuery.mockReturnValue({ data: null })
+  hooks.useAppSettingsQuery.mockReturnValue({ data: undefined })
 })
 
 describe('Dashboard label row — layout', () => {

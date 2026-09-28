@@ -1,17 +1,25 @@
-export const LABEL_WIDTH_MM = 60
-export const LABEL_HEIGHT_MM = 40
+export const DEFAULT_LABEL_WIDTH_MM = 60
+export const DEFAULT_LABEL_HEIGHT_MM = 40
 
-function buildPrintCss(areaId: string): string {
+export interface LabelPrintSize {
+  widthMm?: number
+  heightMm?: number
+}
+
+function buildPrintCss(
+  areaId: string,
+  widthMm: number,
+  heightMm: number
+): string {
   return `
   @page {
-    size: ${LABEL_WIDTH_MM}mm ${LABEL_HEIGHT_MM}mm;
+    size: ${widthMm}mm ${heightMm}mm;
     margin: 0;
   }
 
   html,
   body {
-    width: ${LABEL_WIDTH_MM}mm;
-    height: ${LABEL_HEIGHT_MM}mm;
+    width: ${widthMm}mm;
     margin: 0;
     padding: 0;
     background: #ffffff !important;
@@ -33,14 +41,27 @@ function buildPrintCss(areaId: string): string {
     top: 0;
     left: 0;
     display: block;
-    width: ${LABEL_WIDTH_MM}mm;
-    height: ${LABEL_HEIGHT_MM}mm;
+    width: ${widthMm}mm;
+    margin: 0;
+    padding: 0;
+  }
+
+  #${areaId} .label-sheet {
+    width: ${widthMm}mm;
+    height: ${heightMm}mm;
     margin: 0;
     padding: 0;
     overflow: hidden;
+    page-break-after: always;
+    break-after: page;
   }
 
-  #${areaId} > div {
+  #${areaId} .label-sheet:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  #${areaId} .label-sheet > div {
     width: 100% !important;
     height: 100% !important;
     max-width: none !important;
@@ -81,11 +102,15 @@ function buildPrintCss(areaId: string): string {
 }
 
 /**
- * Injects the 60×40mm label print stylesheet and triggers the browser print
- * dialog. `areaId` must be the id of the element wrapping a `LabelPrintCard`
- * (the area is hidden on screen and revealed only for printing).
+ * Injects the label print stylesheet and triggers the browser print dialog.
+ * `areaId` must wrap one or more `.label-sheet` elements (each containing a
+ * `LabelPrintCard`). The area is hidden on screen and revealed only for print.
+ * Supports a single label or many (one sheet per page).
  */
-export function runLabelPrint(areaId: string): void {
+export function runLabelPrint(areaId: string, size: LabelPrintSize = {}): void {
+  const widthMm = size.widthMm ?? DEFAULT_LABEL_WIDTH_MM
+  const heightMm = size.heightMm ?? DEFAULT_LABEL_HEIGHT_MM
+
   const cleanup = () => {
     document.getElementById('label-print-css')?.remove()
     window.removeEventListener('afterprint', cleanup)
@@ -94,7 +119,7 @@ export function runLabelPrint(areaId: string): void {
 
   const style = document.createElement('style')
   style.id = 'label-print-css'
-  style.textContent = buildPrintCss(areaId)
+  style.textContent = buildPrintCss(areaId, widthMm, heightMm)
   document.head.appendChild(style)
 
   window.print()

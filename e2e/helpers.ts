@@ -170,6 +170,56 @@ export async function apiCreateLabel(
   if (!res.ok()) throw new Error(`label create failed: ${res.status()} ${await res.text()}`)
 }
 
+export interface LabelRow {
+  id: number
+  sl_no: string
+  status: 'draft' | 'printed'
+  invoice_id: number | null
+  label_date: string
+}
+
+export async function apiListLabels(
+  page: Page,
+  supa: SupabaseSession,
+  customerId: string
+): Promise<LabelRow[]> {
+  const headers = await apiHeaders(page, supa)
+  const res = await page.request.get(
+    `${supa.origin}/rest/v1/labels?customer_id=eq.${customerId}&select=id,sl_no,status,invoice_id,label_date&order=label_date.asc`,
+    { headers }
+  )
+  if (!res.ok()) throw new Error(`label list failed: ${res.status()} ${await res.text()}`)
+  return (await res.json()) as LabelRow[]
+}
+
+export async function apiMarkLabelsPrinted(
+  page: Page,
+  supa: SupabaseSession,
+  ids: number[]
+): Promise<number> {
+  const headers = await apiHeaders(page, supa)
+  const res = await page.request.post(`${supa.origin}/rest/v1/rpc/mark_labels_printed`, {
+    headers,
+    data: { p_ids: ids },
+  })
+  if (!res.ok()) throw new Error(`mark printed failed: ${res.status()} ${await res.text()}`)
+  return (await res.json()) as number
+}
+
+export async function apiSetLabelStatus(
+  page: Page,
+  supa: SupabaseSession,
+  id: number,
+  status: 'draft' | 'printed'
+): Promise<void> {
+  const headers = await apiHeaders(page, supa)
+  const res = await page.request.patch(`${supa.origin}/rest/v1/labels?id=eq.${id}`, {
+    headers,
+    data: { status },
+  })
+  if (!res.ok()) throw new Error(`label status patch failed: ${res.status()} ${await res.text()}`)
+}
+
 export async function apiGenerateInvoice(
   page: Page,
   supa: SupabaseSession,

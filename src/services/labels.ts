@@ -135,6 +135,28 @@ export const labelService = {
     }
   },
 
+  async listAll(
+    filters: LabelFilters = {},
+    sortBy: LabelSortKey = 'newest'
+  ): Promise<Label[]> {
+    const sort = sortColumn[sortBy]
+    const matchingIds = await resolveSearchIds(filters)
+    let query = buildListQuery(filters, matchingIds)
+    query = query.order(sort.column, { ascending: sort.ascending })
+    if (sort.column !== 'id') query = query.order('id', { ascending: false })
+
+    const { data, error } = await query
+    if (error) throw new Error(error.message)
+    return (data ?? []).map((row) => toLabel(row as unknown as LabelRow))
+  },
+
+  async markPrinted(ids: number[]): Promise<number> {
+    if (ids.length === 0) return 0
+    const { data, error } = await supabase.rpc('mark_labels_printed', { p_ids: ids })
+    if (error) throw new Error(error.message)
+    return (data as number) ?? 0
+  },
+
   async stats(): Promise<LabelStats> {
     const { data, error } = await supabase.rpc('label_stats')
     if (error) throw new Error(error.message)
@@ -191,9 +213,16 @@ export const labelService = {
   },
 
   async create(input: LabelInput): Promise<Label> {
+    const { data: settings } = await supabase
+      .from('app_settings')
+      .select('label_prefix')
+      .eq('id', 1)
+      .maybeSingle()
+    const prefix = (settings as { label_prefix?: string } | null)?.label_prefix || 'LBL'
+
     const { data: slNo, error: slErr } = await supabase.rpc('next_document_number', {
       p_kind: 'label',
-      p_prefix: 'LBL',
+      p_prefix: prefix,
       p_digits: 4,
     })
     if (slErr) throw new Error(slErr.message)

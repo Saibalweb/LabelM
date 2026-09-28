@@ -1,5 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import type {
+  CompanySnapshot,
+  CustomerSnapshot,
   DueFilters,
   Invoice,
   InvoiceFilters,
@@ -50,13 +52,15 @@ interface InvoiceRow {
   status: InvoiceStatus
   due_date: string | null
   created_at: string
+  company_snapshot: unknown
+  customer_snapshot: unknown
   customers: CustomerEmbed | CustomerEmbed[] | null
   labels: LabelEmbed[] | null
   invoice_payments: PaymentEmbed[] | null
 }
 
 const LIST_COLUMNS =
-  'id, invoice_number, customer_id, period_start, period_end, total_amount, total_weight, status, due_date, created_at, customers(name, address, email, phone), invoice_payments(id, amount, payment_date, payment_mode, notes)'
+  'id, invoice_number, customer_id, period_start, period_end, total_amount, total_weight, status, due_date, created_at, company_snapshot, customer_snapshot, customers(name, address, email, phone), invoice_payments(id, amount, payment_date, payment_mode, notes)'
 
 const DETAIL_COLUMNS = `${LIST_COLUMNS}, labels(id, sl_no, label_date, weight, rate, amount)`
 
@@ -133,6 +137,8 @@ function toInvoice(row: InvoiceRow): Invoice {
     createdAt: row.created_at,
     paid,
     due: Math.max(0, total - paid),
+    companySnapshot: (row.company_snapshot as CompanySnapshot | null) ?? null,
+    customerSnapshot: (row.customer_snapshot as CustomerSnapshot | null) ?? null,
     lineItems,
     payments,
   }

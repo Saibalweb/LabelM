@@ -71,6 +71,8 @@ const baseInvoice: Invoice = {
   createdAt: '2026-01-15T00:00:00Z',
   paid: 0,
   due: 0,
+  companySnapshot: null,
+  customerSnapshot: null,
   lineItems: [],
   payments: [],
 }

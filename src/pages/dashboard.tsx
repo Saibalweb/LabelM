@@ -60,6 +60,9 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import {
+  useAppSettingsQuery,
+  useBulkMarkPrinted,
+  useCompanyProfileQuery,
   useCustomersQuery,
   useDeleteLabel,
   useLabelCountsByCustomerQuery,
@@ -67,8 +70,10 @@ import {
   useLabelStatsQuery,
   useUpdateLabel,
 } from '@/hooks/queries'
+import { labelService } from '@/services/labels'
 import { LabelEditDialog } from '@/components/labels/LabelEditDialog'
 import { LabelPrintCard } from '@/components/labels/LabelPrintCard'
+import { exportLabelsPdf } from '@/lib/labelPdf'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { runLabelPrint } from '@/lib/printLabel'
 import type {
@@ -222,11 +227,17 @@ export function Dashboard() {
   const { data: counts = [] } = useLabelCountsByCustomerQuery()
   const updateLabel = useUpdateLabel()
   const deleteLabel = useDeleteLabel()
+  const bulkMarkPrinted = useBulkMarkPrinted()
+  const { data: company } = useCompanyProfileQuery()
+  const { data: settings } = useAppSettingsQuery()
   const [query, setQuery] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
   const [editLabel, setEditLabel] = useState<Label | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Label | null>(null)
   const [printTarget, setPrintTarget] = useState<Label | null>(null)
+  const [bulkPrintLabels, setBulkPrintLabels] = useState<Label[] | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [exporting, setExporting] = useState(false)
   const [duration, setDuration] = useState<DurationFilter>('all')
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
@@ -280,8 +291,40 @@ export function Dashboard() {
     isPending: loading,
     isFetching,
   } = useLabelsQuery(filters, { page, pageSize: PAGE_SIZE, sortBy })
-  const items = result?.data ?? []
+  const items = useMemo(() => result?.data ?? [], [result])
   const total = result?.total ?? 0
+
+  const dims = settings
+    ? { widthMm: settings.labelWidthMm, heightMm: settings.labelHeightMm }
+    : {}
+
+  const allSelected = items.length > 0 && items.every((label) => selectedIds.has(label.id))
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAllPage = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (allSelected) {
+        items.forEach((label) => next.delete(label.id))
+      } else {
+        items.forEach((label) => next.add(label.id))
+      }
+      return next
+    })
+  }
+
+  useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect
+    setSelectedIds(new Set())
+  }, [filters, sortBy, page])
 
   useEffect(() => {
     // oxlint-disable-next-line react/set-state-in-effect
@@ -407,11 +450,80 @@ export function Dashboard() {
 
   useEffect(() => {
     if (!printTarget) return
-    runLabelPrint('printLabel')
+    runLabelPrint('printLabel', settings ? { widthMm: settings.labelWidthMm, heightMm: settings.labelHeightMm } : {})
     const clear = () => setPrintTarget(null)
     window.addEventListener('afterprint', clear)
     return () => window.removeEventListener('afterprint', clear)
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [printTarget])
+
+  const handleBulkPrint = () => {
+    const selected = items.filter((label) => selectedIds.has(label.id))
+    if (selected.length === 0) return
+    setBulkPrintLabels(selected)
+  }
+
+  useEffect(() => {
+    if (!bulkPrintLabels) return
+    runLabelPrint('bulkPrintArea', settings ? { widthMm: settings.labelWidthMm, heightMm: settings.labelHeightMm } : {})
+    const ids = bulkPrintLabels.map((label) => label.id)
+    const clear = () => {
+      setBulkPrintLabels(null)
+      setSelectedIds(new Set())
+      bulkMarkPrinted.mutate(ids, {
+        onSuccess: (count) => {
+          if (count > 0) {
+            toast.success(`${count} label${count === 1 ? '' : 's'} marked printed`)
+          } else {
+            toast.info('No labels needed a status change')
+          }
+        },
+        onError: () => toast.error('Failed to update label status.'),
+      })
+    }
+    window.addEventListener('afterprint', clear)
+    return () => window.removeEventListener('afterprint', clear)
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, [bulkPrintLabels])
+
+  const exportPdf = async (labels: Label[]) => {
+    await exportLabelsPdf(labels, {
+      ...dims,
+      company,
+      options: settings?.labelOptions,
+    })
+  }
+
+  const handleBulkExport = async () => {
+    const selected = items.filter((label) => selectedIds.has(label.id))
+    if (selected.length === 0) return
+    try {
+      await exportPdf(selected)
+      toast.success(`Exported ${selected.length} label${selected.length === 1 ? '' : 's'} to PDF`)
+    } catch {
+      toast.error('Failed to export PDF.')
+    }
+  }
+
+  const handleExportFiltered = async () => {
+    setExporting(true)
+    try {
+      const labels =
+        selectedIds.size > 0
+          ? items.filter((label) => selectedIds.has(label.id))
+          : await labelService.listAll(filters, sortBy)
+      if (labels.length === 0) {
+        toast.info('No labels to export.')
+        return
+      }
+      await exportPdf(labels)
+      toast.success(`Exported ${labels.length} label${labels.length === 1 ? '' : 's'} to PDF`)
+    } catch {
+      toast.error('Failed to export PDF.')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return
@@ -447,10 +559,12 @@ export function Dashboard() {
             <Button
               type="button"
               variant="outline"
+              onClick={handleExportFiltered}
+              disabled={exporting}
               className="h-12 gap-2 rounded-full border-outline-variant bg-surface-container px-4 font-label-md text-label-md text-on-surface hover:bg-surface-container-high"
             >
               <Download className="size-[18px]" />
-              Export
+              {exporting ? 'Exporting…' : 'Export PDF'}
             </Button>
           </div>
 
@@ -525,6 +639,42 @@ export function Dashboard() {
             </Button>
           </div>
 
+          {selectedIds.size > 0 ? (
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
+              <span className="font-label-md text-label-md font-semibold text-on-surface">
+                {selectedIds.size} selected
+              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleBulkExport}
+                  className="h-10 gap-2 rounded-lg border-outline-variant bg-surface-container-lowest font-label-md text-label-md"
+                >
+                  <Download className="size-[18px]" />
+                  Export PDF
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleBulkPrint}
+                  className="h-10 gap-2 rounded-lg font-label-md text-label-md"
+                >
+                  <Printer className="size-[18px]" />
+                  Print {selectedIds.size}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="h-10 gap-2 rounded-lg font-label-md text-label-md text-on-surface-variant"
+                >
+                  <X className="size-[18px]" />
+                  Clear
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
           {hasNoLabels ? (
             <EmptyState
               icon={<Tag className="size-9" />}
@@ -535,7 +685,20 @@ export function Dashboard() {
             />
           ) : (
           <div className="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm">
-            <div className="hidden gap-x-6 gap-y-4 border-b border-outline-variant bg-surface-container-low px-6 py-4 font-label-md text-label-md tracking-wider text-on-surface-variant uppercase lg:grid lg:grid-cols-[6rem_minmax(0,1fr)_8rem_8rem_6rem] xl:grid-cols-[7rem_minmax(0,1fr)_9rem_9rem_7rem] xl:gap-x-10">
+            <div className="hidden gap-x-6 gap-y-4 border-b border-outline-variant bg-surface-container-low px-6 py-4 font-label-md text-label-md tracking-wider text-on-surface-variant uppercase lg:grid lg:grid-cols-[2.25rem_6rem_minmax(0,1fr)_8rem_8rem_6rem] xl:grid-cols-[2.25rem_7rem_minmax(0,1fr)_9rem_9rem_7rem] xl:gap-x-10">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  aria-label="Select all labels on this page"
+                  checked={allSelected}
+                  disabled={items.length === 0}
+                  ref={(el) => {
+                    if (el) el.indeterminate = selectedIds.size > 0 && !allSelected
+                  }}
+                  onChange={toggleSelectAllPage}
+                  className="size-4 rounded accent-primary"
+                />
+              </div>
               <div>SL No</div>
               <div>Customer / Rate</div>
               <div>Date / Time</div>
@@ -565,8 +728,20 @@ export function Dashboard() {
                         navigate(`/preview/${label.id}`)
                       }
                     }}
-                    className="group grid min-h-16 cursor-pointer grid-cols-1 items-center gap-x-6 gap-y-4 border-b border-outline-variant px-6 py-5 transition-colors last:border-b-0 hover:bg-surface focus-visible:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 lg:grid-cols-[6rem_minmax(0,1fr)_8rem_8rem_6rem] xl:grid-cols-[7rem_minmax(0,1fr)_9rem_9rem_7rem] xl:gap-x-10"
+                    className="group grid min-h-16 cursor-pointer grid-cols-1 items-center gap-x-6 gap-y-4 border-b border-outline-variant px-6 py-5 transition-colors last:border-b-0 hover:bg-surface focus-visible:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 lg:grid-cols-[2.25rem_6rem_minmax(0,1fr)_8rem_8rem_6rem] xl:grid-cols-[2.25rem_7rem_minmax(0,1fr)_9rem_9rem_7rem] xl:gap-x-10"
                   >
+                    <div
+                      className="flex items-center justify-end lg:justify-start"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(label.id)}
+                        onChange={() => toggleSelect(label.id)}
+                        aria-label={`Select label ${label.slNo}`}
+                        className="size-4 rounded accent-primary"
+                      />
+                    </div>
                     <div className="flex items-center justify-between lg:block">
                       <span className="font-label-sm text-label-sm text-on-surface-variant uppercase lg:hidden">
                         SL No
@@ -1205,7 +1380,23 @@ export function Dashboard() {
 
       {printTarget ? (
         <div id="printLabel" className="hidden">
-          <LabelPrintCard label={printTarget} />
+          <div className="label-sheet">
+            <LabelPrintCard
+              label={printTarget}
+              company={company}
+              options={settings?.labelOptions}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {bulkPrintLabels ? (
+        <div id="bulkPrintArea" className="hidden">
+          {bulkPrintLabels.map((label) => (
+            <div key={label.id} className="label-sheet">
+              <LabelPrintCard label={label} company={company} options={settings?.labelOptions} />
+            </div>
+          ))}
         </div>
       ) : null}
     </div>

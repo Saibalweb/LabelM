@@ -8,7 +8,10 @@ import { customerService } from '@/services/customers'
 import { invoiceService } from '@/services/invoices'
 import { labelService } from '@/services/labels'
 import { pricesService } from '@/services/prices'
+import { settingsService } from '@/services/settings'
 import type {
+  AppSettingsInput,
+  CompanyProfileInput,
   CustomerFilters,
   CustomerInput,
   CustomerListParams,
@@ -26,6 +29,7 @@ export const queryKeys = {
   customers: ['customers'] as const,
   labels: ['labels'] as const,
   invoices: ['invoices'] as const,
+  settings: ['settings'] as const,
 }
 
 const LIST_STALE_TIME = 30_000
@@ -196,6 +200,46 @@ export function useDeleteLabel() {
   return useMutation({
     mutationFn: (id: number) => labelService.remove(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.labels }),
+  })
+}
+
+export function useBulkMarkPrinted() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (ids: number[]) => labelService.markPrinted(ids),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.labels }),
+  })
+}
+
+export function useCompanyProfileQuery() {
+  return useQuery({
+    queryKey: [...queryKeys.settings, 'company-profile'],
+    queryFn: () => settingsService.getCompanyProfile(),
+    staleTime: LIST_STALE_TIME,
+  })
+}
+
+export function useUpdateCompanyProfile() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: CompanyProfileInput) => settingsService.updateCompanyProfile(input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.settings }),
+  })
+}
+
+export function useAppSettingsQuery() {
+  return useQuery({
+    queryKey: [...queryKeys.settings, 'app'],
+    queryFn: () => settingsService.getAppSettings(),
+    staleTime: LIST_STALE_TIME,
+  })
+}
+
+export function useUpdateAppSettings() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: AppSettingsInput) => settingsService.updateAppSettings(input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.settings }),
   })
 }
 

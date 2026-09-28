@@ -8,7 +8,6 @@ import {
   Laptop,
   LogOut,
   Palette,
-  Printer,
   Settings as SettingsIcon,
   ShieldCheck,
   Users,
@@ -16,6 +15,8 @@ import {
 import { TopNav } from '@/components/layout/TopNav'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
+import { CompanyDetailsSection } from '@/components/settings/CompanyDetailsSection'
+import { LabelPrintingSection } from '@/components/settings/LabelPrintingSection'
 import { useAppSelector } from '@/store/hooks'
 import { hasRole, initialsOf, roleLabels } from '@/lib/roles'
 import { authService } from '@/services/auth'
@@ -192,19 +193,24 @@ export function Settings() {
           ) : null}
 
           <section className="space-y-3">
+            <SectionTitle>Company Details</SectionTitle>
+            <p className="font-label-sm text-label-sm text-on-surface-variant">
+              Shown on printed labels and invoices. Editable by owners and admins.
+            </p>
+            <CompanyDetailsSection canEdit={canManageTeam} />
+          </section>
+
+          <section className="space-y-3">
+            <SectionTitle>Label &amp; Printing</SectionTitle>
+            <p className="font-label-sm text-label-sm text-on-surface-variant">
+              Label size, numbering prefixes, and which fields appear on labels and invoices.
+            </p>
+            <LabelPrintingSection canEdit={canManageTeam} />
+          </section>
+
+          <section className="space-y-3">
             <SectionTitle>Preferences</SectionTitle>
             <div className="space-y-3">
-              <Row
-                icon={<Printer className="size-5" />}
-                title="Auto-mark as printed"
-                description="Mark label printed on generate"
-                action={
-                  <Switch
-                    defaultChecked={false}
-                    onCheckedChange={(v) => toast.info(`Auto-print ${v ? 'enabled' : 'disabled'}`)}
-                  />
-                }
-              />
               <Row
                 icon={<Bell className="size-5" />}
                 title="Notifications"

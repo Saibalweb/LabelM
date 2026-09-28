@@ -29,6 +29,7 @@ const CHAIN_METHODS = [
   'maybeSingle',
   'single',
   'insert',
+  'upsert',
   'update',
   'delete',
 ] as const

@@ -48,8 +48,9 @@ redirect allowlist is incomplete. Apply on **both staging and prod**
 
 - [ ] Apply all migrations to the hosted project: `npx supabase db push` (or paste SQL).
 - [ ] **Pending apply (documented):** `20260925210000_customer_soft_delete_rpc.sql`, `20260925220000_customer_history_hide_restore.sql` (`labelChecklist.md §7/§8`).
-- [ ] Confirm the newest migrations are applied: `20260927120000_invoice_due_date.sql`, `20260927180000_drop_admin_revoke_invite.sql`.
+- [ ] Confirm the newest migrations are applied: `20260927120000_invoice_due_date.sql`, `20260927180000_drop_admin_revoke_invite.sql`, `20260928120000_company_settings_and_bulk_print.sql`.
 - [ ] Verify no orphan migration remains from the (removed) owner/admin-only label-delete change — it was deleted and is **not** needed.
+- [x] `20260928120000_company_settings_and_bulk_print.sql` added — `company_profile` + `app_settings` (RLS + seed), invoice `company_snapshot`/`customer_snapshot`, `mark_labels_printed`, and `generate_invoice_for_customer` reads `invoice_prefix` + snapshots headers. Confirm applied to staging/prod.
 
 ### 2.2 Prod Supabase project (`TESTING.md §7`, `authPlan.md §13`)
 
@@ -90,7 +91,7 @@ redirect allowlist is incomplete. Apply on **both staging and prod**
 
 ### 2.6 Functional gaps to resolve
 
-- [ ] **`company_settings`** (name, logo, tax_rate, invoice_prefix, label_prefix, currency) — planned in `authPlan.md §6` / `TESTING.md §10` but **not in any migration and has no UI**. Label header currently hardcodes **"My Company Name"** (`src/components/labels/LabelPrintCard.tsx`). Decide: implement or keep hardcoded.
+- [x] **`company_profile` + `app_settings`** — **implemented** (`20260928120000_company_settings_and_bulk_print.sql`). Company details (name, tagline, contact, address, email, website, GSTIN, labeled phones), label size presets + custom with a 4×6in ceiling, `label_prefix`/`invoice_prefix`, `auto_mark_printed`, and `label_options`/`invoice_options` content toggles (incl. `showDueDate`). Label header no longer hardcodes "My Company Name"; invoices snapshot the company/customer header. UI in `src/pages/settings.tsx`; see `checklist/settingsChecklist.md`. Still deferred: **logo upload** (Storage bucket), **currency** / **tax_rate**.
 - [ ] Decide ship-or-hide for every "coming soon" stub in §3.
 
 ### 2.7 Documentation drift (⚪ non-blocking)
@@ -106,33 +107,34 @@ redirect allowlist is incomplete. Apply on **both staging and prod**
 
 | Feature | Location | Effort / notes |
 |---------|----------|----------------|
-| **Export labels (CSV)** | `src/pages/dashboard.tsx:447` — button has **no handler at all** | Build CSV from the current filtered label set |
-| **Download PDF** (label) | `src/pages/preview.tsx:28` | Print-to-PDF or a lib |
-| **Share via WhatsApp** | `src/pages/preview.tsx:29` | `wa.me` deep link |
+| **Export labels** | `src/pages/dashboard.tsx` | ✅ **Done as PDF** — header button exports the selection, else the full filtered set; bulk bar exports selected labels (`src/lib/labelPdf.ts`). **CSV** still not implemented. |
+| **Download PDF** (label) | `src/pages/preview.tsx` | ✅ **Done** — jsPDF, configured label size, `₹`→`Rs ` sanitised. |
+| **Share via WhatsApp** | `src/pages/preview.tsx` | `wa.me` deep link |
 | **Saved filter presets** | `src/pages/dashboard.tsx:801` | Persist named filter sets |
 | **Change password** | `src/pages/settings.tsx:112` | `authService.updatePassword` already exists — easy win |
 | **Sign out of all devices** | `src/pages/settings.tsx:164` | Supabase session revoke |
-| **Theme presets / dark mode** | `src/pages/settings.tsx:228` | `next-themes` provider already mounted (`src/main.tsx`) but **no toggle exists anywhere** — scaffolded, not exposed |
-| **Cloud sync** | `src/pages/settings.tsx:241` | Copy is stale ("stored locally") — data is already in Supabase |
-| **Auto-mark as printed** | `src/pages/settings.tsx:199-218` | Toggle only toasts; no persistence |
-| **Notifications** | `src/pages/settings.tsx:209-218` | Toggle only toasts; no persistence |
+| **Theme presets / dark mode** | `src/pages/settings.tsx` | Per-user preference → to be stored in `localStorage` (decided); `next-themes` provider already mounted |
+| **Cloud sync** | `src/pages/settings.tsx` | Copy is stale ("stored locally") — data is already in Supabase |
+| **Auto-mark as printed** | `src/components/settings/LabelPrintingSection.tsx` | ✅ **Persisted** in `app_settings.auto_mark_printed` (real toggle, not a toast). Behaviour wiring into the create flow still pending. |
+| **Notifications** | `src/pages/settings.tsx` | Toggle only toasts; no persistence (per-user, localStorage later) |
 
-### 3.1 Planned feature — Bulk Print (`bulkPrintPlan.md`) 🟡
+### 3.1 Bulk Print + Bulk PDF Export — ✅ SHIPPED
 
-Status: **~20% done.** Shared card + helper were extracted during the label-row work.
+Status: **done** (`20260928120000_company_settings_and_bulk_print.sql`, `src/pages/dashboard.tsx`). See `checklist/bulkPrintChecklist.md`.
 
-| Plan § | Item | State |
-|--------|------|-------|
-| §1 | `LabelPrintCard.tsx` + `printLabel.ts` + preview refactor | ✅ Done |
-| §1 | Generalize print CSS for **N sheets** (`.label-sheet { page-break-after: always }`, body height auto) — current CSS is single-label fixed 60×40, so multiple cards would overlap | ❌ Remaining |
-| §2 | `mark_labels_printed(p_ids)` SECURITY DEFINER RPC + migration | ❌ Not built |
-| §2 | `labelService.markPrinted(ids)` + `useBulkMarkPrinted()` | ❌ Not built |
-| §3 | Dashboard checkbox column, "select all on page", `selectedIds`, bulk action bar; billed rows unselectable | ❌ Not built |
-| §4 | `handleBulkPrint()` with hidden `#bulkPrintArea` (one card per label) → print → mark printed → toast | ❌ Not built |
-| §5 | Unit test for `markPrinted`; `e2e/bulkPrint.spec.ts` | ❌ Not built |
-| — | "Print whole unprinted queue" (server-side ID fetch) | Explicitly out of scope |
-
-**Required for prod?** No — per-label direct print already ships. Optional unless batch printing is a real workflow.
+| Item | State |
+|------|-------|
+| `LabelPrintCard.tsx` + `printLabel.ts` + preview refactor | ✅ Done |
+| Print CSS generalised for **N sheets** (`.label-sheet`, one page per label, configured size) | ✅ Done |
+| `mark_labels_printed(p_ids)` SECURITY DEFINER RPC + migration | ✅ Done |
+| `labelService.markPrinted(ids)` + `useBulkMarkPrinted()` | ✅ Done |
+| Dashboard checkbox column, select-all-page, bulk action bar | ✅ Done |
+| Billed rows **selectable** (Option A) — export/reprint; status flip stays server-guarded | ✅ Done |
+| `handleBulkPrint()` hidden `#bulkPrintArea` → print → `afterprint` → mark printed → toast | ✅ Done |
+| Bulk **Export PDF** (jsPDF, one page per label) + header Export PDF (selection or filtered set) | ✅ Done |
+| Unit tests + `e2e/bulkPrint.spec.ts` + `e2e/bulkPrintStatus.spec.ts` | ✅ Done |
+| "Print whole unprinted queue" (server-side ID fetch) | Out of scope |
+| Status-flip matrix (unbilled draft flips; unbilled printed / billed / billed-draft no-op; idempotent; export never flips) | ✅ Unit + e2e |
 
 ---
 
@@ -156,9 +158,9 @@ Status: **~20% done.** Shared card + helper were extracted during the label-row 
 
 1. 🔴 Auth bugs BUG 1–3 (Edge Functions) + remove `test.fail` markers.
 2. 🔴 Auth URL config BUG 4–6 (staging + prod).
-3. 🟠 `company_settings` (branding / tax / prefixes) — real product gap.
-4. 🟠 Prod deployment runbook (§2.1–2.4) + pending migrations.
-5. 🟡 Wire easy stubs: Export CSV, Change password, dark-mode toggle.
+3. ✅ ~~`company_settings` (branding / tax / prefixes)~~ — shipped as `company_profile` + `app_settings` (§2.6, §3.1).
+4. 🟠 Prod deployment runbook (§2.1–2.4) + pending migrations (incl. `20260928120000_company_settings_and_bulk_print.sql`).
+5. 🟡 Wire remaining easy stubs: Export CSV, Change password, dark-mode toggle (per-user via localStorage).
 6. 🟡 Testing gaps (§2.5) — at minimum `roles.spec.ts` + concurrency tests.
-7. 🟡 Bulk print (if batch printing is required).
-8. ⚪ Optional: purge, audit log, PDF/WhatsApp share.
+7. ✅ ~~Bulk print~~ — shipped, with bulk PDF export (§3.1).
+8. ⚪ Optional: purge, audit log, WhatsApp share, logo upload, currency/tax.

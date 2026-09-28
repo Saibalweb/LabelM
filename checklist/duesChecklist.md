@@ -81,6 +81,7 @@ The payment flow requirements below are tracked **here** so payment UX and Dues 
 | 3 | **Payment mode defaults to Cash** — default switched from `bank_transfer` to `cash` | Done |
 | 4 | **Amount input starts empty** — no pre-fill; the employee types the amount | Done |
 | 5 | **"Pay full remaining" checkbox** under the Amount input — checking it fills the amount with the remaining due (`maxAmount`) and **disables the input** (employees can only type once unchecked); unchecking re-enables the field and keeps the typed amount; only shown for new payments (not edit) | Done |
+| 6 | **Recorder attribution** — the payment history shows the employee who recorded each payment (`received_by` joined to `employees.full_name`), rendered as `Cash · by <name>` under the amount/date | Done |
 
 | # | TODO / follow-up | Status |
 |---|------------------|--------|
@@ -158,6 +159,17 @@ that customer with the server-side search and asserts:
 
 **Verdict: FIXED** — the dues overview now reflects variable due dates correctly, and every
 day-count on the page (card, aging, presets) is consistently today-based.
+
+## 7. Customer avatar shows the customer ID instead of initials
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | Old: the row avatar rendered `initials(customerName)` (e.g. "AT" for Acme Trading) | Confirmed |
+| 2 | New: the avatar renders `#{customerId}` (e.g. `#580`), matching the Invoices list treatment | Done |
+| 3 | Unused `initials()` helper removed from `src/pages/dues.tsx` (no dead code) | Done |
+| 4 | Avatar tone colour still derived from `customer.tone` (unchanged) | Confirmed |
+
+**Verdict: FIXED** — each dues row now reads `#<id>  <customer name>`.
 
 ## Verification
 

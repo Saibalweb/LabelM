@@ -299,3 +299,15 @@ describe('Dues filter sheet — reset all', () => {
     expect(activeChip()).not.toBeInTheDocument()
   })
 })
+
+describe('Dues list — customer avatar', () => {
+  it('shows the customer id instead of initials', () => {
+    renderDues()
+
+    expect(screen.getByText('#1')).toBeInTheDocument()
+    expect(screen.getByText('#2')).toBeInTheDocument()
+    // Initials of "Acme Trading" / "Beta Mills" must not be used
+    expect(screen.queryByText('AT')).not.toBeInTheDocument()
+    expect(screen.queryByText('BM')).not.toBeInTheDocument()
+  })
+})

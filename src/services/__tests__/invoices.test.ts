@@ -18,6 +18,17 @@ const paymentRows = [
   { id: 1, amount: 200, payment_date: '2026-09-10', payment_mode: 'cash', notes: null },
 ]
 
+const paymentRowsWithEmployee = [
+  {
+    id: 3,
+    amount: 150,
+    payment_date: '2026-09-22',
+    payment_mode: 'cash',
+    notes: null,
+    received_by_name: 'Ada Lovelace',
+  },
+]
+
 const labelRows = [
   { id: 3, sl_no: 'LBL-003', label_date: '2026-09-15', weight: 10, rate: 40, amount: 400 },
   { id: 1, sl_no: 'LBL-001', label_date: '2026-09-15', weight: 5, rate: 40, amount: 200 },
@@ -85,6 +96,19 @@ describe('invoiceService.listPage', () => {
     supabaseMock.from.mockReturnValue(query)
     const result = await invoiceService.listPage({})
     expect(result.data[0].customerName).toBe('Unknown customer')
+  })
+
+  it('maps the recording employee name onto payments', async () => {
+    const { query } = createChain(() => ({
+      data: [{ ...invoiceRow, invoice_payments: paymentRowsWithEmployee }],
+      error: null,
+      count: 1,
+    }))
+    supabaseMock.from.mockReturnValue(query)
+
+    const result = await invoiceService.listPage({})
+
+    expect(result.data[0].payments[0].receivedBy).toBe('Ada Lovelace')
   })
 
   it('never reports a negative due amount (overpay clamp)', async () => {

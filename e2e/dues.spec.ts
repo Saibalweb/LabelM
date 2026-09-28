@@ -39,6 +39,8 @@ test('dues aggregation, search, sort, expand and record-payment link', async ({ 
   // Dues overview aggregates this customer
   await page.goto('/dues')
   await expect(page.getByRole('main').getByText(custName).first()).toBeVisible({ timeout: 10_000 })
+  // Avatar shows the customer id, not initials
+  await expect(page.getByRole('main').getByText(`#${customerId}`).first()).toBeVisible()
   await expect(
     page.getByRole('button', { name: new RegExp(custName) })
   ).toContainText('₹1,000.00') // remaining due

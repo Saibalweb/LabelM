@@ -39,6 +39,7 @@ interface PaymentEmbed {
   payment_date: string
   payment_mode: PaymentMode
   notes: string | null
+  received_by_name: string | null
 }
 
 interface InvoiceRow {
@@ -60,7 +61,7 @@ interface InvoiceRow {
 }
 
 const LIST_COLUMNS =
-  'id, invoice_number, customer_id, period_start, period_end, total_amount, total_weight, status, due_date, created_at, company_snapshot, customer_snapshot, customers(name, address, email, phone), invoice_payments(id, amount, payment_date, payment_mode, notes)'
+  'id, invoice_number, customer_id, period_start, period_end, total_amount, total_weight, status, due_date, created_at, company_snapshot, customer_snapshot, customers(name, address, email, phone), invoice_payments(id, amount, payment_date, payment_mode, notes, received_by_name)'
 
 const DETAIL_COLUMNS = `${LIST_COLUMNS}, labels(id, sl_no, label_date, weight, rate, amount)`
 
@@ -103,7 +104,7 @@ function toPayment(row: PaymentEmbed): InvoicePayment {
     date: row.payment_date,
     mode: row.payment_mode,
     notes: row.notes,
-    receivedBy: null,
+    receivedBy: row.received_by_name ?? null,
   }
 }
 

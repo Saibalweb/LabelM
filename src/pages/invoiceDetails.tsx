@@ -493,12 +493,15 @@ export function InvoiceDetails() {
                               ) : null}
                             </span>
                           </div>
-                          <div className="flex justify-between text-xs text-on-surface-variant">
-                            <span>
+                          <div className="flex justify-between gap-2 text-xs text-on-surface-variant">
+                            <span className="min-w-0 truncate">
                               {paymentModes.find((item) => item.value === payment.mode)?.label ??
                                 payment.mode}
+                              {payment.receivedBy ? ` · by ${payment.receivedBy}` : ''}
                             </span>
-                            {payment.notes ? <span>{payment.notes}</span> : null}
+                            {payment.notes ? (
+                              <span className="shrink-0 text-right">{payment.notes}</span>
+                            ) : null}
                           </div>
                         </li>
                       ))}

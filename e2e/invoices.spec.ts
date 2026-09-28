@@ -46,6 +46,8 @@ test('invoice wizard, payment lifecycle and status recalculation', async ({ page
   await page.getByRole('button', { name: 'Save Payment' }).click()
   await expect(page.getByText('Partial', { exact: true })).toBeVisible({ timeout: 10_000 })
   await expect(page.getByText('₹600.00').first()).toBeVisible()
+  // Payment history attributes the payment to the recording employee
+  await expect(page.getByText(/· by /).first()).toBeVisible()
 
   // Record the remainder → Paid
   await page.getByRole('button', { name: 'Record Payment' }).click()

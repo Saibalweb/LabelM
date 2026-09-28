@@ -227,6 +227,20 @@ this surfaced a pre-existing bug where "Oldest Due"/"currently overdue" were mea
 latest due date in the result set instead of today. Fixed and covered by
 `e2e/dues-due-dates.spec.ts` — see `checklist/duesChecklist.md` §6.
 
+## 12. Payment history shows the recording employee
+
+Payments stamp `received_by = auth.uid()` on insert (trigger in `20260917032920_invoice_payments.sql`),
+but the UI never surfaced it. The payment list on the invoice details page now names the employee.
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | `invoice_payments.received_by_name` snapshotted by the insert trigger (migration `20260928130000_invoice_payment_received_by_name.sql`); `invoiceService` selects it in `LIST_COLUMNS`/`DETAIL_COLUMNS` and maps it to `InvoicePayment.receivedBy`. Chosen over embedding `employees(full_name)` because that table is owner/admin-only via RLS | Done |
+| 2 | The payment-history row renders `Cash · by <name>` when `receivedBy` is present, and falls back to the mode alone when the employee was purged/absent | Done |
+| 3 | Notes keep their right-aligned position; the recorder line truncates to avoid overflow | Done |
+| 4 | Unit tests: `invoices.test.ts` maps the embedded name; `invoicePaymentList.test.tsx` renders `by Ada Lovelace` | Done |
+
+**Verdict: DONE** — every payment in the invoice details list shows who recorded it.
+
 ## Verification
 
 - [x] Unit tests: **234 passed**

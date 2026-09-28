@@ -118,15 +118,6 @@ function inAgingBucket(days: number, bucket: DueAgingBucket): boolean {
   return days > 60
 }
 
-function initials(name: string): string {
-  return name
-    .split(' ')
-    .map((part) => part.charAt(0))
-    .slice(0, 2)
-    .join('')
-    .toUpperCase()
-}
-
 function useDebouncedValue<T>(value: T, delay = 300): T {
   const [debounced, setDebounced] = useState(value)
   useEffect(() => {
@@ -551,7 +542,7 @@ export function Dues() {
                                 avatarStyles[customer.tone % avatarStyles.length]
                               )}
                             >
-                              {initials(customer.customer)}
+                              #{customer.customerId}
                             </div>
                             <div className="min-w-0">
                               <div className="truncate font-body-md text-body-md font-medium text-on-surface">

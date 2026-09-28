@@ -1,9 +1,10 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { Invoice } from '@/lib/types'
 
 const data = vi.hoisted(() => ({
+  settings: null as { invoiceOptions: Record<string, boolean> } | null,
   invoice: {
     id: 1,
     invoiceNumber: 'INV-0001',
@@ -47,7 +48,7 @@ vi.mock('@/hooks/queries', () => ({
   useUpdatePayment: () => ({ mutateAsync: vi.fn() }),
   useDeletePayment: () => ({ mutateAsync: vi.fn() }),
   useCompanyProfileQuery: () => ({ data: null }),
-  useAppSettingsQuery: () => ({ data: null }),
+  useAppSettingsQuery: () => ({ data: data.settings }),
 }))
 
 vi.mock('@/store/hooks', () => ({
@@ -71,11 +72,24 @@ function renderDetails() {
 }
 
 describe('InvoiceDetails payment history', () => {
+  beforeEach(() => {
+    data.settings = null
+  })
+
   it('shows the employee who recorded each payment', () => {
     renderDetails()
 
     expect(screen.getByText('Payment History')).toBeInTheDocument()
     expect(screen.getByText(/by Ada Lovelace/)).toBeInTheDocument()
     expect(screen.getByText(/^Cash/)).toBeInTheDocument()
+  })
+
+  it('shows the due date even when the print toggle hides it', () => {
+    data.settings = { invoiceOptions: { showDueDate: false } }
+
+    renderDetails()
+
+    expect(screen.getByText('Due Date')).toBeInTheDocument()
+    expect(screen.getByText('15 Oct 2026')).toBeInTheDocument()
   })
 })

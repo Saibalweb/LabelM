@@ -427,6 +427,14 @@ export function InvoiceDetails() {
                 <div className="mb-6 rounded border border-outline-variant bg-surface-container-lowest p-5">
                   <div className="mb-4 flex items-end justify-between border-b border-surface-variant pb-4">
                     <span className="font-label-md text-label-md text-on-surface-variant">
+                      Due Date
+                    </span>
+                    <span className="font-label-md text-label-md font-bold text-on-surface">
+                      {invoice.dueDate ? formatDate(invoice.dueDate) : '—'}
+                    </span>
+                  </div>
+                  <div className="mb-4 flex items-end justify-between border-b border-surface-variant pb-4">
+                    <span className="font-label-md text-label-md text-on-surface-variant">
                       Paid Amount
                     </span>
                     <span className="text-[20px] font-bold text-secondary">

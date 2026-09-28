@@ -430,3 +430,49 @@ describe('invoiceService rpc wrappers', () => {
     expect(results[1].skipped).toBe('no_labels')
   })
 })
+
+describe('invoiceService.listAll', () => {
+  it('selects detail columns with line items and no pagination', async () => {
+    const { query, calls } = createChain(() => ({ data: [invoiceRow], error: null }))
+    supabaseMock.from.mockReturnValue(query)
+
+    const result = await invoiceService.listAll({}, 'oldest')
+
+    expect(result).toHaveLength(1)
+    expect(result[0].lineItems).toHaveLength(3)
+    expect(filterCalls(calls, 'range')).toEqual([])
+    expect(filterCalls(calls, 'order')[0]).toEqual(['created_at', { ascending: true }])
+    const select = filterCalls(calls, 'select')[0][0] as string
+    expect(select).toContain('labels(')
+  })
+
+  it('throws when the query errors', async () => {
+    const { query } = createChain(() => ({ data: null, error: new Error('boom') }))
+    supabaseMock.from.mockReturnValue(query)
+    await expect(invoiceService.listAll()).rejects.toThrow('boom')
+  })
+})
+
+describe('invoiceService.listByIds', () => {
+  it('returns invoices in the requested id order', async () => {
+    const { query, calls } = createChain(() => ({
+      data: [
+        { ...invoiceRow, id: 12, invoice_number: 'INV-0012' },
+        { ...invoiceRow, id: 11, invoice_number: 'INV-0011' },
+      ],
+      error: null,
+    }))
+    supabaseMock.from.mockReturnValue(query)
+
+    const result = await invoiceService.listByIds([11, 12, 99])
+
+    expect(result.map((invoice) => invoice.id)).toEqual([11, 12])
+    expect(filterCalls(calls, 'in')[0]).toEqual(['id', [11, 12, 99]])
+  })
+
+  it('short-circuits for an empty id list', async () => {
+    const result = await invoiceService.listByIds([])
+    expect(result).toEqual([])
+    expect(supabaseMock.from).not.toHaveBeenCalled()
+  })
+})

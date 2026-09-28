@@ -35,7 +35,7 @@ vi.mock('@/hooks/queries', () => ({
 }))
 
 const exportLabelsPdf = vi.hoisted(() => vi.fn())
-vi.mock('@/lib/labelPdf', () => ({ exportLabelsPdf, exportLabelPdf: vi.fn() }))
+vi.mock('@/lib/documentPdf', () => ({ exportLabelsPdf, exportLabelPdf: vi.fn() }))
 
 vi.mock('@/lib/supabase', () => ({ supabase: {} }))
 

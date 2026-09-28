@@ -107,7 +107,7 @@ redirect allowlist is incomplete. Apply on **both staging and prod**
 
 | Feature | Location | Effort / notes |
 |---------|----------|----------------|
-| **Export labels** | `src/pages/dashboard.tsx` | ✅ **Done as PDF** — header button exports the selection, else the full filtered set; bulk bar exports selected labels (`src/lib/labelPdf.ts`). **CSV** still not implemented. |
+| **Export labels** | `src/pages/dashboard.tsx` | ✅ **Done as PDF** — header button exports the selection, else the full filtered set; bulk bar exports selected labels (`src/lib/documentPdf.ts`). **CSV** still not implemented. |
 | **Download PDF** (label) | `src/pages/preview.tsx` | ✅ **Done** — jsPDF, configured label size, `₹`→`Rs ` sanitised. |
 | **Share via WhatsApp** | `src/pages/preview.tsx` | `wa.me` deep link |
 | **Saved filter presets** | `src/pages/dashboard.tsx:801` | Persist named filter sets |
@@ -124,7 +124,7 @@ Status: **done** (`20260928120000_company_settings_and_bulk_print.sql`, `src/pag
 
 | Item | State |
 |------|-------|
-| `LabelPrintCard.tsx` + `printLabel.ts` + preview refactor | ✅ Done |
+| `LabelPrintCard.tsx` + `printDocument.ts` + preview refactor | ✅ Done |
 | Print CSS generalised for **N sheets** (`.label-sheet`, one page per label, configured size) | ✅ Done |
 | `mark_labels_printed(p_ids)` SECURITY DEFINER RPC + migration | ✅ Done |
 | `labelService.markPrinted(ids)` + `useBulkMarkPrinted()` | ✅ Done |

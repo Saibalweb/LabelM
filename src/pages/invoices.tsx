@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import {
   ArrowRight,
   ArrowUpDown,
@@ -9,9 +10,11 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Download,
   Eye,
   Loader2,
   Plus,
+  Printer,
   RotateCcw,
   Search,
   SlidersHorizontal,
@@ -29,8 +32,19 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { BulkInvoiceDialog } from '@/components/invoices/BulkInvoiceDialog'
+import { InvoicePrintCard } from '@/components/invoices/InvoicePrintCard'
 import { useAppSelector } from '@/store/hooks'
-import { useCustomersQuery, useInvoiceListQuery } from '@/hooks/queries'
+import {
+  useAppSettingsQuery,
+  useCompanyProfileQuery,
+  useCustomersQuery,
+  useInvoiceListQuery,
+} from '@/hooks/queries'
+import { invoiceService } from '@/services/invoices'
+import { resolveInvoiceOptions } from '@/lib/documentOptions'
+import { resolveCompanyHeader } from '@/lib/invoiceDocument'
+import { exportInvoicesPdf } from '@/lib/documentPdf'
+import { runInvoicePrint } from '@/lib/printDocument'
 import { hasRole } from '@/lib/roles'
 import {
   currentMonthValue,
@@ -125,6 +139,13 @@ export function Invoices() {
   const [sortBy, setSortBy] = useState<InvoiceSortKey>('newest')
   const [page, setPage] = useState(1)
   const [bulkOpen, setBulkOpen] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [bulkPrintInvoices, setBulkPrintInvoices] = useState<Invoice[] | null>(null)
+  const [exporting, setExporting] = useState(false)
+
+  const { data: companyProfile } = useCompanyProfileQuery()
+  const { data: appSettings } = useAppSettingsQuery()
+  const invoiceOptions = resolveInvoiceOptions(appSettings?.invoiceOptions)
 
   const debouncedQuery = useDebouncedValue(query)
   const debouncedMinAmount = useDebouncedValue(minAmount)
@@ -166,6 +187,11 @@ export function Invoices() {
     // oxlint-disable-next-line react/set-state-in-effect
     setPage(1)
   }, [filters, sortBy])
+
+  useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect
+    setSelectedIds(new Set())
+  }, [filters, sortBy, page])
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   useEffect(() => {
@@ -256,6 +282,77 @@ export function Invoices() {
   const handleGenerate = () => navigate('/invoice/new')
   const handleView = (invoice: Invoice) => navigate(`/invoice/${invoice.id}`)
 
+  const allSelected = invoices.length > 0 && invoices.every((invoice) => selectedIds.has(invoice.id))
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAllPage = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (allSelected) {
+        invoices.forEach((invoice) => next.delete(invoice.id))
+      } else {
+        invoices.forEach((invoice) => next.add(invoice.id))
+      }
+      return next
+    })
+  }
+
+  const loadInvoices = async (): Promise<Invoice[]> => {
+    if (selectedIds.size > 0) return invoiceService.listByIds([...selectedIds])
+    return invoiceService.listAll(filters, sortBy)
+  }
+
+  const exportPdf = async (invoicesToExport: Invoice[]) => {
+    await exportInvoicesPdf(invoicesToExport, {
+      company: companyProfile ?? null,
+      options: invoiceOptions,
+    })
+  }
+
+  const handleExportFiltered = async () => {
+    setExporting(true)
+    try {
+      const toExport = await loadInvoices()
+      if (toExport.length === 0) {
+        toast.info('No invoices to export.')
+        return
+      }
+      await exportPdf(toExport)
+      toast.success(`Exported ${toExport.length} invoice${toExport.length === 1 ? '' : 's'} to PDF`)
+    } catch {
+      toast.error('Failed to export PDF.')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const handleBulkPrint = async () => {
+    if (selectedIds.size === 0) return
+    try {
+      const selected = await invoiceService.listByIds([...selectedIds])
+      if (selected.length === 0) return
+      setBulkPrintInvoices(selected)
+    } catch {
+      toast.error('Failed to load invoices for printing.')
+    }
+  }
+
+  useEffect(() => {
+    if (!bulkPrintInvoices) return
+    runInvoicePrint('invoicePrintArea')
+    const clear = () => setBulkPrintInvoices(null)
+    window.addEventListener('afterprint', clear)
+    return () => window.removeEventListener('afterprint', clear)
+  }, [bulkPrintInvoices])
+
   const listStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
   const listEnd = total === 0 ? 0 : Math.min(page * PAGE_SIZE, total)
   const showFilterLoading = isFetching && !loading && page === 1
@@ -345,27 +442,39 @@ export function Invoices() {
                 Track billing, payments, and outstanding dues for your customers.
               </p>
             </div>
-            {canManage ? (
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setBulkOpen(true)}
-                  className="h-[52px] min-h-[52px] gap-2 rounded-lg border-outline-variant bg-surface-container-lowest px-5 font-label-md text-label-md text-primary hover:bg-surface-container-low hover:text-primary"
-                >
-                  <Users className="size-5" />
-                  Generate for All
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleGenerate}
-                  className="h-[52px] min-h-[52px] gap-2 rounded-lg px-6 font-label-md text-label-md"
-                >
-                  <Plus className="size-5" />
-                  Generate Invoice
-                </Button>
-              </div>
-            ) : null}
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleExportFiltered}
+                disabled={exporting}
+                className="h-[52px] min-h-[52px] gap-2 rounded-lg border-outline-variant bg-surface-container-lowest px-5 font-label-md text-label-md text-primary hover:bg-surface-container-low hover:text-primary"
+              >
+                <Download className="size-5" />
+                {exporting ? 'Exporting…' : 'Export PDF'}
+              </Button>
+              {canManage ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setBulkOpen(true)}
+                    className="h-[52px] min-h-[52px] gap-2 rounded-lg border-outline-variant bg-surface-container-lowest px-5 font-label-md text-label-md text-primary hover:bg-surface-container-low hover:text-primary"
+                  >
+                    <Users className="size-5" />
+                    Generate for All
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleGenerate}
+                    className="h-[52px] min-h-[52px] gap-2 rounded-lg px-6 font-label-md text-label-md"
+                  >
+                    <Plus className="size-5" />
+                    Generate Invoice
+                  </Button>
+                </>
+              ) : null}
+            </div>
           </div>
 
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-outline-variant bg-surface-container-lowest p-4 shadow-sm">
@@ -418,6 +527,43 @@ export function Invoices() {
             </div>
           </div>
 
+          {selectedIds.size > 0 ? (
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
+              <span className="font-label-md text-label-md font-semibold text-on-surface">
+                {selectedIds.size} selected
+              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleExportFiltered}
+                  disabled={exporting}
+                  className="h-10 gap-2 rounded-lg border-outline-variant bg-surface-container-lowest font-label-md text-label-md"
+                >
+                  <Download className="size-[18px]" />
+                  Export PDF
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleBulkPrint}
+                  className="h-10 gap-2 rounded-lg font-label-md text-label-md"
+                >
+                  <Printer className="size-[18px]" />
+                  Print {selectedIds.size}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="h-10 gap-2 rounded-lg font-label-md text-label-md text-on-surface-variant"
+                >
+                  <X className="size-[18px]" />
+                  Clear
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
           <div className="relative overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm">
             {showFilterLoading ? (
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface-container-lowest/70">
@@ -431,6 +577,19 @@ export function Invoices() {
               <table className="w-full min-w-[1000px] border-collapse text-left">
                 <thead>
                   <tr className="border-b border-outline-variant bg-surface-container-low font-label-sm text-label-sm tracking-wider text-on-surface-variant uppercase">
+                    <th className="w-12 p-6">
+                      <input
+                        type="checkbox"
+                        aria-label="Select all invoices on this page"
+                        checked={allSelected}
+                        disabled={invoices.length === 0}
+                        ref={(el) => {
+                          if (el) el.indeterminate = selectedIds.size > 0 && !allSelected
+                        }}
+                        onChange={toggleSelectAllPage}
+                        className="size-4 rounded accent-primary"
+                      />
+                    </th>
                     <th className="p-6 font-semibold">Customer</th>
                     <th className="p-6 font-semibold">Invoice ID</th>
                     <th className="p-6 font-semibold">Billing Period</th>
@@ -446,14 +605,14 @@ export function Invoices() {
                   {loading ? (
                     Array.from({ length: 3 }).map((_, i) => (
                       <tr key={i} className="border-b border-outline-variant">
-                        <td colSpan={9} className="p-6">
+                        <td colSpan={10} className="p-6">
                           <div className="h-6 animate-pulse rounded bg-surface-container-high" />
                         </td>
                       </tr>
                     ))
                   ) : invoices.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="p-10 text-center font-body-md text-body-md text-on-surface-variant">
+                      <td colSpan={10} className="p-10 text-center font-body-md text-body-md text-on-surface-variant">
                         No invoices match your filters.
                       </td>
                     </tr>
@@ -464,6 +623,15 @@ export function Invoices() {
                         onClick={() => handleView(invoice)}
                         className="cursor-pointer border-b border-outline-variant transition-colors last:border-b-0 hover:bg-surface-container-low"
                       >
+                        <td className="w-12 p-6" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(invoice.id)}
+                            onChange={() => toggleSelect(invoice.id)}
+                            aria-label={`Select invoice ${invoice.invoiceNumber}`}
+                            className="size-4 rounded accent-primary"
+                          />
+                        </td>
                         <td className="p-6">
                           <div className="flex items-center gap-3">
                             <div
@@ -889,6 +1057,20 @@ export function Invoices() {
       </Sheet>
 
       <BulkInvoiceDialog open={bulkOpen} onOpenChange={setBulkOpen} />
+
+      {bulkPrintInvoices ? (
+        <div id="invoicePrintArea" className="hidden">
+          {bulkPrintInvoices.map((invoice) => (
+            <div key={invoice.id} className="invoice-sheet">
+              <InvoicePrintCard
+                invoice={invoice}
+                company={resolveCompanyHeader(invoice.companySnapshot, companyProfile ?? null)}
+                options={invoiceOptions}
+              />
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }

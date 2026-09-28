@@ -73,9 +73,9 @@ import {
 import { labelService } from '@/services/labels'
 import { LabelEditDialog } from '@/components/labels/LabelEditDialog'
 import { LabelPrintCard } from '@/components/labels/LabelPrintCard'
-import { exportLabelsPdf } from '@/lib/labelPdf'
+import { exportLabelsPdf } from '@/lib/documentPdf'
 import { formatCurrency, formatDate } from '@/lib/format'
-import { runLabelPrint } from '@/lib/printLabel'
+import { runLabelPrint } from '@/lib/printDocument'
 import type {
   BillingFilter,
   Label,

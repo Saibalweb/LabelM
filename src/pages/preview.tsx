@@ -12,8 +12,8 @@ import {
   useLabelQuery,
   useUpdateLabel,
 } from '@/hooks/queries'
-import { exportLabelPdf } from '@/lib/labelPdf'
-import { runLabelPrint } from '@/lib/printLabel'
+import { exportLabelPdf } from '@/lib/documentPdf'
+import { runLabelPrint } from '@/lib/printDocument'
 
 export function Preview() {
   const { id } = useParams<{ id: string }>()

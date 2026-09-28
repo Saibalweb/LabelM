@@ -10,7 +10,7 @@ Print/status behavior: Billed labels not selectable (locked). Already-printed un
 ## 1. Shared label card + print helper (refactor, no behavior change)
 
 - New `src/components/labels/LabelPrintCard.tsx` — extract the 60×40mm label markup currently inline in `src/pages/preview.tsx:144-172` (customer name, SL No, date, weight, amount).
-- New `src/lib/printLabel.ts` — owns the print CSS (moved from `src/pages/preview.tsx:16-91`) plus a `runLabelPrint(areaId)` helper: inject style → `window.print()` → cleanup on `afterprint`. Generalized to support multiple sheets via `.label-sheet { page-break-after: always; }`.
+- New `src/lib/printDocument.ts` — owns the print CSS (moved from `src/pages/preview.tsx:16-91`) plus a `runLabelPrint(areaId)` helper: inject style → `window.print()` → cleanup on `afterprint`. Generalized to support multiple sheets via `.label-sheet { page-break-after: always; }`.
 - Refactor `preview.tsx` to use `LabelPrintCard` + `runLabelPrint('printLabel')`. Single-label behavior must be unchanged.
 
 ## 2. Service + RPC for status flip

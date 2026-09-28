@@ -196,8 +196,12 @@ const sortColumn: Record<InvoiceSortKey, { column: string; ascending: boolean }>
   'amount-asc': { column: 'total_amount', ascending: true },
 }
 
-function buildListQuery(filters: InvoiceFilters = {}, matchingIds: number[] = []) {
-  let query = supabase.from('invoices').select(LIST_COLUMNS, { count: 'exact' })
+function buildListQuery(
+  filters: InvoiceFilters = {},
+  matchingIds: number[] = [],
+  columns: string = LIST_COLUMNS
+) {
+  let query = supabase.from('invoices').select(columns, { count: 'exact' })
 
   const q = sanitizeTerm(filters.query ?? '')
   if (q) {
@@ -283,6 +287,39 @@ export const invoiceService = {
       data: (data ?? []).map((row) => toInvoice(row as unknown as InvoiceRow)),
       total: count ?? 0,
     }
+  },
+
+  async listAll(
+    filters: InvoiceFilters = {},
+    sortBy: InvoiceSortKey = 'newest'
+  ): Promise<Invoice[]> {
+    const sort = sortColumn[sortBy]
+    const matchingIds = await resolveSearchIds(filters)
+    let query = buildListQuery(filters, matchingIds, DETAIL_COLUMNS)
+    query = query.order(sort.column, { ascending: sort.ascending })
+    if (sort.column !== 'id') query = query.order('id', { ascending: false })
+
+    const { data, error } = await query
+    if (error) throw new Error(error.message)
+    return (data ?? []).map((row) => toInvoice(row as unknown as InvoiceRow))
+  },
+
+  async listByIds(ids: number[]): Promise<Invoice[]> {
+    if (ids.length === 0) return []
+    const { data, error } = await supabase
+      .from('invoices')
+      .select(DETAIL_COLUMNS)
+      .in('id', ids)
+    if (error) throw new Error(error.message)
+    const byId = new Map(
+      (data ?? []).map((row) => [
+        (row as { id: number }).id,
+        toInvoice(row as unknown as InvoiceRow),
+      ])
+    )
+    return ids
+      .map((id) => byId.get(id))
+      .filter((invoice): invoice is Invoice => invoice != null)
   },
 
   async listDue(filters: DueFilters = {}): Promise<Invoice[]> {

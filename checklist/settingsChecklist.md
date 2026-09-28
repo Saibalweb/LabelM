@@ -10,7 +10,7 @@ Related files:
 - `src/components/settings/CompanyDetailsSection.tsx`, `LabelPrintingSection.tsx`
 - `src/lib/labelPresets.ts`, `src/lib/documentOptions.ts`
 - `src/pages/settings.tsx`, `src/pages/invoiceDetails.tsx`
-- Tests: `src/services/__tests__/settings.test.ts`, `src/lib/__tests__/labelPresets.test.ts`, `src/lib/__tests__/documentOptions.test.ts`, `src/lib/__tests__/labelPdf.test.ts`, `src/components/labels/__tests__/LabelPrintCard.test.tsx`
+- Tests: `src/services/__tests__/settings.test.ts`, `src/lib/__tests__/labelPresets.test.ts`, `src/lib/__tests__/documentOptions.test.ts`, `src/lib/__tests__/documentPdf.test.ts`, `src/components/labels/__tests__/LabelPrintCard.test.tsx`
 
 ---
 
@@ -78,7 +78,7 @@ Related files:
 | 8 | `showPhone` | off | Done |
 | 9 | `showAddress` | off | Done |
 
-Disabled fields are omitted from both the on-screen card and the PDF (unit-tested in `LabelPrintCard.test.tsx` and `labelPdf.test.ts`).
+Disabled fields are omitted from both the on-screen card and the PDF (unit-tested in `LabelPrintCard.test.tsx` and `documentPdf.test.ts`).
 
 ## 5. Invoice content toggles (`invoice_options`)
 
@@ -123,7 +123,7 @@ Disabled fields are omitted from both the on-screen card and the PDF (unit-teste
 
 ## 9. Verification
 
-- [x] Unit tests: `settings.test.ts` (profile/settings mapping, defaults, partial-option merge, upsert), `labelPresets.test.ts` (all size edge cases above), `documentOptions.test.ts` (merge/resilience), `labelPdf.test.ts` (size, one page per label, rupee sanitisation, option filtering), `LabelPrintCard.test.tsx` (toggle-driven fields, label phone)
+- [x] Unit tests: `settings.test.ts` (profile/settings mapping, defaults, partial-option merge, upsert), `labelPresets.test.ts` (all size edge cases above), `documentOptions.test.ts` (merge/resilience), `documentPdf.test.ts` (size, one page per label, rupee sanitisation, option filtering), `LabelPrintCard.test.tsx` (toggle-driven fields, label phone)
 - [x] `oxlint` clean
 - [x] `tsc -b` clean
 - [x] Production build succeeds (jsPDF code-split into its own chunk)

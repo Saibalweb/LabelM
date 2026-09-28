@@ -8,7 +8,7 @@ Related files:
 - `src/pages/dashboard.tsx` — selection column, select-all, bulk action bar, hidden `#bulkPrintArea`
 - `src/services/labels.ts` — `markPrinted`, `listAll`
 - `supabase/migrations/20260928120000_company_settings_and_bulk_print.sql` — `mark_labels_printed`
-- `src/lib/labelPdf.ts`, `src/lib/printLabel.ts` — size-aware PDF/print
+- `src/lib/documentPdf.ts`, `src/lib/printDocument.ts` — size-aware PDF/print
 - Tests: `src/pages/__tests__/dashboardBulk.test.tsx`, `src/services/__tests__/labels.test.ts`, `e2e/bulkPrint.spec.ts`, `e2e/bulkPrintStatus.spec.ts`
 
 ---

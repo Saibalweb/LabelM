@@ -137,7 +137,7 @@ Specs under `e2e/`:
 
 | Spec | Covers |
 |---|---|
-| `auth-basic.spec.ts` | Login success/wrong password, logged-out redirect with `from`, logout, suspended → `/unauthorized`, staff blocked from `/team` + `/invoice/new`, trial-mode toasts |
+| `auth-basic.spec.ts` | Login success/wrong password, logged-out redirect with `from`, logout, trial-mode toasts |
 | `navigation.spec.ts` | Every route, back buttons, catch-all `*` → `/`, `RequireAuth`/`RequireRole` gating |
 | `labels.spec.ts` | Create → preview → print → status changes → edit → **billed label locked** |
 | `invoices.spec.ts` | Wizard (3 steps), bulk generate, record/edit/delete payment, status recalc (Unpaid→Partial→Paid), overdue filter |
@@ -145,7 +145,7 @@ Specs under `e2e/`:
 | `customers.spec.ts` | CRUD, rate change, soft-delete/restore, empty state |
 | `dues.spec.ts` | Aggregation, search, sort, expand rows, record-payment link |
 | `team-stub.spec.ts` | Team page shows coming-soon in trial mode (no real invites) |
-| `roles.spec.ts` | Owner/admin/staff capability matrix from `authPlan.md` (11 capabilities) |
+| `roles.spec.ts` | **RBAC capability matrix** (`authPlan.md §3`) as owner/admin/staff: admin-only routes (`/invoice/new`, `/team`), settings view-only vs edit, invoice generation, customer archive/restore, owner-only invite/promote admins. Run `npm run test:e2e:roles` — uses fixed `OWNER_/ADMIN_/STAFF_EMAIL`+`_PASSWORD` from `.env` and needs `VITE_TRIAL_MODE=false`; no service-role key required. |
 
 Auth setup: create test users via the **Auth admin API** (service role) —
 no emails. Playwright `storageState` reuses one logged-in session per role.

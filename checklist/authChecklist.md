@@ -136,10 +136,17 @@ perform" and "the Team UI removes members by suspension only — no hard delete"
 |---|---|---|---|
 | 52 | invite email is delivered from `noreply@saibal.dev` | arrives | ✅ pass |
 | 53 | magic-link email arrives, click logs in | logged in | ✅ pass |
-| 54 | reset email arrives, click → set password | reset form | ❌ **BUG 5** |
-| 55 | emailed invite link reaches `/accept-invite` | accept form | ❌ **BUG 4** |
-| 56 | re-invite sends a fresh email | new mail | ❌ **BUG 1** |
-| 57 | link host = app origin (not `<ref>.supabase.co`) | correct | ❌ **BUG 4/5** |
+| 54 | reset email arrives, click → set password | reset form | ❌ **BUG 5** (config) — Tier 2 blocked by YOPmail |
+| 55 | emailed invite link reaches `/accept-invite` | accept form | ❌ **BUG 4** (config) — Tier 2 blocked by YOPmail |
+| 56 | re-invite sends a fresh email | new mail | 🔧 BUG 1 fixed (Tier 1 green) — Tier 2 rerun pending |
+| 57 | link host = app origin (not `<ref>.supabase.co`) | correct | ❌ **BUG 4/5** (config) — Tier 2 blocked by YOPmail |
+
+> **Why 54–57 are still red:** these are the only Tier 2 rows, and Tier 2 needs a
+> real emailed link. **54/55/57** are BUG 4/5 — Auth URL config (Site URL +
+> redirect allowlist), dashboard-side, not yet applied. **56** is BUG 1, now
+> fixed in code and green in Tier 1; it just awaits a Tier 2 rerun. None can be
+> re-verified until the Auth URL config is applied *and* YOPmail's Turnstile
+> cooldown passes (or `mailbox.ts` is swapped for Mailtrap/MailSlurp).
 
 > **YOPmail throttling:** repeated polling triggers YOPmail's anti-bot handshake
 > throttle, which surfaces as `totalEmails: -1`. The reader treats that as a
@@ -235,18 +242,14 @@ now stops the trigger's `mousedown` from reaching the document handler.
       `src/components/auth/AuthListener.tsx`), and remove the `restricted` race
       where `onAuthStateChange` fetches the invitee's profile before
       `activate_my_membership` flips it to `active`.
-- [ ] **Next phase (deferred): RBAC capability matrix — `e2e/roles.spec.ts`.**
-      Drive the app as owner/admin/staff and assert the 13-capability matrix
-      (`authPlan.md §3`) at the UI level: `/invoice/new` + `/team` blocked for
-      staff (`App.tsx` `RequireRole role="admin"`), settings read-only for staff
-      (`settings.tsx`), archive/restore hidden for staff (`customers.tsx`),
-      payment delete owner/admin only (`invoiceDetails.tsx`), invite/promote
-      admins owner-only. Prereqs: `SUPABASE_SERVICE_ROLE_KEY` (to create the
-      admin/staff users) + owner creds — same as Tier 1. Constraint: needs
-      `VITE_TRIAL_MODE=false` so `/team` renders the real page, which conflicts
-      with the trial-mode specs (`team-stub.spec.ts`, `navigation.spec.ts:26`,
-      `smoke.spec.ts:12,19`, `auth-basic.spec.ts:36,43,50`) — gate those with a
-      flag or run in a separate pass. Also tracked in `finalTodo.md §2.5`.
+- [x] **RBAC capability matrix — `e2e/roles.spec.ts` (shipped, 14/14 green).**
+      Drives the app as owner/admin/staff (fixed `.env` creds) and asserts:
+      `/invoice/new` + `/team` blocked for staff, settings view-only vs editable,
+      invoice-generation gating, customer archive/restore gating, and owner-only
+      "invite/promote admins". Run `npm run test:e2e:roles` (needs
+      `ADMIN_EMAIL`/`ADMIN_PASSWORD` + `STAFF_EMAIL`/`STAFF_PASSWORD` and
+      `VITE_TRIAL_MODE=false`; no service-role key). **Deferred:** payment-delete
+      gating needs a seeded invoice+payment. Also tracked in `finalTodo.md §2.5`.
 
 ## 6. Tier 2 results (real SMTP, 2026-09-27)
 
@@ -275,3 +278,82 @@ the inbox frame loads `challenges.cloudflare.com/.../turnstile/...`.
 Two facts were still proven before the challenge appeared: the invite email is
 delivered from `noreply@saibal.dev`, and a magic-link email click signs the
 member in.
+
+## 7. Manual Tier 2 runbook (real SMTP) — TODO
+
+Tier 2 verifies the **actual emailed links** end-to-end. It is the only place
+BUG 4/5 (invite/reset redirect URLs) can be observed, and YOPmail's Turnstile
+currently blocks the automated reader (§6). Use this manual pass until
+`mailbox.ts` is swapped for Mailtrap/MailSlurp.
+
+### 7.1 Prerequisites
+
+- [ ] SMTP configured on **staging** (Supabase → Auth → SMTP Settings); sender
+      `noreply@saibal.dev` for now.
+- [ ] **Auth URL Configuration** on staging: **Site URL** = the app origin, and
+      allowlist `<origin>/accept-invite` + `<origin>/reset-password`. (This is the
+      BUG 4/5 fix — without it the links fall back to the Site URL.)
+- [ ] `invite-user` + `revoke-user` deployed to staging.
+- [ ] `ALLOWED_ORIGINS` / `APP_URL` secrets set (so the browser can call the
+      functions) — see `finalTodo.md §2.8`.
+- [ ] App running locally: `npm run dev`, `.env` → staging, `VITE_TRIAL_MODE=false`.
+- [ ] A YOPmail inbox you can open in a browser (e.g. `labelm-e2e-manual@yopmail.com`).
+- [ ] `OWNER_EMAIL` / `OWNER_PASSWORD` in `.env` for the app sign-in.
+
+### 7.2 Automated attempt (if YOPmail cooperates)
+
+```bash
+E2E_EMAIL=1 \
+SUPABASE_SERVICE_ROLE_KEY=... \
+E2E_STAGING_REF=hleadfeikniejvlhbqzd \
+npm run test:e2e:email
+```
+
+If it fails on `totalEmails: -1` / a Turnstile page, do the manual pass below.
+
+### 7.3 Manual procedure
+
+**Case A — invite delivery + link target + onboarding (tests 52/55/57)**
+1. Sign in as the owner in the app → **Team** → **Invite member**.
+2. Enter `labelm-e2e-manual@yopmail.com`, role **Staff** → **Send invitation**.
+3. Open <https://yopmail.com>, enter the address, solve the Turnstile if shown.
+4. Confirm the email arrived from the expected sender, subject "You've been
+   invited…".
+5. Inspect the CTA link: host must be the **app origin** (e.g.
+   `http://localhost:5173`), path **`/accept-invite`**, with
+   `?token_hash=…&type=invite`. If it points at the LAN IP or `/`, **BUG 4 is not
+   fixed** (Site URL / allowlist).
+6. Click it → the **Accept invitation** form appears.
+7. Fill name + password → **Accept invitation & sign in** → dashboard; the member
+   row shows **Active**.
+
+**Case B — re-invite sends a fresh email (test 56)**
+1. With that same pending email, **Team** → row **Member options** → **Resend invite**.
+2. Confirm no 500 (the row is not duplicated) and a **new** email arrives with a
+   different link/token.
+
+**Case C — password reset (tests 50/54)**
+1. Sign out → **Forgot password?** → enter the manual inbox → **Send reset link**.
+2. Open the reset email → the link must land on **`/reset-password`** with a
+   recovery session (not `/`). If it lands on `/`, **BUG 5 is not fixed**.
+3. Set a new password → redirected to `/login` → sign in with the new password.
+
+**Case D — magic link (tests 49/53)**
+1. Login page → **Email me a magic link** → inbox.
+2. Click the link → lands on the dashboard, signed in.
+
+### 7.4 Pass criteria
+
+| Case | Clears |
+|------|--------|
+| A — invite link lands on `/accept-invite` + onboarding | 52, 55, 57 (BUG 4) |
+| B — re-invite delivers a fresh email, no 500/duplicate | 56 (BUG 1) |
+| C — reset link lands on `/reset-password` | 50, 54 (BUG 5) |
+| D — magic link signs in | 49, 53 |
+
+- [ ] Case A passed
+- [ ] Case B passed
+- [ ] Case C passed
+- [ ] Case D passed
+- [ ] (Optional) Swap `e2e/fixtures/mailbox.ts` for Mailtrap/MailSlurp so Tier 2
+      runs in CI again, then re-run `npm run test:e2e:email`.

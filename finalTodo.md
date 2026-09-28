@@ -53,6 +53,10 @@ Concrete settings (Auth → URL Configuration):
 `supabase/config.toml` mirrors the local-dev allowlist; the hosted dashboard is
 the source of truth for staging/prod.
 
+**Manual verification:** BUG 4/5 are only observable through a real emailed link.
+Follow the manual Tier 2 runbook in `authChecklist.md §7` (prereqs, per-case
+steps, pass criteria) since YOPmail's Turnstile blocks the automated reader.
+
 ### 1.3 Known non-blocking bugs / risks
 
 | # | Bug | Notes |
@@ -102,7 +106,7 @@ the source of truth for staging/prod.
 
 ### 2.5 Testing gaps (`TESTING.md`, checklists)
 
-- [ ] **`e2e/roles.spec.ts` — RBAC capability matrix (deferred; referenced but does not exist).** Drive the app as owner/admin/staff and assert the 13-capability matrix (`authPlan.md §3`) at the UI level: `/invoice/new` + `/team` blocked for staff (`App.tsx` `RequireRole role="admin"`), settings read-only for staff (`settings.tsx`), archive/restore hidden for staff (`customers.tsx`), payment delete owner/admin only (`invoiceDetails.tsx`), invite/promote admins owner-only. Prereqs: `SUPABASE_SERVICE_ROLE_KEY` + owner creds (same as Tier 1). Constraint: needs `VITE_TRIAL_MODE=false` (real `/team`), which conflicts with the trial-mode specs (`team-stub`, `navigation.spec.ts:26`, `smoke.spec.ts:12,19`, `auth-basic.spec.ts:36,43,50`) — gate those with a flag or run separately. See `TESTING.md §5.3`, `authChecklist.md §5`.
+- [x] **`e2e/roles.spec.ts` — RBAC capability matrix (shipped, 14/14 green).** Drives the app as owner/admin/staff (fixed creds from `.env`) and asserts the UI-level matrix: `/invoice/new` + `/team` blocked for staff, settings view-only vs editable, invoice-generation button gating, customer archive/restore ("Deleted customers") gating, and owner-only "invite/promote admins". Run `npm run test:e2e:roles` (needs `ADMIN_EMAIL`/`ADMIN_PASSWORD` + `STAFF_EMAIL`/`STAFF_PASSWORD`, `VITE_TRIAL_MODE=false`; no service-role key). **Not yet covered:** payment-delete gating (owner/admin) — needs a seeded invoice+payment. See `TESTING.md §5.3`, `authChecklist.md §5`.
 - [ ] `scripts/seed-data.ts` + `scripts/reset-db.sql` — **referenced but missing**; large-data seed (12–15k labels) + `EXPLAIN ANALYZE` perf pass (`TESTING.md §5.4`).
 - [ ] Invoice-generation **concurrency** tests (`invoiceChecklist.md §9`, rows 1–4).
 - [ ] Dues seed-data **combination matrix** live pass (`duesChecklist.md §2`, rows 1–5).

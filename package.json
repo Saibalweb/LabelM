@@ -13,6 +13,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:auth": "playwright test auth-invite auth-login auth-membership",
+    "test:e2e:roles": "playwright test roles",
     "test:e2e:email": "E2E_EMAIL=1 playwright test auth-email-delivery"
   },
   "dependencies": {

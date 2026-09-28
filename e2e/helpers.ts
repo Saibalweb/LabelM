@@ -5,6 +5,13 @@ import { envValue } from './fixtures/env'
 export const OWNER_EMAIL = envValue('OWNER_EMAIL') || 'saibalkole@gmail.com'
 export const OWNER_PASSWORD = envValue('OWNER_PASSWORD') || 'ChangeMe123!'
 
+// Fixed admin/staff accounts for the RBAC matrix (e2e/roles.spec.ts). Unlike the
+// owner, these have no fallback — the spec skips when they are unset.
+export const ADMIN_EMAIL = envValue('ADMIN_EMAIL')
+export const ADMIN_PASSWORD = envValue('ADMIN_PASSWORD')
+export const STAFF_EMAIL = envValue('STAFF_EMAIL')
+export const STAFF_PASSWORD = envValue('STAFF_PASSWORD')
+
 export function stubPrint(page: Page) {
   return page.addInitScript(() => {
     window.print = () => {}

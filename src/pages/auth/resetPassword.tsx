@@ -7,18 +7,8 @@ import { TextField } from '@/components/auth/TextField'
 import { Button } from '@/components/ui/button'
 import { useAppSelector } from '@/store/hooks'
 import { authService } from '@/services/auth'
+import { passwordChecks, scorePassword, STRENGTH_LABELS } from '@/lib/password'
 import { cn } from '@/lib/utils'
-
-function scorePassword(password: string): number {
-  let score = 0
-  if (password.length >= 8) score++
-  if (/[0-9]/.test(password)) score++
-  if (/[^A-Za-z0-9]/.test(password)) score++
-  if (/[A-Z]/.test(password)) score++
-  return score
-}
-
-const strengthLabels = ['Too weak', 'Weak', 'Fair', 'Good', 'Strong']
 
 export function ResetPassword() {
   const navigate = useNavigate()
@@ -29,11 +19,7 @@ export function ResetPassword() {
   const [submitting, setSubmitting] = useState(false)
 
   const score = useMemo(() => scorePassword(password), [password])
-  const checks = [
-    { label: 'At least 8 characters', ok: password.length >= 8 },
-    { label: 'Contains a number', ok: /[0-9]/.test(password) },
-    { label: 'Contains a symbol', ok: /[^A-Za-z0-9]/.test(password) },
-  ]
+  const checks = passwordChecks(password)
   const valid = checks.every((c) => c.ok) && password === confirm && password.length > 0
 
   const needsSession = status !== 'authenticated' && status !== 'restricted'
@@ -115,7 +101,7 @@ export function ResetPassword() {
                 ))}
               </div>
               <span className="w-16 text-right font-label-sm text-label-sm text-on-surface-variant">
-                {strengthLabels[score]}
+                {STRENGTH_LABELS[score]}
               </span>
             </div>
           </div>

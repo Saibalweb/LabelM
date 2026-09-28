@@ -91,7 +91,7 @@ redirect allowlist is incomplete. Apply on **both staging and prod**
 
 ### 2.6 Functional gaps to resolve
 
-- [x] **`company_profile` + `app_settings`** — **implemented** (`20260928120000_company_settings_and_bulk_print.sql`). Company details (name, tagline, contact, address, email, website, GSTIN, labeled phones), label size presets + custom with a 4×6in ceiling, `label_prefix`/`invoice_prefix`, `auto_mark_printed`, and `label_options`/`invoice_options` content toggles (incl. `showDueDate`). Label header no longer hardcodes "My Company Name"; invoices snapshot the company/customer header. UI in `src/pages/settings.tsx`; see `checklist/settingsChecklist.md`. Still deferred: **logo upload** (Storage bucket), **currency** / **tax_rate**.
+- [x] **`company_profile` + `app_settings`** — **implemented** (`20260928120000_company_settings_and_bulk_print.sql`). Company details (name, tagline, contact, address, email, website, GSTIN, labeled phones), label size presets + custom with a 4×6in ceiling, `label_prefix`/`invoice_prefix`, `auto_mark_printed`, and `label_options`/`invoice_options` content toggles (incl. `showDueDate`). Label header no longer hardcodes "My Company Name"; invoices snapshot the company/customer header. UI in `src/pages/settings.tsx`; see `checklist/settingsChecklist.md`. Settings now render **read-only summaries with modal editing** (staff view-only), plus **change password** and **sign out this/all devices** (`settingsChecklist.md §10`). Still deferred: **logo upload** (Storage bucket), **currency** / **tax_rate**.
 - [ ] Decide ship-or-hide for every "coming soon" stub in §3.
 
 ### 2.7 Documentation drift (⚪ non-blocking)
@@ -111,12 +111,13 @@ redirect allowlist is incomplete. Apply on **both staging and prod**
 | **Download PDF** (label) | `src/pages/preview.tsx` | ✅ **Done** — jsPDF, configured label size, `₹`→`Rs ` sanitised. |
 | **Share via WhatsApp** | `src/pages/preview.tsx` | `wa.me` deep link |
 | **Saved filter presets** | `src/pages/dashboard.tsx:801` | Persist named filter sets |
-| **Change password** | `src/pages/settings.tsx:112` | `authService.updatePassword` already exists — easy win |
-| **Sign out of all devices** | `src/pages/settings.tsx:164` | Supabase session revoke |
+| **Change password** | `src/components/settings/ChangePasswordDialog.tsx` | ✅ **Done** — settings modal with strength meter + rules; `authService.updatePassword` |
+| **Sign out of all devices** | `src/pages/settings.tsx` | ✅ **Done** — `authService.signOutAllDevices()` (`signOut({ scope: 'global' })`); this-device sign-out has a confirm dialog too |
+| **Read-only settings + edit modal** | `src/components/settings/*` | ✅ **Done** — company details & label/printing render summaries, edited via modal; staff see values but no Edit action |
 | **Theme presets / dark mode** | `src/pages/settings.tsx` | Per-user preference → to be stored in `localStorage` (decided); `next-themes` provider already mounted |
-| **Cloud sync** | `src/pages/settings.tsx` | Copy is stale ("stored locally") — data is already in Supabase |
+| **Cloud sync** | — | ✅ **Removed** — toast-only stub deleted; About copy now says data is synced to the workspace |
 | **Auto-mark as printed** | `src/components/settings/LabelPrintingSection.tsx` | ✅ **Persisted** in `app_settings.auto_mark_printed` (real toggle, not a toast). Behaviour wiring into the create flow still pending. |
-| **Notifications** | `src/pages/settings.tsx` | Toggle only toasts; no persistence (per-user, localStorage later) |
+| **Notifications** | — | ✅ **Removed** — toast-only stub deleted (no persistence model) |
 
 ### 3.1 Bulk Print + Bulk PDF Export — ✅ SHIPPED
 
@@ -160,7 +161,7 @@ Status: **done** (`20260928120000_company_settings_and_bulk_print.sql`, `src/pag
 2. 🔴 Auth URL config BUG 4–6 (staging + prod).
 3. ✅ ~~`company_settings` (branding / tax / prefixes)~~ — shipped as `company_profile` + `app_settings` (§2.6, §3.1).
 4. 🟠 Prod deployment runbook (§2.1–2.4) + pending migrations (incl. `20260928120000_company_settings_and_bulk_print.sql`).
-5. 🟡 Wire remaining easy stubs: Export CSV, Change password, dark-mode toggle (per-user via localStorage).
+5. 🟡 Wire remaining easy stubs: Export CSV, dark-mode toggle (per-user via localStorage). ✅ Settings view/edit + change-password + sign-out-device(s) shipped (`settingsChecklist.md §10`).
 6. 🟡 Testing gaps (§2.5) — at minimum `roles.spec.ts` + concurrency tests.
 7. ✅ ~~Bulk print~~ — shipped, with bulk PDF export (§3.1).
 8. ⚪ Optional: purge, audit log, WhatsApp share, logo upload, currency/tax.

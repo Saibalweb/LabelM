@@ -119,16 +119,45 @@ Disabled fields are omitted from both the on-screen card and the PDF (unit-teste
 |---|------|--------|
 | 1 | `company_profile` / `app_settings` selectable by any active member | Migration |
 | 2 | Insert/update/delete restricted to owner/admin | Migration |
-| 3 | Settings UI is read-only for staff (inputs disabled, Save hidden) | Done |
+| 3 | Settings UI is read-only for staff — values are visible, the **Edit** action and modal are hidden | Done |
 
 ## 9. Verification
 
 - [x] Unit tests: `settings.test.ts` (profile/settings mapping, defaults, partial-option merge, upsert), `labelPresets.test.ts` (all size edge cases above), `documentOptions.test.ts` (merge/resilience), `documentPdf.test.ts` (size, one page per label, rupee sanitisation, option filtering), `LabelPrintCard.test.tsx` (toggle-driven fields, label phone)
+- [x] `auth.test.ts` covers `updatePassword`, `signOut` and `signOutAllDevices`
 - [x] `oxlint` clean
 - [x] `tsc -b` clean
 - [x] Production build succeeds (jsPDF code-split into its own chunk)
 
-**Follow-ups / deferred:**
+## 10. Settings UX — view/edit, security & layout (2026-09-28)
+
+Read-only display with modal editing, account security actions, and a settings
+page redesign. Files: `src/pages/settings.tsx`,
+`src/components/settings/CompanyDetailsSection.tsx`,
+`src/components/settings/LabelPrintingSection.tsx`,
+`src/components/settings/SectionHeader.tsx`,
+`src/components/settings/ChangePasswordDialog.tsx`, `src/lib/password.ts`.
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | Company Details renders a **read-only summary** (name, tagline, contact, GSTIN, email, website, address, labelled phones) | Done |
+| 2 | An **Edit** button opens the editable form in a modal dialog; Save persists and closes | Done |
+| 3 | Label & Printing renders a **read-only summary** (size, prefixes, content chips, auto-mark) with the same Edit-modal pattern | Done |
+| 4 | Staff see all values but no Edit button (view-only); a banner explains the restriction | Done |
+| 5 | **Change password** opens a modal with new/confirm fields, show/hide, strength meter and rule checks (`authService.updatePassword`) | Done |
+| 6 | Password strength helpers shared with the reset-password page via `src/lib/password.ts` | Done |
+| 7 | **Sign out of this device** — confirmation dialog → `authService.signOut()` | Done |
+| 8 | **Sign out of all devices** — confirmation dialog → `authService.signOutAllDevices()` (`signOut({ scope: 'global' })`) | Done |
+| 9 | Removed the **Notifications** preference stub (toast-only, no persistence) | Done |
+| 10 | Removed the **Sync with cloud** stub; About copy now states data is synced to the workspace | Done |
+| 11 | Page typography hierarchy: eyebrow → page title (`headline-lg`) → section title (`headline-md`) → body/labels | Done |
+| 12 | Shared `SectionHeader` gives every settings section a consistent icon chip, title, description and action slot | Done |
+| 13 | Global heading scale raised (`headline-lg`/`headline` 30px, mobile 26px) so page titles outrank section titles | Done |
+
+## 11. Follow-ups / deferred
+
 - Logo upload (Supabase Storage bucket + policy) — column `logo_url` reserved.
 - `currency` / `tax_percent` — deferred (currency is hardcoded across `format.ts`; invoice has no tax line and `amount = round(weight*rate,2)` is a DB invariant).
-- Per-user preferences (theme, notifications) — to be stored in `localStorage` later, per product decision.
+- Per-user preferences (theme) — to be stored in `localStorage` later, per product decision.
+- Device/session **list** with per-session revoke — Supabase exposes no per-session listing; current scope is this-device + global only.
+- Notifications preference — deferred until a persistence model exists.

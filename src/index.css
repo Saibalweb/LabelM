@@ -11,15 +11,15 @@
   --font-sans: 'Hanken Grotesk Variable', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
 
-  --text-headline: 28px;
-  --text-headline--line-height: 34px;
+  --text-headline: 30px;
+  --text-headline--line-height: 38px;
   --text-headline--font-weight: 700;
-  --text-headline-mobile: 24px;
-  --text-headline-mobile--line-height: 30px;
+  --text-headline-mobile: 26px;
+  --text-headline-mobile--line-height: 32px;
   --text-headline-mobile--font-weight: 700;
 
-  --text-headline-lg: 28px;
-  --text-headline-lg--line-height: 34px;
+  --text-headline-lg: 30px;
+  --text-headline-lg--line-height: 38px;
   --text-headline-lg--font-weight: 700;
   --text-headline-md: 20px;
   --text-headline-md--line-height: 26px;

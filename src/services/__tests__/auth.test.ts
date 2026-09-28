@@ -137,6 +137,19 @@ describe('authService.signOut', () => {
   })
 })
 
+describe('authService.signOutAllDevices', () => {
+  it('revokes every session with a global scope', async () => {
+    supabaseMock.auth.signOut.mockResolvedValue({ error: null })
+    await expect(authService.signOutAllDevices()).resolves.toBeUndefined()
+    expect(supabaseMock.auth.signOut).toHaveBeenCalledWith({ scope: 'global' })
+  })
+
+  it('throws the sign-out error', async () => {
+    supabaseMock.auth.signOut.mockResolvedValue({ error: { message: 'nope' } })
+    await expect(authService.signOutAllDevices()).rejects.toThrow('nope')
+  })
+})
+
 describe('authService.inviteUser', () => {
   it('invokes the invite-user edge function with email + role', async () => {
     supabaseMock.functions.invoke.mockResolvedValue({ data: { ok: true, id: 'u9' }, error: null })

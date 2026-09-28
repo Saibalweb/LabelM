@@ -46,6 +46,11 @@ export const authService = {
     if (error) throw new Error(error.message || FALLBACK)
   },
 
+  async signOutAllDevices() {
+    const { error } = await supabase.auth.signOut({ scope: 'global' })
+    if (error) throw new Error(error.message || FALLBACK)
+  },
+
   async inviteUser({ email, role }: { email: string; role: Role }) {
     const { data, error } = await supabase.functions.invoke('invite-user', {
       body: { email, role },

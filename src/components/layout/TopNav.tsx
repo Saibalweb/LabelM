@@ -142,7 +142,7 @@ export function TopNav({
           </Button>
         ) : (
           <span className="truncate font-headline-md text-headline-md font-bold text-primary md:hidden">
-            LabelMaster Pro
+            Maira Cam 3D
           </span>
         )}
 

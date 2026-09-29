@@ -69,13 +69,14 @@ beforeEach(() => {
 })
 
 describe('Login in trial mode', () => {
-  it('keeps the magic-link and forgot-password entry points visible', () => {
+  it('keeps the forgot-password entry point visible', () => {
     renderLogin()
-    expect(screen.getByRole('button', { name: /Email me a magic link/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Email me a magic link/ })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Forgot password?' })).toBeInTheDocument()
   })
 
-  it('shows a coming-soon toast for the magic-link flow without calling the API', async () => {
+  // TEMP: magic-link sign-in disabled from the UI.
+  it.skip('shows a coming-soon toast for the magic-link flow without calling the API', async () => {
     const user = userEvent.setup()
     renderLogin()
 
@@ -149,7 +150,8 @@ describe('Login in trial mode', () => {
 })
 
 describe('Login outside trial mode', () => {
-  it('runs the real magic-link flow and navigates away', async () => {
+  // TEMP: magic-link sign-in disabled from the UI.
+  it.skip('runs the real magic-link flow and navigates away', async () => {
     env.trial = false
     const user = userEvent.setup()
     authServiceMock.requestMagicLink.mockResolvedValue(undefined)

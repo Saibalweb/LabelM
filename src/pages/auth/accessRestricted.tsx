@@ -22,7 +22,7 @@ export function AccessRestricted() {
           Your account isn't authorized for this workspace. Contact your administrator to request
           access.
         </p>
-        <div className="mt-7 w-full space-y-3">
+        <div className="mt-7 w-full">
           <Button
             type="button"
             onClick={handleSignOut}
@@ -30,12 +30,6 @@ export function AccessRestricted() {
           >
             Sign out
           </Button>
-          <a
-            href="mailto:support@labelmaster.io"
-            className="block w-full py-2 text-center font-label-md text-label-md text-primary hover:underline"
-          >
-            Contact support
-          </a>
         </div>
       </div>
     </AuthLayout>

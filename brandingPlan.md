@@ -1,6 +1,6 @@
 # LabelM — Branding / Logo Rebrand Plan (Maira Cam 3D)
 
-> Status: **PLANNED — not implemented.** Save for later execution.
+> Status: **IMPLEMENTED** (email templates split into dev/ + prod/ per request).
 > Scope decision: **Option A — full rebrand of the visible app to "Maira Cam 3D".**
 
 ## 1. Decisions locked
@@ -71,33 +71,41 @@ No test asserts the "LabelMaster" UI text (only an unrelated e2e email prefix
 | `src/pages/auth/accessRestricted.tsx` | 34 | real support address (confirm) |
 | `index.html` | 7 | `<title>Maira Cam 3D</title>` |
 
-### 4.2 Logo wiring
+### 4.2 Logo wiring (implemented)
 
-- `src/components/invoices/InvoicePrintCard.tsx:47-49` — replace the `<Layers>`
-  box with `<img src={logo} alt="Maira Cam 3D" className="h-12 w-auto">`.
-- `src/lib/documentPdf.ts` `drawInvoice` (~line 219) — add
-  `doc.addImage(logoDataUrl, 'PNG', left, y, w, h)` before the company header and
-  shift `y` down.
-- `public/favicon.svg` — new brand mark.
-- New `src/components/brand/Logo.tsx` — reusable inline-SVG component (optional).
-- `src/components/labels/LabelPrintCard.tsx` — has no brand mark (company name
-  text only); leave unless a logo is explicitly wanted on labels.
+- `src/components/invoices/InvoicePrintCard.tsx` — the `<Layers>` box is now
+  `<img src={logoUrl} ... className="size-12 shrink-0 object-contain">`.
+- `src/lib/documentPdf.ts` — imports the mark via
+  `@/assets/brand/logo.png?inline` (Vite inlines it as a base64 data URL) and
+  calls `doc.addImage(logoDataUrl, 'PNG', left, A4_MARGIN_MM - 1, 12, 12)`; the
+  company header starts at `A4_MARGIN_MM + 14`.
+- `src/vite-env.d.ts` — ambient declarations for `*.png?inline` / `*.svg?inline`.
+- `public/favicon.svg` — new brand mark (filled hexagon + white M).
+- Assets: `src/assets/brand/logo.svg` (+ `logo.png`),
+  `public/brand/logo-email.png`.
+- `LabelPrintCard.tsx` — left as-is (company name text only).
 
-### 4.3 Email templates
+### 4.3 Email templates — dev/ and prod/ split (implemented)
 
-Files: `supabase/templates/invite.html`, `magic-link.html`, `recovery.html`.
+Two folders under `supabase/templates/`:
 
-1. Replace the `<td>LM</td>` badge with
-   `<img src="https://<origin>/brand/logo-email.png" width="40" height="40" alt="Maira Cam 3D" style="display:block;border:0;">`
-   (keep alt text for images-off clients).
-2. Rename all copy `LabelMaster Pro` → `Maira Cam 3D` (subject, `<title>`,
-   headings, footer).
-3. `recovery.html` — switch the CTA to
+- `supabase/templates/dev/` — **unchanged** "LabelMaster Pro" copies. Wired in
+  `config.toml` for local `supabase start`.
+- `supabase/templates/prod/` — rebranded "Maira Cam 3D" copies. Paste these into
+  the hosted dashboard (Auth → Email Templates).
+
+Prod changes:
+1. The `<td>LM</td>` badge is replaced with
+   `<img src="https://mairacam.in/brand/logo-email.png" width="40" height="40" alt="Maira Cam 3D" style="display:block;border:0;border-radius:10px;">`
+   (prod logo domain is hardcoded to `mairacam.in`; auth links still use
+   `.RedirectTo` / `.SiteURL` for tokens).
+2. All copy renamed `LabelMaster Pro` → `Maira Cam 3D`; accent `#0058bc` →
+   `#1E5EFF`; subtitle → "Direct Castable & Non-Castable".
+3. `prod/recovery.html` — CTA switched to
    `{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=recovery`
-   (per `finalTodo.md` BUG 6; `invite.html` already does this).
-4. `supabase/config.toml` — add `[auth.email.template.invite]`,
-   `[auth.email.template.magic_link]`, `[auth.email.template.recovery]` with
-   `subject` + `content_path` so local dev uses these files.
+   (per `finalTodo.md` BUG 6).
+4. `config.toml` — `[auth.email.template.{invite,magic_link,recovery}]` point at
+   `./supabase/templates/dev/*.html` with project-root-relative paths.
 
 > Emails cannot be dynamic per-tenant: GoTrue only exposes fixed variables
 > (`.ConfirmationURL`, `.SiteURL`, `.RedirectTo`, `.Email`, `.Data.*`). The email
@@ -128,10 +136,10 @@ Files: `supabase/templates/invite.html`, `magic-link.html`, `recovery.html`.
 - Manual preview: login screen, sidebar/topnav, settings, an invoice print card,
   and `exportInvoicePdf`.
 
-## 8. Open items (answer before implementing)
+## 8. Open items
 
-1. Export the logo from Stitch (SVG/PNG), or hand-author the SVG to match?
-2. Real support email to replace `support@labelmaster.io` in
-   `accessRestricted.tsx`?
-3. Confirm the tagline stays **"Direct Castable & Non-Castable"** under the
-   wordmark.
+1. Logo — hand-authored SVG (`src/assets/brand/logo.svg`); swap if a Stitch
+   export is preferred.
+2. Support email — removed from `src/pages/auth/accessRestricted.tsx`
+   (production domain: `mairacam.in`).
+3. Tagline — confirmed as "Direct Castable & Non-Castable".

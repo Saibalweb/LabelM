@@ -144,11 +144,11 @@ function BrandPanel() {
           <div className="flex items-center gap-2.5 text-primary">
             <QrCode className="size-9" />
             <span className="font-label-md text-label-md font-semibold tracking-widest text-outline uppercase">
-              LabelMaster Ecosystem
+              Maira 3D Ecosystem
             </span>
           </div>
           <h1 className="font-headline-lg text-headline-lg leading-none font-extrabold tracking-tight text-on-background">
-            LabelMaster <span className="text-primary">Pro</span>
+            Maira Cam <span className="text-primary">3D</span>
           </h1>
           <p className="max-w-lg font-body-lg text-body-lg text-on-surface-variant">
             High-precision labeling, batch management &amp; intelligent logistics in one unified
@@ -191,7 +191,7 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
               <QrCode className="size-5" />
             </span>
             <span className="font-headline-md text-headline-md font-semibold text-primary">
-              LabelMaster Pro
+              Maira Cam 3D
             </span>
           </div>
 

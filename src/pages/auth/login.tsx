@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ArrowRight, Eye, EyeOff, Info, KeyRound, Link2, Mail } from 'lucide-react'
+import { ArrowRight, Eye, EyeOff, Info, KeyRound, Mail } from 'lucide-react'
 import { AuthLayout } from '@/components/auth/AuthLayout'
 import { TextField } from '@/components/auth/TextField'
 import { Button } from '@/components/ui/button'
@@ -51,26 +51,28 @@ export function Login() {
     }
   }
 
-  async function handleMagicLink() {
-    if (TRIAL_MODE) {
-      toast.info('Magic link is available in the final delivery.')
-      return
-    }
-    if (!email.trim()) {
-      setError('Enter your work email first to receive a magic link.')
-      return
-    }
-    setError(null)
-    setSubmitting(true)
-    try {
-      await authService.requestMagicLink(email.trim())
-      navigate('/magic-link-sent', { state: { email: email.trim() } })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : DEFAULT_ERROR)
-    } finally {
-      setSubmitting(false)
-    }
-  }
+  // TEMP: magic-link sign-in is disabled from the UI. Restore this handler
+  // (and the "Email me a magic link" button below) to re-enable it.
+  // async function handleMagicLink() {
+  //   if (TRIAL_MODE) {
+  //     toast.info('Magic link is available in the final delivery.')
+  //     return
+  //   }
+  //   if (!email.trim()) {
+  //     setError('Enter your work email first to receive a magic link.')
+  //     return
+  //   }
+  //   setError(null)
+  //   setSubmitting(true)
+  //   try {
+  //     await authService.requestMagicLink(email.trim())
+  //     navigate('/magic-link-sent', { state: { email: email.trim() } })
+  //   } catch (err) {
+  //     setError(err instanceof Error ? err.message : DEFAULT_ERROR)
+  //   } finally {
+  //     setSubmitting(false)
+  //   }
+  // }
 
   return (
     <AuthLayout title="Sign in" subtitle="Use your company account">
@@ -153,6 +155,7 @@ export function Login() {
           {!submitting ? <ArrowRight className="size-5" /> : null}
         </Button>
 
+        {/* TEMP: magic-link sign-in disabled from the UI.
         <div className="flex items-center justify-center py-1">
           <div className="h-px flex-1 bg-surface-container-highest" />
           <span className="mx-4 font-label-sm text-label-sm text-outline-variant uppercase">or</span>
@@ -169,6 +172,7 @@ export function Login() {
           <Link2 className="size-5 text-outline" />
           Email me a magic link
         </Button>
+        */}
       </form>
     </AuthLayout>
   )

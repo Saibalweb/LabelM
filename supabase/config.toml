@@ -39,6 +39,25 @@ enable_signup = false
 enable_confirmations = true
 
 # ---------------------------------------------------------------------------
+# Auth email templates — DEV copies (still "LabelMaster Pro").
+# Local `supabase start` uses these files. Production uses the rebranded
+# "Maira Cam 3D" copies in supabase/templates/prod/, which must be pasted into
+# the hosted dashboard (Auth -> Email Templates); the hosted project does not
+# read this file. Paths are relative to the project root.
+# ---------------------------------------------------------------------------
+[auth.email.template.invite]
+subject = "You've been invited to LabelMaster Pro"
+content_path = "./supabase/templates/dev/invite.html"
+
+[auth.email.template.magic_link]
+subject = "Your LabelMaster Pro sign-in link"
+content_path = "./supabase/templates/dev/magic-link.html"
+
+[auth.email.template.recovery]
+subject = "Reset your LabelMaster Pro password"
+content_path = "./supabase/templates/dev/recovery.html"
+
+# ---------------------------------------------------------------------------
 # Custom SMTP — NOT enabled yet. The project still uses Supabase's built-in
 # email relay (rate-limited, team members only). When the client has a domain,
 # switch to a real provider (e.g. ZeptoMail) by filling in the block below and

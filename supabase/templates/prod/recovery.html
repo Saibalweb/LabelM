@@ -1,0 +1,127 @@
+<!--
+  Maira Cam 3D — Supabase Auth email template: "Reset Password" (recovery, PRODUCTION)
+  Subject: Reset your Maira Cam 3D password
+  Variables used: .RedirectTo, .TokenHash, .SiteURL, .Email
+  The app requests this via resetPasswordForEmail(email, { redirectTo: '.../reset-password' })
+  (src/services/auth.ts). The CTA links to {{ .RedirectTo }}?token_hash=...&type=recovery
+  so the app's /reset-password route receives the token (see finalTodo.md BUG 6).
+  The brand logo is served from the app origin (https://mairacam.in/brand/logo-email.png).
+-->
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light only" />
+    <meta name="supported-color-schemes" content="light only" />
+    <title>Reset your Maira Cam 3D password</title>
+    <style>
+      body { margin: 0; padding: 0; width: 100% !important; background-color: #f9f9fc; }
+      table { border-collapse: collapse; }
+      a { color: #1E5EFF; }
+      .lm-link { word-break: break-all; }
+      @media (max-width: 600px) {
+        .lm-container { width: 100% !important; border-radius: 0 !important; }
+        .lm-px { padding-left: 22px !important; padding-right: 22px !important; }
+        .lm-btn a { display: block !important; }
+      }
+    </style>
+  </head>
+  <body style="margin:0;padding:0;background-color:#f9f9fc;color:#1a1c1e;">
+    <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">
+      Reset the password for your Maira Cam 3D account. This link expires in 15 minutes.
+    </div>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9f9fc;">
+      <tr>
+        <td align="center" style="padding:32px 16px;">
+          <table role="presentation" class="lm-container" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background-color:#ffffff;border:1px solid #e2e2e5;border-radius:12px;overflow:hidden;">
+            <tr>
+              <td style="height:4px;line-height:4px;font-size:0;background-color:#1E5EFF;">&nbsp;</td>
+            </tr>
+
+            <!-- Brand -->
+            <tr>
+              <td class="lm-px" style="padding:28px 32px 0;">
+                <table role="presentation" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td width="40" height="40" align="center" valign="middle" style="width:40px;height:40px;">
+                      <img src="https://mairacam.in/brand/logo-email.png" width="40" height="40" alt="Maira Cam 3D" style="display:block;width:40px;height:40px;border:0;border-radius:10px;" />
+                    </td>
+                    <td style="padding-left:12px;">
+                      <div style="font-family:'Hanken Grotesk',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:18px;line-height:22px;font-weight:700;color:#1a1c1e;">Maira Cam <span style="color:#1E5EFF;">3D</span></div>
+                      <div style="font-family:'JetBrains Mono',ui-monospace,Consolas,monospace;font-size:10px;line-height:14px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:#717786;">Direct Castable &amp; Non-Castable</div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Badge -->
+            <tr>
+              <td class="lm-px" style="padding:28px 32px 0;">
+                <span style="display:inline-block;background-color:#d8e2ff;color:#001a41;font-family:'JetBrains Mono',ui-monospace,Consolas,monospace;font-size:10px;line-height:14px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;padding:6px 12px;border-radius:9999px;">Password reset</span>
+              </td>
+            </tr>
+
+            <!-- Heading + body -->
+            <tr>
+              <td class="lm-px" style="padding:16px 32px 0;">
+                <h1 style="margin:0;font-family:'Hanken Grotesk',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:26px;line-height:32px;font-weight:700;color:#1a1c1e;">Reset your Maira Cam&nbsp;3D password</h1>
+                <p style="margin:14px 0 0;font-family:'Hanken Grotesk',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;color:#414755;">
+                  We received a request to reset the password for your Maira Cam&nbsp;3D account. Click the button below to choose a new password.
+                </p>
+              </td>
+            </tr>
+
+            <!-- CTA -->
+            <tr>
+              <td class="lm-px lm-btn" style="padding:28px 32px 0;">
+                <table role="presentation" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td align="center" bgcolor="#1E5EFF" style="border-radius:9999px;">
+                      <a href="{{ if .RedirectTo }}{{ .RedirectTo }}{{ else }}{{ .SiteURL }}/reset-password{{ end }}?token_hash={{ .TokenHash }}&amp;type=recovery" target="_blank" style="display:inline-block;padding:15px 34px;font-family:'Hanken Grotesk',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:20px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:9999px;">Reset password</a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Fallback link -->
+            <tr>
+              <td class="lm-px" style="padding:22px 32px 0;">
+                <p style="margin:0 0 6px;font-family:'Hanken Grotesk',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#717786;">Button not working? Copy and paste this link into your browser:</p>
+                <p class="lm-link" style="margin:0;font-family:'JetBrains Mono',ui-monospace,Consolas,monospace;font-size:12px;line-height:18px;color:#1E5EFF;">{{ if .RedirectTo }}{{ .RedirectTo }}{{ else }}{{ .SiteURL }}/reset-password{{ end }}?token_hash={{ .TokenHash }}&type=recovery</p>
+              </td>
+            </tr>
+
+            <!-- Divider -->
+            <tr>
+              <td class="lm-px" style="padding:26px 32px 0;">
+                <div style="height:1px;line-height:1px;font-size:0;background-color:#e2e2e5;">&nbsp;</div>
+              </td>
+            </tr>
+
+            <!-- Security note -->
+            <tr>
+              <td class="lm-px" style="padding:16px 32px 28px;">
+                <p style="margin:0;font-family:'Hanken Grotesk',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#717786;">
+                  This reset link expires in 15 minutes and can only be used once. If you didn't request a password reset, you can safely ignore this email — your password will not change.
+                </p>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td class="lm-px" style="padding:20px 32px;background-color:#f3f3f6;border-top:1px solid #e2e2e5;">
+                <p style="margin:0;font-family:'Hanken Grotesk',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;font-weight:600;color:#414755;">Maira Cam&nbsp;3D</p>
+                <p style="margin:4px 0 0;font-family:'JetBrains Mono',ui-monospace,Consolas,monospace;font-size:10px;line-height:16px;letter-spacing:0.4px;color:#717786;">Access is limited to authorized company members.</p>
+                <p style="margin:8px 0 0;font-family:'Hanken Grotesk',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:11px;line-height:16px;color:#8f95a3;">This is an automated message — please do not reply.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

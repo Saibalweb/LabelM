@@ -67,7 +67,7 @@ export function SideNav() {
     <nav className="fixed top-0 left-0 z-20 hidden h-screen w-64 flex-col gap-4 border-r border-outline-variant bg-surface-container-low p-4 md:flex">
       <div className="mb-4">
         <h1 className="font-headline-md text-headline-md font-semibold tracking-tight text-primary">
-          LabelMaster
+          Maira Cam 3D
         </h1>
         <p className="mt-1 font-label-sm text-label-sm tracking-wider text-on-surface-variant uppercase">
           Management Console

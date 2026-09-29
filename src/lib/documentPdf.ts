@@ -1,3 +1,4 @@
+import logoDataUrl from '@/assets/brand/logo.png?inline'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { DEFAULT_INVOICE_OPTIONS, DEFAULT_LABEL_OPTIONS } from '@/lib/documentOptions'
 import { resolveCompanyHeader, resolveInvoiceCustomer } from '@/lib/invoiceDocument'
@@ -215,8 +216,11 @@ function drawInvoice(
     doc.text(toPdfText(text), x, y, align ? { align } : undefined)
   }
 
+  // Brand mark (top-left)
+  doc.addImage(logoDataUrl, 'PNG', left, A4_MARGIN_MM - 1, 12, 12)
+
   // Company header (left)
-  let y = A4_MARGIN_MM + 4
+  let y = A4_MARGIN_MM + 14
   write(company.companyName || 'My Company', left, y, { size: 16, bold: true })
   y += 7
   if (options.showTagline && company.tagline) {

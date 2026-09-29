@@ -290,7 +290,7 @@ export function Settings() {
               <Info className="mt-0.5 size-5 shrink-0 text-on-surface-variant" />
               <div>
                 <p className="font-body-md text-body-md font-semibold text-on-surface">
-                  LabelMaster Pro
+                  Maira Cam 3D
                 </p>
                 <p className="mt-0.5 font-body-md text-body-md leading-relaxed text-on-surface-variant">
                   Label &amp; bill generator for inventory and retail use. Data is synced to your

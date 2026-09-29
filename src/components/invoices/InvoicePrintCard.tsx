@@ -1,4 +1,4 @@
-import { Layers } from 'lucide-react'
+import logoUrl from '@/assets/brand/logo.svg'
 import { DEFAULT_INVOICE_OPTIONS } from '@/lib/documentOptions'
 import { resolveInvoiceCustomer } from '@/lib/invoiceDocument'
 import { formatCurrency, formatDate } from '@/lib/format'
@@ -44,9 +44,7 @@ export function InvoicePrintCard({
     <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-8 shadow-sm print:rounded-none print:border-none print:p-0 print:shadow-none">
       <div className="mb-12 flex flex-col justify-between gap-6 border-b border-surface-variant pb-8 sm:flex-row sm:items-start">
         <div className="flex items-start gap-4">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded bg-primary text-on-primary">
-            <Layers className="size-7" />
-          </div>
+          <img src={logoUrl} alt="Maira Cam 3D" className="size-12 shrink-0 object-contain" />
           <div>
             <h2 className="font-headline-md text-headline-md text-primary">
               {company.companyName || 'My Company'}

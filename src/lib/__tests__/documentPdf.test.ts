@@ -10,6 +10,7 @@ const pdf = vi.hoisted(() => {
   const setDrawColor = vi.fn()
   const setLineWidth = vi.fn()
   const line = vi.fn()
+  const addImage = vi.fn()
   const getTextDimensions = vi.fn(() => ({ w: 10, h: 3 }))
   const jsPDF = vi.fn(function () {
     return {
@@ -21,6 +22,7 @@ const pdf = vi.hoisted(() => {
       setDrawColor,
       setLineWidth,
       line,
+      addImage,
       getTextDimensions,
     }
   })

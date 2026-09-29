@@ -437,7 +437,7 @@ export function Team() {
                 </span>
               </div>
               <p className="mt-1 font-body-md text-body-md text-on-surface-variant">
-                Manage who can access and configure LabelMaster Pro operations.
+                Manage who can access and configure Maira Cam 3D operations.
               </p>
             </div>
             <div className="flex items-center gap-3">

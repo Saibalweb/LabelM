@@ -76,7 +76,7 @@ export function AcceptInvite() {
 
   return (
     <AuthLayout
-      title="Welcome to LabelMaster Pro"
+      title="Welcome to Maira Cam 3D"
       subtitle="You've been invited to join this workspace."
     >
       <form className="space-y-5" onSubmit={handleSubmit}>

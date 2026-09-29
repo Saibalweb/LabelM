@@ -6,7 +6,7 @@ export function AppLayout() {
   return (
     <div className="h-screen overflow-hidden bg-background">
       <SideNav />
-      <div className="flex h-full flex-col md:ml-64">
+      <div className="flex h-full flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:ml-64 md:pb-0">
         <Outlet />
       </div>
       <BottomNav />

@@ -17,18 +17,22 @@ const admin = createClient(SERVICE_URL, SERVICE_ROLE_KEY, {
 // list set as a Supabase secret (see supabase/functions/.env.example); it falls
 // back to APP_URL, then '*' for local dev. CORS is not an auth boundary — the
 // gateway's verify_jwt + the role checks below are.
+// Normalise by dropping any trailing slash — browsers never send one in Origin,
+// so `https://app.com/` in the secret must still match `https://app.com`.
+const stripSlash = (value: string) => value.trim().replace(/\/+$/, '')
+
 const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
   .split(',')
-  .map((s) => s.trim())
+  .map(stripSlash)
   .filter(Boolean)
 
 function corsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get('Origin') ?? ''
+  const origin = stripSlash(req.headers.get('Origin') ?? '')
   const allowed = ALLOWED_ORIGINS.length
     ? ALLOWED_ORIGINS.includes(origin)
       ? origin
       : ALLOWED_ORIGINS[0]
-    : (Deno.env.get('APP_URL') ?? '*')
+    : stripSlash(Deno.env.get('APP_URL') ?? '') || '*'
   return {
     'Access-Control-Allow-Origin': allowed,
     'Access-Control-Allow-Headers':

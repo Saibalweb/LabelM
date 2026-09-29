@@ -146,6 +146,11 @@ to `APP_URL`, then `*` for local dev).
       invocation; redeploy if a warm instance doesn't pick them up).
 - [ ] Do **not** set `SUPABASE_URL` / `SUPABASE_ANON_KEY` /
       `SUPABASE_SERVICE_ROLE_KEY` — they are auto-injected.
+- [ ] Secret values must be **scheme + host only, no trailing slash**
+      (`https://app.pages.dev`, not `https://app.pages.dev/`) — the code strips a
+      trailing slash, but the deployed build must include that fix.
+- [ ] Add every origin that calls the functions (prod alias **and** any Pages
+      preview/branch domains you actually use).
 
 ---
 

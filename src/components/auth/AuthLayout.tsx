@@ -120,7 +120,7 @@ function PrinterIllustration() {
 
 function BrandPanel() {
   return (
-    <aside className="relative hidden w-1/2 flex-col justify-between overflow-hidden px-12 py-10 lg:flex">
+    <aside className="relative hidden flex-col overflow-hidden lg:col-span-6 lg:flex">
       <div className="pointer-events-none absolute inset-0 -z-10 opacity-35">
         <svg className="h-full w-full text-outline-variant" fill="none" xmlns="http://www.w3.org/2000/svg">
           <defs>
@@ -132,14 +132,14 @@ function BrandPanel() {
         </svg>
       </div>
 
-      <div className="inline-flex w-fit items-center gap-2 self-start rounded-full bg-accent px-3.5 py-1.5 text-primary shadow-sm">
-        <BadgeCheck className="size-4" />
-        <span className="font-label-sm text-label-sm font-semibold tracking-wider uppercase">
-          Next-Gen Labeling &amp; Inventory Platform
-        </span>
-      </div>
+      <div className="relative flex flex-col space-y-8">
+        <div className="inline-flex w-fit items-center gap-2 self-start rounded-full bg-accent px-3.5 py-1.5 text-primary shadow-sm">
+          <BadgeCheck className="size-4" />
+          <span className="font-label-sm text-label-sm font-semibold tracking-wider uppercase">
+            Next-Gen Labeling &amp; Inventory Platform
+          </span>
+        </div>
 
-      <div className="space-y-10">
         <div className="space-y-4">
           <div className="flex items-center gap-2.5 text-primary">
             <QrCode className="size-9" />
@@ -159,7 +159,7 @@ function BrandPanel() {
         <PrinterIllustration />
       </div>
 
-      <div className="flex flex-wrap items-center gap-6 font-label-sm text-label-sm text-outline">
+      <div className="flex flex-wrap items-center gap-6 pt-8 font-label-sm text-label-sm text-outline">
         <span className="flex items-center gap-2">
           <CheckCircle2 className="size-4 text-secondary" />
           <span className="font-semibold text-on-surface">99.99% Print Accuracy</span>
@@ -181,43 +181,49 @@ function BrandPanel() {
 
 export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProps) {
   return (
-    <div className="flex min-h-screen bg-surface">
-      <BrandPanel />
+    <div className="flex min-h-screen w-full items-center justify-center bg-surface px-5 py-12">
+      <div className="grid w-full max-w-7xl grid-cols-1 items-center gap-12 lg:grid-cols-12 lg:gap-16">
+        <BrandPanel />
 
-      <main className="flex flex-1 items-center justify-center p-6 sm:p-10">
-        <div className="w-full max-w-md">
-          <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-primary">
-              <QrCode className="size-5" />
-            </span>
-            <span className="font-headline-md text-headline-md font-semibold text-primary">
-              Maira Cam 3D
-            </span>
-          </div>
-
-          <div className="relative overflow-hidden rounded-2xl border border-outline-variant bg-surface-container-lowest p-7 shadow-lg sm:p-9">
-            <div className="absolute inset-x-0 top-0 h-1.5 bg-primary" />
-            <div className="mb-7">
-              <h2 className="font-headline-lg text-headline-lg text-on-surface">{title}</h2>
-              {subtitle ? (
-                <p className="mt-1.5 font-body-md text-body-md text-on-surface-variant">
-                  {subtitle}
-                </p>
-              ) : null}
+        <div className="flex w-full justify-center lg:col-span-6 lg:justify-end">
+          <div className="w-full max-w-md">
+            <div className="mb-8 flex items-center gap-3 lg:hidden">
+              <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-primary">
+                <QrCode className="size-5" />
+              </span>
+              <span className="font-headline-md text-headline-md font-semibold text-primary">
+                Maira Cam 3D
+              </span>
             </div>
-            {children}
-          </div>
 
-          {footer ? <div className="mt-6">{footer}</div> : null}
+            <div className="relative overflow-hidden rounded-2xl border border-outline-variant bg-surface-container-lowest shadow-lg">
+              <div className="absolute inset-x-0 top-0 h-1.5 bg-primary" />
+              <div className="p-7 sm:p-9">
+                <div className="mb-7">
+                  <h2 className="font-headline-lg text-headline-lg text-on-surface">{title}</h2>
+                  {subtitle ? (
+                    <p className="mt-1.5 font-body-md text-body-md text-on-surface-variant">
+                      {subtitle}
+                    </p>
+                  ) : null}
+                </div>
+                {children}
+              </div>
 
-          <div className="mt-6 flex items-center justify-center gap-1.5 text-outline">
-            <ShieldCheck className="size-4" />
-            <p className="font-label-sm text-label-sm">
-              Access is limited to authorized company members.
-            </p>
+              <div className="bg-surface-container-low px-7 py-4 sm:px-9">
+                <div className="flex items-center justify-center gap-1.5 text-outline">
+                  <ShieldCheck className="size-4 shrink-0" />
+                  <p className="font-label-sm text-label-sm">
+                    Access is limited to authorized company members.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {footer ? <div className="mt-6">{footer}</div> : null}
           </div>
         </div>
-      </main>
+      </div>
     </div>
   )
 }

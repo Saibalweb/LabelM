@@ -31,6 +31,8 @@ import {
   SheetDescription,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { Avatar } from '@/components/ui/avatar'
+import { StatusPill } from '@/components/ui/status-pill'
 import { BulkInvoiceDialog } from '@/components/invoices/BulkInvoiceDialog'
 import { InvoicePrintCard } from '@/components/invoices/InvoicePrintCard'
 import { useAppSelector } from '@/store/hooks'
@@ -40,6 +42,7 @@ import {
   useCustomersQuery,
   useInvoiceListQuery,
 } from '@/hooks/queries'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { invoiceService } from '@/services/invoices'
 import { resolveInvoiceOptions } from '@/lib/documentOptions'
 import { resolveCompanyHeader } from '@/lib/invoiceDocument'
@@ -59,20 +62,13 @@ import type {
   InvoiceStatus,
 } from '@/lib/types'
 import { formatCurrency, formatDate } from '@/lib/format'
+import { DEFAULT_PAGE_SIZE } from '@/lib/pagination'
 import { cn } from '@/lib/utils'
 
 type StatusFilter = 'All' | InvoiceStatus | 'Overdue'
 type DurationFilter = 'all' | 'month' | 'last-month' | 'custom'
 
-const PAGE_SIZE = 25
-
 const statusPills: StatusFilter[] = ['All', 'Unpaid', 'Partial', 'Paid', 'Overdue']
-
-const statusPillStyles: Record<InvoiceStatus, string> = {
-  Paid: 'bg-secondary-container text-on-secondary-container',
-  Unpaid: 'bg-destructive/10 text-destructive',
-  Partial: 'bg-tertiary-container text-on-tertiary-container',
-}
 
 const durationButtons: { value: DurationFilter; label: string }[] = [
   { value: 'all', label: 'All Time' },
@@ -92,15 +88,6 @@ const sortOptions: { value: InvoiceSortKey; label: string }[] = [
   { value: 'amount-desc', label: 'Amount: High → Low' },
   { value: 'amount-asc', label: 'Amount: Low → High' },
 ]
-
-function useDebouncedValue<T>(value: T, delay = 300): T {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay)
-    return () => clearTimeout(timer)
-  }, [value, delay])
-  return debounced
-}
 
 function durationBounds(
   duration: DurationFilter,
@@ -179,7 +166,7 @@ export function Invoices() {
     data: result,
     isPending: loading,
     isFetching,
-  } = useInvoiceListQuery(filters, { page, pageSize: PAGE_SIZE, sortBy })
+  } = useInvoiceListQuery(filters, { page, pageSize: DEFAULT_PAGE_SIZE, sortBy })
   const invoices = result?.data ?? []
   const total = result?.total ?? 0
 
@@ -193,7 +180,7 @@ export function Invoices() {
     setSelectedIds(new Set())
   }, [filters, sortBy, page])
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const totalPages = Math.max(1, Math.ceil(total / DEFAULT_PAGE_SIZE))
   useEffect(() => {
     if (page > totalPages) {
       // oxlint-disable-next-line react/set-state-in-effect
@@ -353,8 +340,8 @@ export function Invoices() {
     return () => window.removeEventListener('afterprint', clear)
   }, [bulkPrintInvoices])
 
-  const listStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
-  const listEnd = total === 0 ? 0 : Math.min(page * PAGE_SIZE, total)
+  const listStart = total === 0 ? 0 : (page - 1) * DEFAULT_PAGE_SIZE + 1
+  const listEnd = total === 0 ? 0 : Math.min(page * DEFAULT_PAGE_SIZE, total)
   const showFilterLoading = isFetching && !loading && page === 1
   const hasNoInvoices =
     !loading && total === 0 && activeFilterCount === 0 && debouncedQuery.trim() === ''
@@ -634,14 +621,9 @@ export function Invoices() {
                         </td>
                         <td className="p-6">
                           <div className="flex items-center gap-3">
-                            <div
-                              className={cn(
-                                'flex size-10 shrink-0 items-center justify-center rounded-full border border-outline-variant text-sm font-bold',
-                                statusPillStyles[invoice.status]
-                              )}
-                            >
+                            <Avatar variant="invoice" status={invoice.status}>
                               #{invoice.customerId}
-                            </div>
+                            </Avatar>
                             <span className="font-semibold text-on-background">
                               {invoice.customerName}
                             </span>
@@ -666,14 +648,7 @@ export function Invoices() {
                           {formatCurrency(invoice.due)}
                         </td>
                         <td className="p-6 text-center">
-                          <span
-                            className={cn(
-                              'inline-flex items-center rounded-full px-2.5 py-1 font-label-sm text-label-sm font-semibold',
-                              statusPillStyles[invoice.status]
-                            )}
-                          >
-                            {invoice.status}
-                          </span>
+                          <StatusPill status={invoice.status}>{invoice.status}</StatusPill>
                         </td>
                         <td className="p-6 font-label-md text-label-md text-on-surface-variant">
                           {formatDate(invoice.createdAt)}

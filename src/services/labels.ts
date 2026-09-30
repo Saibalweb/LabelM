@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { DEFAULT_PAGE_SIZE } from '@/lib/pagination'
 import type {
   CustomerLabelCount,
   Label,
@@ -118,7 +119,7 @@ function buildListQuery(filters: LabelFilters = {}, matchingIds: number[] = []) 
 export const labelService = {
   async list(
     filters: LabelFilters = {},
-    { page = 1, pageSize = 25, sortBy = 'newest' }: Partial<LabelListParams> = {}
+    { page = 1, pageSize = DEFAULT_PAGE_SIZE, sortBy = 'newest' }: Partial<LabelListParams> = {}
   ): Promise<LabelListResult> {
     const sort = sortColumn[sortBy]
     const matchingIds = await resolveSearchIds(filters)

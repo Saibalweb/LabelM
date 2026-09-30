@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { DEFAULT_PAGE_SIZE } from '@/lib/pagination'
 import { pricesService } from '@/services/prices'
 import type {
   Customer,
@@ -117,7 +118,7 @@ export const customerService = {
 
   async listPage(
     filters: CustomerFilters = {},
-    { page = 1, pageSize = 25 }: Partial<CustomerListParams> = {}
+    { page = 1, pageSize = DEFAULT_PAGE_SIZE }: Partial<CustomerListParams> = {}
   ): Promise<CustomerListResult> {
     const q = (filters.query ?? '').trim()
 

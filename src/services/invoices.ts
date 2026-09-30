@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { DEFAULT_PAGE_SIZE } from '@/lib/pagination'
 import type {
   CompanySnapshot,
   CustomerSnapshot,
@@ -273,7 +274,7 @@ export const invoiceService = {
 
   async listPage(
     filters: InvoiceFilters = {},
-    { page = 1, pageSize = 25, sortBy = 'newest' }: Partial<InvoiceListParams> = {}
+    { page = 1, pageSize = DEFAULT_PAGE_SIZE, sortBy = 'newest' }: Partial<InvoiceListParams> = {}
   ): Promise<InvoiceListResult> {
     const sort = sortColumn[sortBy]
     const matchingIds = await resolveSearchIds(filters)

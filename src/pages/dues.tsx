@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
@@ -20,6 +20,8 @@ import {
   X,
 } from 'lucide-react'
 import { TopNav, MobileSearchBar } from '@/components/layout/TopNav'
+import { Avatar } from '@/components/ui/avatar'
+import { StatusPill } from '@/components/ui/status-pill'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -29,6 +31,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { useCustomersQuery, useDueInvoicesQuery } from '@/hooks/queries'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import type {
   DueAgingBucket,
   DueFilters,
@@ -69,19 +72,6 @@ const dueWindowButtons: { value: DueWindow; label: string }[] = [
   { value: 'month', label: 'This Month' },
 ]
 
-const avatarStyles = [
-  'bg-primary-container text-on-primary-container',
-  'bg-secondary-container text-on-secondary-container',
-  'bg-tertiary-container text-on-tertiary-container',
-  'bg-primary-fixed-dim text-on-primary-fixed',
-]
-
-const invoiceStatusStyles: Record<InvoiceStatus, string> = {
-  Paid: 'bg-secondary-container text-on-secondary-container',
-  Unpaid: 'bg-destructive/10 text-destructive',
-  Partial: 'bg-tertiary-container text-on-tertiary-container',
-}
-
 interface DuesInvoice {
   invoice: Invoice
   daysOverdue: number
@@ -116,15 +106,6 @@ function inAgingBucket(days: number, bucket: DueAgingBucket): boolean {
   if (bucket === 'overdue-1-30') return days >= 1 && days <= 30
   if (bucket === 'overdue-31-60') return days >= 31 && days <= 60
   return days > 60
-}
-
-function useDebouncedValue<T>(value: T, delay = 300): T {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay)
-    return () => clearTimeout(timer)
-  }, [value, delay])
-  return debounced
 }
 
 function dueWindowBounds(
@@ -536,14 +517,9 @@ export function Dues() {
                       >
                         <div className="col-span-12 flex items-center justify-between gap-3 md:col-span-5 md:justify-start">
                           <div className="flex min-w-0 items-center gap-3">
-                            <div
-                              className={cn(
-                                'flex size-10 shrink-0 items-center justify-center rounded-full border border-outline-variant text-sm font-bold',
-                                avatarStyles[customer.tone % avatarStyles.length]
-                              )}
-                            >
+                            <Avatar variant="dues" index={customer.tone}>
                               #{customer.customerId}
-                            </div>
+                            </Avatar>
                             <div className="min-w-0">
                               <div className="truncate font-body-md text-body-md font-medium text-on-surface">
                                 {customer.customer}
@@ -620,14 +596,7 @@ export function Dues() {
                                 <span className="font-label-sm text-label-sm text-on-surface-variant uppercase md:hidden">
                                   Status
                                 </span>
-                                <span
-                                  className={cn(
-                                    'inline-flex items-center rounded-full px-2.5 py-1 font-label-sm text-label-sm font-semibold',
-                                    invoiceStatusStyles[invoice.status]
-                                  )}
-                                >
-                                  {statusLabel}
-                                </span>
+                                <StatusPill status={invoice.status}>{statusLabel}</StatusPill>
                               </div>
                               <div className="col-span-12 flex items-center justify-end md:col-span-2 md:justify-end">
                                 <Button

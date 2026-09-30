@@ -21,6 +21,7 @@ import {
   Users,
 } from 'lucide-react'
 import { TopNav } from '@/components/layout/TopNav'
+import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -36,27 +37,6 @@ import { initialsOf, roleLabels } from '@/lib/roles'
 import { teamService, type TeamMember } from '@/services/team'
 import type { MemberStatus, Role } from '@/lib/types'
 import { cn } from '@/lib/utils'
-
-const avatarStyles = [
-  'bg-accent text-on-primary-fixed',
-  'bg-secondary-container text-on-secondary-container',
-  'bg-tertiary-container text-on-tertiary-container',
-  'bg-surface-container-highest text-on-surface',
-  'bg-primary-container text-on-primary-container',
-]
-
-function Avatar({ name, index }: { name: string; index: number }) {
-  return (
-    <span
-      className={cn(
-        'flex size-10 shrink-0 items-center justify-center rounded-full font-label-md text-label-md font-bold',
-        avatarStyles[index % avatarStyles.length]
-      )}
-    >
-      {initialsOf(name)}
-    </span>
-  )
-}
 
 function RoleBadge({ role }: { role: Role }) {
   const styles: Record<Role, string> = {
@@ -585,7 +565,9 @@ export function Team() {
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3.5">
-                          <Avatar name={member.name} index={index} />
+                          <Avatar variant="team" index={index}>
+                            {initialsOf(member.name)}
+                          </Avatar>
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
                               <span className="truncate font-body-md text-body-md font-semibold text-on-surface">

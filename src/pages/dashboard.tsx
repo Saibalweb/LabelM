@@ -70,11 +70,13 @@ import {
   useLabelStatsQuery,
   useUpdateLabel,
 } from '@/hooks/queries'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { labelService } from '@/services/labels'
 import { LabelEditDialog } from '@/components/labels/LabelEditDialog'
 import { LabelPrintCard } from '@/components/labels/LabelPrintCard'
 import { exportLabelsPdf } from '@/lib/documentPdf'
 import { formatCurrency, formatDate } from '@/lib/format'
+import { DEFAULT_PAGE_SIZE } from '@/lib/pagination'
 import { runLabelPrint } from '@/lib/printDocument'
 import type {
   BillingFilter,
@@ -87,17 +89,6 @@ import { cn } from '@/lib/utils'
 
 type DurationFilter = 'all' | 'today' | 'week' | 'month' | 'custom' | '48h'
 type PresetId = 'unprinted' | 'highweight' | '48h'
-
-const PAGE_SIZE = 25
-
-function useDebouncedValue<T>(value: T, delay = 300): T {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay)
-    return () => clearTimeout(timer)
-  }, [value, delay])
-  return debounced
-}
 
 function toDateInput(d: Date): string {
   const y = d.getFullYear()
@@ -290,7 +281,7 @@ export function Dashboard() {
     data: result,
     isPending: loading,
     isFetching,
-  } = useLabelsQuery(filters, { page, pageSize: PAGE_SIZE, sortBy })
+  } = useLabelsQuery(filters, { page, pageSize: DEFAULT_PAGE_SIZE, sortBy })
   const items = useMemo(() => result?.data ?? [], [result])
   const total = result?.total ?? 0
 
@@ -331,7 +322,7 @@ export function Dashboard() {
     setPage(1)
   }, [filters, sortBy])
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const totalPages = Math.max(1, Math.ceil(total / DEFAULT_PAGE_SIZE))
   useEffect(() => {
     if (page > totalPages) {
       // oxlint-disable-next-line react/set-state-in-effect
@@ -537,8 +528,8 @@ export function Dashboard() {
     }
   }
 
-  const listStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
-  const listEnd = total === 0 ? 0 : Math.min(page * PAGE_SIZE, total)
+  const listStart = total === 0 ? 0 : (page - 1) * DEFAULT_PAGE_SIZE + 1
+  const listEnd = total === 0 ? 0 : Math.min(page * DEFAULT_PAGE_SIZE, total)
   const hasNoLabels = !loading && total === 0 && activeFilterCount === 0 && query.trim() === ''
 
   return (

@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Avatar } from '@/components/ui/avatar'
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -47,29 +48,12 @@ import {
   useSetCustomerRate,
   useUpdateCustomer,
 } from '@/hooks/queries'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useAppSelector } from '@/store/hooks'
 import { hasRole } from '@/lib/roles'
 import { formatCurrency, formatDateTime } from '@/lib/format'
+import { DEFAULT_PAGE_SIZE } from '@/lib/pagination'
 import type { Customer, CustomerFilters, CustomerInput, DeletedCustomer } from '@/lib/types'
-import { cn } from '@/lib/utils'
-
-const PAGE_SIZE = 25
-
-const avatarStyles = [
-  'bg-primary-container text-on-primary-container',
-  'bg-secondary-container text-on-secondary-container',
-  'bg-tertiary-container text-on-tertiary-container',
-  'bg-primary-fixed-dim text-on-primary-fixed',
-]
-
-function useDebouncedValue<T>(value: T, delay = 300): T {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay)
-    return () => clearTimeout(timer)
-  }, [value, delay])
-  return debounced
-}
 
 export function Customers() {
   const addCustomer = useAddCustomer()
@@ -101,7 +85,7 @@ export function Customers() {
     data: result,
     isPending: loading,
     isFetching,
-  } = useCustomerListQuery(filters, { page, pageSize: PAGE_SIZE })
+  } = useCustomerListQuery(filters, { page, pageSize: DEFAULT_PAGE_SIZE })
   const items = result?.data ?? []
   const total = result?.total ?? 0
 
@@ -110,7 +94,7 @@ export function Customers() {
     setPage(1)
   }, [filters])
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const totalPages = Math.max(1, Math.ceil(total / DEFAULT_PAGE_SIZE))
   useEffect(() => {
     if (page > totalPages) {
       // oxlint-disable-next-line react/set-state-in-effect
@@ -118,8 +102,8 @@ export function Customers() {
     }
   }, [page, totalPages])
 
-  const listStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
-  const listEnd = total === 0 ? 0 : Math.min(page * PAGE_SIZE, total)
+  const listStart = total === 0 ? 0 : (page - 1) * DEFAULT_PAGE_SIZE + 1
+  const listEnd = total === 0 ? 0 : Math.min(page * DEFAULT_PAGE_SIZE, total)
   const hasNoCustomers =
     !loading && total === 0 && debouncedQuery.trim() === ''
   const showSearchLoading = isFetching && !loading && page === 1
@@ -296,14 +280,9 @@ export function Customers() {
                         </td>
                         <td className="p-4">
                           <div className="flex items-center gap-3">
-                            <div
-                              className={cn(
-                                'flex size-10 shrink-0 items-center justify-center rounded-full font-headline-md text-headline-md',
-                                avatarStyles[index % avatarStyles.length]
-                              )}
-                            >
+                            <Avatar variant="customer" index={index}>
                               {customer.name.charAt(0).toUpperCase()}
-                            </div>
+                            </Avatar>
                             <span className="font-medium">{customer.name}</span>
                           </div>
                         </td>

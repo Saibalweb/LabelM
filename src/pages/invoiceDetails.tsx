@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { StatusPill } from '@/components/ui/status-pill'
 import { InvoicePrintCard } from '@/components/invoices/InvoicePrintCard'
 import { useAppSelector } from '@/store/hooks'
 import {
@@ -48,17 +49,10 @@ import { exportInvoicePdf } from '@/lib/documentPdf'
 import { runInvoicePrint } from '@/lib/printDocument'
 import type {
   InvoicePayment,
-  InvoiceStatus,
   PaymentMode,
 } from '@/lib/types'
 import { formatCurrency, formatDate, todayInputValue } from '@/lib/format'
 import { cn } from '@/lib/utils'
-
-const statusPillStyles: Record<InvoiceStatus, string> = {
-  Paid: 'bg-secondary-container text-on-secondary-container',
-  Unpaid: 'bg-destructive/10 text-destructive',
-  Partial: 'bg-tertiary-fixed text-on-tertiary-fixed-variant',
-}
 
 const paymentModes: { label: string; value: PaymentMode }[] = [
   { label: 'Cash', value: 'cash' },
@@ -414,14 +408,12 @@ export function InvoiceDetails() {
                   <h3 className="font-headline-md text-headline-md text-on-surface">
                     Payment Status
                   </h3>
-                  <span
-                    className={cn(
-                      'rounded-full px-3 py-1 font-label-sm text-label-sm font-bold tracking-wide uppercase',
-                      statusPillStyles[invoice.status]
-                    )}
+                  <StatusPill
+                    status={invoice.status}
+                    className="px-3 py-1 font-bold tracking-wide uppercase"
                   >
                     {invoice.status}
-                  </span>
+                  </StatusPill>
                 </div>
 
                 <div className="mb-6 rounded border border-outline-variant bg-surface-container-lowest p-5">

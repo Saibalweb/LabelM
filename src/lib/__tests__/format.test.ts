@@ -1,10 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  formatAmount,
   formatCurrency,
   formatCurrencyWhole,
   formatDate,
   formatDateTime,
+  parseOptionalNumber,
+  round2,
   todayInputValue,
+  todayISO,
 } from '@/lib/format'
 
 function stripCurrencySymbol(value: string): string {
@@ -70,6 +74,17 @@ describe('formatDateTime', () => {
   })
 })
 
+describe('formatAmount', () => {
+  it('formats with Indian grouping and 2 decimals, without a symbol', () => {
+    expect(formatAmount(123456.789)).toBe('1,23,456.79')
+    expect(formatAmount(0)).toBe('0.00')
+  })
+
+  it('does not include a currency symbol', () => {
+    expect(formatAmount(10)).not.toContain('₹')
+  })
+})
+
 describe('todayInputValue', () => {
   it('returns the current local date in YYYY-MM-DD', () => {
     vi.useFakeTimers()
@@ -83,5 +98,37 @@ describe('todayInputValue', () => {
     vi.setSystemTime(new Date(2026, 0, 5, 10, 0, 0))
     expect(todayInputValue()).toBe('2026-01-05')
     vi.useRealTimers()
+  })
+})
+
+describe('todayISO', () => {
+  it('returns the current UTC date in YYYY-MM-DD', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(Date.UTC(2026, 8, 24, 23, 0, 0)))
+    expect(todayISO()).toBe('2026-09-24')
+    vi.useRealTimers()
+  })
+})
+
+describe('round2', () => {
+  it('rounds to two decimals', () => {
+    expect(round2(1.2345)).toBe(1.23)
+    expect(round2(1.235)).toBe(1.24)
+    expect(round2(2.5)).toBe(2.5)
+  })
+})
+
+describe('parseOptionalNumber', () => {
+  it('returns null for empty input', () => {
+    expect(parseOptionalNumber('')).toBeNull()
+  })
+
+  it('parses numeric strings', () => {
+    expect(parseOptionalNumber('12.5')).toBe(12.5)
+    expect(parseOptionalNumber('-3')).toBe(-3)
+  })
+
+  it('returns NaN for non-numeric input', () => {
+    expect(parseOptionalNumber('abc')).toBeNaN()
   })
 })

@@ -34,7 +34,7 @@ import {
   rangeLabel,
   type DueTerms,
 } from '@/lib/period'
-import { formatCurrency, formatDate, todayInputValue } from '@/lib/format'
+import { formatAmount, formatCurrency, formatDate, todayInputValue } from '@/lib/format'
 import type { InvoiceGenerationResult } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -42,13 +42,6 @@ type Step = 'period' | 'preview' | 'generating' | 'result'
 
 const inputClasses =
   'h-11 w-full rounded-lg border border-outline-variant bg-surface px-4 font-label-md text-label-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none'
-
-function toAmount(value: number): string {
-  return value.toLocaleString('en-IN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-}
 
 interface BulkInvoiceDialogProps {
   open: boolean
@@ -319,7 +312,7 @@ export function BulkInvoiceDialog({ open, onOpenChange }: BulkInvoiceDialogProps
                       <tr key={row.customerId} className="border-b border-outline-variant last:border-b-0">
                         <td className="p-3 font-label-md text-label-md font-medium">{row.customerName}</td>
                         <td className="p-3 text-right font-label-md text-label-md">{row.labelCount}</td>
-                        <td className="p-3 text-right font-label-md text-label-md">{toAmount(row.totalWeight)}</td>
+                        <td className="p-3 text-right font-label-md text-label-md">{formatAmount(row.totalWeight)}</td>
                         <td className="p-3 text-right font-label-md text-label-md font-bold">
                           {formatCurrency(row.totalAmount)}
                         </td>

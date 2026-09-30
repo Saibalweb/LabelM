@@ -40,7 +40,7 @@ import type {
   Invoice,
   InvoiceStatus,
 } from '@/lib/types'
-import { formatCurrency, formatCurrencyWhole } from '@/lib/format'
+import { formatCurrency, formatCurrencyWhole, parseOptionalNumber, todayISO } from '@/lib/format'
 import { currentMonthValue, isoDate, monthBounds } from '@/lib/period'
 import { cn } from '@/lib/utils'
 
@@ -92,10 +92,6 @@ const DAY_MS = 86_400_000
 
 function parseDate(value: string | null): Date {
   return new Date(`${value ?? '1970-01-01'} 00:00:00`)
-}
-
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10)
 }
 
 function daysUntilDue(invoice: Invoice, todayMs: number): number {
@@ -238,8 +234,8 @@ export function Dues() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    const min = minAmount !== '' ? parseFloat(minAmount) : null
-    const max = maxAmount !== '' ? parseFloat(maxAmount) : null
+    const min = parseOptionalNumber(minAmount)
+    const max = parseOptionalNumber(maxAmount)
     const list = duesCustomers.filter((c) => {
       if (
         q &&

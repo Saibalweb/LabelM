@@ -13,16 +13,12 @@ import {
   useCreateLabel,
   useCustomerSearchQuery,
 } from '@/hooks/queries'
-import { formatCurrency } from '@/lib/format'
+import { formatCurrency, todayISO } from '@/lib/format'
 import type { Customer, CustomerInput } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 const inputClasses =
   'w-full h-14 px-4 bg-surface-container-lowest border border-outline-variant rounded font-body-md text-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors placeholder:text-on-surface-variant'
-
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 export function Create() {
   const navigate = useNavigate()

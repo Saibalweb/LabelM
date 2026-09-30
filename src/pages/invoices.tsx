@@ -61,7 +61,7 @@ import type {
   InvoiceSortKey,
   InvoiceStatus,
 } from '@/lib/types'
-import { formatCurrency, formatDate } from '@/lib/format'
+import { formatCurrency, formatDate, parseOptionalNumber } from '@/lib/format'
 import { DEFAULT_PAGE_SIZE } from '@/lib/pagination'
 import { cn } from '@/lib/utils'
 
@@ -146,8 +146,8 @@ export function Invoices() {
       customerIds,
       from: bounds?.from,
       to: bounds?.to,
-      minAmount: debouncedMinAmount !== '' ? parseFloat(debouncedMinAmount) : null,
-      maxAmount: debouncedMaxAmount !== '' ? parseFloat(debouncedMaxAmount) : null,
+      minAmount: parseOptionalNumber(debouncedMinAmount),
+      maxAmount: parseOptionalNumber(debouncedMaxAmount),
       overdue: overdue || undefined,
     }
   }, [

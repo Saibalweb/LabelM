@@ -75,7 +75,7 @@ import { labelService } from '@/services/labels'
 import { LabelEditDialog } from '@/components/labels/LabelEditDialog'
 import { LabelPrintCard } from '@/components/labels/LabelPrintCard'
 import { exportLabelsPdf } from '@/lib/documentPdf'
-import { formatCurrency, formatDate } from '@/lib/format'
+import { formatCurrency, formatDate, parseOptionalNumber } from '@/lib/format'
 import { DEFAULT_PAGE_SIZE } from '@/lib/pagination'
 import { runLabelPrint } from '@/lib/printDocument'
 import type {
@@ -256,10 +256,10 @@ export function Dashboard() {
       customerIds,
       statuses,
       billing,
-      minWeight: debouncedMinWeight !== '' ? parseFloat(debouncedMinWeight) : null,
-      maxWeight: debouncedMaxWeight !== '' ? parseFloat(debouncedMaxWeight) : null,
-      minAmount: debouncedMinAmount !== '' ? parseFloat(debouncedMinAmount) : null,
-      maxAmount: debouncedMaxAmount !== '' ? parseFloat(debouncedMaxAmount) : null,
+      minWeight: parseOptionalNumber(debouncedMinWeight),
+      maxWeight: parseOptionalNumber(debouncedMaxWeight),
+      minAmount: parseOptionalNumber(debouncedMinAmount),
+      maxAmount: parseOptionalNumber(debouncedMaxAmount),
       from: bounds ? toDateInput(bounds.from) : undefined,
       to: bounds ? toDateInput(bounds.to) : undefined,
     }

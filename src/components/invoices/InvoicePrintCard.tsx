@@ -1,7 +1,7 @@
 import logoUrl from '@/assets/brand/logo.svg'
 import { DEFAULT_INVOICE_OPTIONS } from '@/lib/documentOptions'
 import { resolveInvoiceCustomer } from '@/lib/invoiceDocument'
-import { formatCurrency, formatDate } from '@/lib/format'
+import { formatAmount, formatCurrency, formatDate } from '@/lib/format'
 import type { CompanyProfile, Invoice, InvoiceOptions } from '@/lib/types'
 
 function MetaRow({ label, value }: { label: string; value: string }) {
@@ -15,13 +15,6 @@ function MetaRow({ label, value }: { label: string; value: string }) {
       </span>
     </>
   )
-}
-
-function toAmount(value: number): string {
-  return value.toLocaleString('en-IN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
 }
 
 /**
@@ -155,9 +148,9 @@ export function InvoicePrintCard({
               >
                 <td className="px-2 py-4">{item.slNo}</td>
                 <td className="px-2 py-4">{formatDate(item.date)}</td>
-                <td className="px-2 py-4 text-right">{toAmount(item.weightG)}</td>
-                <td className="px-2 py-4 text-right">{toAmount(item.rate)}</td>
-                <td className="px-2 py-4 text-right font-bold">{toAmount(item.amount)}</td>
+                <td className="px-2 py-4 text-right">{formatAmount(item.weightG)}</td>
+                <td className="px-2 py-4 text-right">{formatAmount(item.rate)}</td>
+                <td className="px-2 py-4 text-right font-bold">{formatAmount(item.amount)}</td>
               </tr>
             ))}
           </tbody>
@@ -168,7 +161,7 @@ export function InvoicePrintCard({
         <div className="w-64 border-t-2 border-outline-variant pt-4">
           <div className="mb-4 flex justify-between font-label-md text-label-md">
             <span className="text-on-surface-variant">Total Weight</span>
-            <span className="text-on-surface">{toAmount(invoice.totalWeight)} g</span>
+            <span className="text-on-surface">{formatAmount(invoice.totalWeight)} g</span>
           </div>
           <div className="flex items-center justify-between border-t border-surface-variant pt-4">
             <span className="font-headline-md text-headline-md text-on-surface">Total</span>

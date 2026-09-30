@@ -14,7 +14,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label as FieldLabel } from '@/components/ui/label'
 import { useCustomersQuery, useUpdateLabel } from '@/hooks/queries'
-import { formatCurrency } from '@/lib/format'
+import { formatCurrency, round2 } from '@/lib/format'
 import type { Label } from '@/lib/types'
 
 interface LabelEditDialogProps {
@@ -28,10 +28,6 @@ interface FormState {
   date: string
   weight: string
   rate: string
-}
-
-function round2(value: number): number {
-  return Math.round((value + Number.EPSILON) * 100) / 100
 }
 
 export function LabelEditDialog({ open, onOpenChange, label }: LabelEditDialogProps) {

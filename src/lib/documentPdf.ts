@@ -1,5 +1,5 @@
 import logoDataUrl from '@/assets/brand/logo.png?inline'
-import { formatCurrency, formatDate } from '@/lib/format'
+import { formatAmount, formatCurrency, formatDate, todayISO } from '@/lib/format'
 import { DEFAULT_INVOICE_OPTIONS, DEFAULT_LABEL_OPTIONS } from '@/lib/documentOptions'
 import { resolveCompanyHeader, resolveInvoiceCustomer } from '@/lib/invoiceDocument'
 import {
@@ -94,17 +94,6 @@ function buildLines(
     }
   }
   return lines
-}
-
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10)
-}
-
-function toAmount(value: number): string {
-  return value.toLocaleString('en-IN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
 }
 
 function sanitizeFilename(value: string): string {
@@ -329,9 +318,9 @@ function drawInvoice(
     }
     write(item.slNo, colSl, y, { size: 8.5 })
     write(formatDate(item.date), colDate, y, { size: 8.5 })
-    write(toAmount(item.weightG), colWeight, y, { size: 8.5, align: 'right' })
-    write(toAmount(item.rate), colRate, y, { size: 8.5, align: 'right' })
-    write(toAmount(item.amount), colAmount, y, { size: 8.5, bold: true, align: 'right' })
+    write(formatAmount(item.weightG), colWeight, y, { size: 8.5, align: 'right' })
+    write(formatAmount(item.rate), colRate, y, { size: 8.5, align: 'right' })
+    write(formatAmount(item.amount), colAmount, y, { size: 8.5, bold: true, align: 'right' })
     y += 1.5
     doc.setDrawColor(220)
     doc.line(left, y, right, y)
@@ -351,7 +340,7 @@ function drawInvoice(
   doc.setLineWidth(0.2)
   y += 6
   write('Total Weight', totalsX, y, { size: 9 })
-  write(`${toAmount(invoice.totalWeight)} g`, right, y, { size: 9, bold: true, align: 'right' })
+  write(`${formatAmount(invoice.totalWeight)} g`, right, y, { size: 9, bold: true, align: 'right' })
   y += 8
   write('Total', totalsX, y, { size: 12, bold: true })
   write(formatCurrency(invoice.totalAmount), right, y, { size: 13, bold: true, align: 'right' })

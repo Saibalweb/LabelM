@@ -1,5 +1,7 @@
 import { supabase } from '@/lib/supabase'
+import { todayISO } from '@/lib/format'
 import { DEFAULT_PAGE_SIZE } from '@/lib/pagination'
+import { monthLabel, rangeLabel } from '@/lib/period'
 import type {
   CompanySnapshot,
   CustomerSnapshot,
@@ -69,22 +71,6 @@ const DETAIL_COLUMNS = `${LIST_COLUMNS}, labels(id, sl_no, label_date, weight, r
 function first<T>(value: T | T[] | null | undefined): T | null {
   if (value == null) return null
   return Array.isArray(value) ? (value[0] ?? null) : value
-}
-
-function monthLabel(dateStr: string): string {
-  return new Date(`${dateStr}T00:00:00`).toLocaleDateString('en-US', {
-    month: 'short',
-    year: 'numeric',
-  })
-}
-
-function rangeLabel(start: string, endExclusive: string): string {
-  const startDate = new Date(`${start}T00:00:00`)
-  const endDate = new Date(`${endExclusive}T00:00:00`)
-  endDate.setDate(endDate.getDate() - 1)
-  const fmt = (date: Date) =>
-    date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  return `${fmt(startDate)} - ${fmt(endDate)}`
 }
 
 function toLineItem(row: LabelEmbed): InvoiceLineItem {
@@ -166,10 +152,6 @@ function toGenerationResult(row: {
     totalWeight: Number(row.total_weight),
     skipped: (row.skipped as InvoiceGenerationResult['skipped']) ?? null,
   }
-}
-
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10)
 }
 
 function sanitizeTerm(value: string): string {

@@ -32,7 +32,7 @@ import {
   type DueTerms,
 } from '@/lib/period'
 import type { Customer, Label } from '@/lib/types'
-import { formatCurrency, formatDate, todayInputValue } from '@/lib/format'
+import { formatAmount, formatCurrency, formatDate, todayInputValue } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 const inputClasses =
@@ -45,13 +45,6 @@ const steps = [
 ]
 
 const EMPTY_LABELS: Label[] = []
-
-function toAmount(value: number): string {
-  return value.toLocaleString('en-IN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-}
 
 function CheckBox({
   checked,
@@ -679,10 +672,10 @@ export function CreateInvoice() {
                                   {formatDate(label.date)}
                                 </td>
                                 <td className="p-4 text-right font-label-md text-label-md">
-                                  {toAmount(label.weight)}
+                                  {formatAmount(label.weight)}
                                 </td>
                                 <td className="p-4 text-right font-label-md text-label-md text-on-surface-variant">
-                                  {toAmount(label.rate)}
+                                  {formatAmount(label.rate)}
                                 </td>
                                 <td className="p-4 text-right font-label-md text-label-md font-bold">
                                   {formatCurrency(label.amount)}
@@ -701,7 +694,7 @@ export function CreateInvoice() {
                     </span>
                     <span>
                       Total Weight:{' '}
-                      <span className="font-bold text-on-surface">{toAmount(totalWeight)} g</span>
+                      <span className="font-bold text-on-surface">{formatAmount(totalWeight)} g</span>
                     </span>
                   </div>
                 </section>

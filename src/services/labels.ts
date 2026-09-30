@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { round2 } from '@/lib/format'
 import { DEFAULT_PAGE_SIZE } from '@/lib/pagination'
 import type {
   CustomerLabelCount,
@@ -43,10 +44,6 @@ function toLabel(row: LabelRow): Label {
     invoiceId: row.invoice_id,
     createdAt: row.created_at,
   }
-}
-
-function round2(value: number): number {
-  return Math.round((value + Number.EPSILON) * 100) / 100
 }
 
 function sanitizeTerm(value: string): string {

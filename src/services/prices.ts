@@ -1,8 +1,5 @@
 import { supabase } from '@/lib/supabase'
-
-function today(): string {
-  return new Date().toISOString().slice(0, 10)
-}
+import { todayISO } from '@/lib/format'
 
 export const pricesService = {
   async getCurrentRate(customerId: number): Promise<number | null> {
@@ -19,7 +16,7 @@ export const pricesService = {
   },
 
   async setRate(customerId: number, rate: number, effectiveFrom?: string): Promise<void> {
-    const from = effectiveFrom ?? today()
+    const from = effectiveFrom ?? todayISO()
 
     const { error: closeError } = await supabase
       .from('customer_prices')

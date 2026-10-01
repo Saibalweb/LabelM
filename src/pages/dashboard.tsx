@@ -441,9 +441,9 @@ export function Dashboard() {
 
   useEffect(() => {
     if (!printTarget) return
-    runLabelPrint('printLabel', settings ? { widthMm: settings.labelWidthMm, heightMm: settings.labelHeightMm } : {})
     const clear = () => setPrintTarget(null)
     window.addEventListener('afterprint', clear)
+    runLabelPrint('printLabel', settings ? { widthMm: settings.labelWidthMm, heightMm: settings.labelHeightMm } : {})
     return () => window.removeEventListener('afterprint', clear)
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [printTarget])
@@ -456,7 +456,6 @@ export function Dashboard() {
 
   useEffect(() => {
     if (!bulkPrintLabels) return
-    runLabelPrint('bulkPrintArea', settings ? { widthMm: settings.labelWidthMm, heightMm: settings.labelHeightMm } : {})
     const ids = bulkPrintLabels.map((label) => label.id)
     const clear = () => {
       setBulkPrintLabels(null)
@@ -473,6 +472,7 @@ export function Dashboard() {
       })
     }
     window.addEventListener('afterprint', clear)
+    runLabelPrint('bulkPrintArea', settings ? { widthMm: settings.labelWidthMm, heightMm: settings.labelHeightMm } : {})
     return () => window.removeEventListener('afterprint', clear)
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [bulkPrintLabels])

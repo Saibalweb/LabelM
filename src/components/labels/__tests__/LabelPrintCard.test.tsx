@@ -34,17 +34,17 @@ const company: CompanyProfile = {
 }
 
 describe('LabelPrintCard', () => {
-  it('renders the default field set', () => {
-    render(<LabelPrintCard label={label} company={company} />)
-    expect(screen.getByText('Maira 3D Cam')).toBeInTheDocument()
-    expect(screen.getByText('Bapi Da Enterprise')).toBeInTheDocument()
-    expect(screen.getByText('SL No: LBL-0127')).toBeInTheDocument()
-    expect(screen.getByText('₹12,500.00')).toBeInTheDocument()
-    // rate / phone / address are off by default
-    expect(screen.queryByText('RATE -')).not.toBeInTheDocument()
+  it('renders the default field set at 50x50mm', () => {
+    render(<LabelPrintCard label={label} company={company} widthMm={50} heightMm={50} />)
+    expect(screen.getByText(/Maira 3D Cam/i)).toBeVisible()
+    expect(screen.getByText(/Bapi Da Enterprise/i)).toBeVisible()
+    expect(screen.getByText('LBL-0127')).toBeVisible()
+    expect(screen.getByText('₹12,500.00')).toBeVisible()
+    // rate / phone / address are off by default: they keep their slot hidden
+    expect(screen.getByText(/RATE:/i)).not.toBeVisible()
     expect(screen.queryByText('9543166067')).not.toBeInTheDocument()
-    expect(screen.queryByText('9831410835')).not.toBeInTheDocument()
-    expect(screen.queryByText(/Tarak Pramanick/)).not.toBeInTheDocument()
+    expect(screen.getByText(/TEL: 9831410835/i)).not.toBeVisible()
+    expect(screen.getByText(/Tarak Pramanick/i)).not.toBeVisible()
   })
 
   it('hides fields disabled in label options', () => {
@@ -53,32 +53,53 @@ describe('LabelPrintCard', () => {
         label={label}
         company={company}
         options={{ ...DEFAULT_LABEL_OPTIONS, showCompanyName: false, showSlNo: false, showAmount: false }}
+        widthMm={50}
+        heightMm={50}
       />
     )
-    expect(screen.queryByText('Maira 3D Cam')).not.toBeInTheDocument()
-    expect(screen.queryByText('SL No: LBL-0127')).not.toBeInTheDocument()
-    expect(screen.queryByText('₹12,500.00')).not.toBeInTheDocument()
-    expect(screen.getByText('Bapi Da Enterprise')).toBeInTheDocument()
+    expect(screen.getByText(/Maira 3D Cam/i)).not.toBeVisible()
+    expect(screen.getByText('LBL-0127')).not.toBeVisible()
+    expect(screen.getByText('₹12,500.00')).not.toBeVisible()
+    expect(screen.getByText(/Bapi Da Enterprise/i)).toBeVisible()
   })
 
   it('renders only the phone flagged for the label', () => {
     render(
-      <LabelPrintCard label={label} company={company} options={{ ...DEFAULT_LABEL_OPTIONS, showPhone: true }} />
+      <LabelPrintCard
+        label={label}
+        company={company}
+        options={{ ...DEFAULT_LABEL_OPTIONS, showPhone: true }}
+        widthMm={50}
+        heightMm={50}
+      />
     )
-    expect(screen.getByText('9831410835')).toBeInTheDocument()
+    expect(screen.getByText(/TEL: 9831410835/i)).toBeVisible()
     expect(screen.queryByText('9543166067')).not.toBeInTheDocument()
   })
 
   it('renders the company address when enabled', () => {
     render(
-      <LabelPrintCard label={label} company={company} options={{ ...DEFAULT_LABEL_OPTIONS, showAddress: true }} />
+      <LabelPrintCard
+        label={label}
+        company={company}
+        options={{ ...DEFAULT_LABEL_OPTIONS, showAddress: true }}
+        widthMm={50}
+        heightMm={50}
+      />
     )
-    expect(screen.getByText(/Tarak Pramanick/)).toBeInTheDocument()
+    expect(screen.getByText(/Tarak Pramanick/i)).toBeVisible()
+  })
+
+  it('uses the two-column layout for landscape labels', () => {
+    const { container } = render(
+      <LabelPrintCard label={label} company={company} widthMm={100} heightMm={50} />
+    )
+    expect(container.querySelector('.divide-x-2')).not.toBeNull()
   })
 
   it('falls back to a walk-in customer and default company name', () => {
-    render(<LabelPrintCard label={{ ...label, customerName: null }} />)
-    expect(screen.getByText('Walk-in Customer')).toBeInTheDocument()
-    expect(screen.getByText('My Company')).toBeInTheDocument()
+    render(<LabelPrintCard label={{ ...label, customerName: null }} widthMm={50} heightMm={50} />)
+    expect(screen.getByText(/Walk-in Customer/i)).toBeVisible()
+    expect(screen.getByText(/My Company/i)).toBeVisible()
   })
 })

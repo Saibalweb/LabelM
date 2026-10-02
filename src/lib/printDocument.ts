@@ -1,5 +1,10 @@
-export const DEFAULT_LABEL_WIDTH_MM = 60
-export const DEFAULT_LABEL_HEIGHT_MM = 40
+import {
+  DEFAULT_LABEL_HEIGHT_MM,
+  DEFAULT_LABEL_WIDTH_MM,
+  LABEL_SAFE_MARGIN_MM,
+} from '@/lib/labelPresets'
+
+export { DEFAULT_LABEL_HEIGHT_MM, DEFAULT_LABEL_WIDTH_MM }
 export const A4_WIDTH_MM = 210
 export const A4_HEIGHT_MM = 297
 
@@ -49,6 +54,7 @@ function buildLabelCss(areaId: string, widthMm: number, heightMm: number): strin
     margin: 0;
     padding: 0;
     overflow: hidden;
+    background: #ffffff !important;
     page-break-after: always;
     break-after: page;
   }
@@ -58,42 +64,30 @@ function buildLabelCss(areaId: string, widthMm: number, heightMm: number): strin
     break-after: auto;
   }
 
-  #${areaId} .label-sheet > div {
+  /* The printable label surface: fills the sheet, keeps the thermal-head
+     safe margin, and drops the on-screen die-cut border cue. Typography is
+     sized in mm by the component, so no font overrides here. */
+  #${areaId} .label-print-root {
     width: 100% !important;
     height: 100% !important;
     max-width: none !important;
     margin: 0 !important;
-    padding: 3mm !important;
+    padding: ${LABEL_SAFE_MARGIN_MM}mm !important;
     border: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     background: #ffffff !important;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
     color: #000000 !important;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
 
-  #${areaId} h2 {
-    font-size: 15px;
-    line-height: 1.2;
-    margin: 0;
+  /* Thermal heads print pure black: flatten greys and keep layout rules dark. */
+  #${areaId} .label-print-root * {
     color: #000000 !important;
-  }
-
-  #${areaId} p,
-  #${areaId} span {
-    font-size: 10px;
-    line-height: 1.3;
-    color: #000000 !important;
-  }
-
-  #${areaId} .mt-8 {
-    margin-top: 2mm;
+    border-color: #000000 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
   `
 }

@@ -1,24 +1,33 @@
 import { describe, expect, it } from 'vitest'
 import {
+  LABEL_SAFE_MARGIN_MM,
   LABEL_PRESETS,
   MAX_LONG_MM,
   MAX_SHORT_MM,
   findPreset,
+  labelLayout,
   resolveLabelDimensions,
   validateLabelSize,
 } from '@/lib/labelPresets'
 
 describe('labelPresets', () => {
-  it('ships the agreed presets', () => {
+  it('ships the Indian standard thermal presets', () => {
     expect(LABEL_PRESETS.map((p) => p.id)).toEqual([
-      '50x25',
-      '60x40',
+      '50x50',
+      '75x75',
+      '100x100',
+      '50x85',
+      '50x100',
       '75x50',
       '100x50',
-      '100x100',
-      '100x150',
     ])
-    expect(findPreset('100x150')).toMatchObject({ widthMm: 100, heightMm: 150 })
+    expect(findPreset('100x100')).toMatchObject({ widthMm: 100, heightMm: 100 })
+    expect(findPreset('50x85')).toMatchObject({ widthMm: 50, heightMm: 85 })
+    expect(findPreset('100x50')).toMatchObject({ widthMm: 100, heightMm: 50 })
+  })
+
+  it('exposes the thermal safe margin', () => {
+    expect(LABEL_SAFE_MARGIN_MM).toBe(5)
   })
 
   it('resolves a known preset to its dimensions', () => {
@@ -27,6 +36,15 @@ describe('labelPresets', () => {
 
   it('resolves a custom preset to the supplied dimensions', () => {
     expect(resolveLabelDimensions('custom', 80, 120)).toEqual({ widthMm: 80, heightMm: 120 })
+  })
+
+  it('classifies the layout family by aspect ratio', () => {
+    expect(labelLayout(50, 50)).toBe('square')
+    expect(labelLayout(100, 100)).toBe('square')
+    expect(labelLayout(50, 85)).toBe('portrait')
+    expect(labelLayout(50, 100)).toBe('portrait')
+    expect(labelLayout(100, 50)).toBe('landscape')
+    expect(labelLayout(75, 50)).toBe('landscape')
   })
 
   it('accepts sizes up to the 4x6 ceiling', () => {
@@ -57,7 +75,7 @@ describe('labelPresets', () => {
   })
 
   it('does not warn for a small label', () => {
-    const result = validateLabelSize(60, 40)
+    const result = validateLabelSize(50, 50)
     expect(result.ok).toBe(true)
     expect(result.warning).toBeUndefined()
   })

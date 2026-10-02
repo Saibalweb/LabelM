@@ -107,9 +107,9 @@ on conflict (id) do nothing;
 -- ---------------------------------------------------------------------------
 create table if not exists public.app_settings (
   id                smallint primary key default 1 check (id = 1),
-  label_preset      text not null default '60x40',
-  label_width_mm    numeric(6, 2) not null default 60,
-  label_height_mm   numeric(6, 2) not null default 40,
+  label_preset      text not null default '50x50',
+  label_width_mm    numeric(6, 2) not null default 50,
+  label_height_mm   numeric(6, 2) not null default 50,
   label_prefix      text not null default 'LBL',
   invoice_prefix    text not null default 'INV',
   auto_mark_printed boolean not null default false,

@@ -13,6 +13,7 @@ import {
   useUpdateLabel,
 } from '@/hooks/queries'
 import { exportLabelPdf } from '@/lib/documentPdf'
+import { resolveLabelDimensions } from '@/lib/labelPresets'
 import { runLabelPrint } from '@/lib/printDocument'
 
 export function Preview() {
@@ -24,8 +25,8 @@ export function Preview() {
   const [editOpen, setEditOpen] = useState(false)
 
   const billed = label?.invoiceId != null
-  const dims = settings
-    ? { widthMm: settings.labelWidthMm, heightMm: settings.labelHeightMm }
+  const dims: { widthMm?: number; heightMm?: number } = settings
+    ? resolveLabelDimensions(settings.labelPreset, settings.labelWidthMm, settings.labelHeightMm)
     : {}
 
   const handlePrint = () => {
@@ -70,7 +71,13 @@ export function Preview() {
       <main className="flex flex-1 flex-col gap-8 overflow-y-auto bg-surface-bright p-4 md:p-8 lg:flex-row lg:items-center">
         <div id='printLabel' className="flex flex-1 items-start justify-center">
           <div className="label-sheet flex w-full justify-center">
-            <LabelPrintCard label={label} company={company} options={settings?.labelOptions} />
+            <LabelPrintCard
+              label={label}
+              company={company}
+              options={settings?.labelOptions}
+              widthMm={dims.widthMm}
+              heightMm={dims.heightMm}
+            />
           </div>
         </div>
 

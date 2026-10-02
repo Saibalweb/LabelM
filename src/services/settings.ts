@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase'
 import { resolveInvoiceOptions, resolveLabelOptions } from '@/lib/documentOptions'
 import {
   DEFAULT_LABEL_HEIGHT_MM,
+  DEFAULT_LABEL_PRESET_ID,
   DEFAULT_LABEL_WIDTH_MM,
 } from '@/lib/labelPresets'
 import type {
@@ -69,7 +70,7 @@ function toCompanyProfile(row: CompanyProfileRow | null): CompanyProfile {
 
 function toAppSettings(row: AppSettingsRow | null): AppSettings {
   return {
-    labelPreset: row?.label_preset ?? '60x40',
+    labelPreset: row?.label_preset ?? DEFAULT_LABEL_PRESET_ID,
     labelWidthMm: Number(row?.label_width_mm ?? DEFAULT_LABEL_WIDTH_MM),
     labelHeightMm: Number(row?.label_height_mm ?? DEFAULT_LABEL_HEIGHT_MM),
     labelPrefix: row?.label_prefix ?? 'LBL',

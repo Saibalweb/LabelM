@@ -176,12 +176,27 @@ delete the labels with `sl_no` between `LBL-0453` and `LBL-0745` and their invoi
 | 6 | **⋮ actions menu** (`DropdownMenu`) — for an **unbilled** label: **Edit Label** + **Delete Label** (destructive). For a **billed** label: a disabled **Invoiced — Locked** item. The menu is shown to every role. | Done |
 | 7 | **Responsive** — the 5-column table starts at `lg` (the sidebar eats 256px from `md`, so the table cannot fit at `md`); mobile/tablet keep the stacked label/value card layout. Verified with real screenshots at 390 / 820 / 1440px. | Done |
 | 8 | **Edge cases** — very long customer names truncate (`minmax(0,1fr)` + `min-w-0` + `truncate`) and large amounts (`₹1,23,45,678.90`) fit the fixed Amount track without pushing neighbours; covered by a unit test. | Done |
-| 9 | **Direct print** — the printer icon prints that label immediately (no trip to the preview page). Extracted the 60×40mm markup to `src/components/labels/LabelPrintCard.tsx` and the print CSS/flow to `src/lib/printDocument.ts` (`runLabelPrint(areaId)`), shared with the preview page. A hidden `#printLabel` area is rendered on demand and revealed only for print. Draft labels flip to `printed` after printing. | Done |
+| 9 | **Direct print** — the printer icon prints that label immediately (no trip to the preview page). Extracted the 50×50mm markup to `src/components/labels/LabelPrintCard.tsx` and the print CSS/flow to `src/lib/printDocument.ts` (`runLabelPrint(areaId)`), shared with the preview page. A hidden `#printLabel` area is rendered on demand and revealed only for print. Draft labels flip to `printed` after printing. | Done |
 | 10 | **Delete for unbilled labels** — available to **all roles** (owner/admin/staff) for uninvoiced labels only; opens a red confirmation dialog. Billed rows never expose delete (the menu shows a locked item). Enforced at the DB by the `labels_lock_billed_delete` trigger; no extra migration needed. | Done |
 | 11 | Preview page refactored to reuse `LabelPrintCard` + `runLabelPrint` (single-label behavior unchanged); fixed the pre-existing `height: 100% !importantf` typo in the print CSS. | Done |
 | 12 | Unit tests: `src/pages/__tests__/dashboardLabelActions.test.tsx` covers the avatar/id/badge layout, avatar status colour, always-visible buttons, absence of the eye button, the ⋮ menu (edit/delete/locked), staff visibility, the delete confirm flow, and direct print. | Done |
 
 **Verdict: FIXED + IMPLEMENTED.** Staff can edit and delete **unbilled** labels too; billed labels stay locked for everyone (billed-lock triggers). No new migration required.
+
+## 12. Thermal label design — Indian standard sizing (2026-10-02)
+
+Rewrote `LabelPrintCard` to the Stitch "Thermal Label Variants — Indian Standard Sizing"
+sheet: white printable surface, fixed **5mm safe margin**, JetBrains Mono, fixed layout
+zones (company header / customer + serial / DATE·WEIGHT·RATE / boxed GRAND TOTAL).
+Layout adapts by aspect ratio (`labelLayout`): landscape = two-column split, square/tall =
+stacked. Typography scales with `min(w,h)/50` in mm.
+
+- Preset list is now the 7 Indian standard sizes (2×2, 3×3, 4×4, 2×3.3, 2×4, 3×2, 4×2) + Custom; legacy ids fall back to stored mm dims.
+- **Empty-space behavior**: disabled fields keep their slot (visibility hidden) so the label ratio never shifts.
+- **Gray paper frame is settings-only** (`LabelPaperFrame` + `ScaledLabelPreview`, dummy data) — the preview page and print areas render only the white label; the frame is never printed.
+- Print CSS neutralises the frame and flattens to pure black ink; PDF export mirrors the zone layout.
+- Default size changed 60×40 → 50×50 (code, service fallback and migration default).
+- Tests: `labelPresets.test.ts` (new presets + layout), `LabelPrintCard.test.tsx` (zones/empty-space/landscape), `documentPdf.test.ts` (new layout), all updated and green.
 
 ## Verification
 

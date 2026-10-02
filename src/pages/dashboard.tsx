@@ -76,6 +76,7 @@ import { LabelEditDialog } from '@/components/labels/LabelEditDialog'
 import { LabelPrintCard } from '@/components/labels/LabelPrintCard'
 import { exportLabelsPdf } from '@/lib/documentPdf'
 import { formatCurrency, formatDate, parseOptionalNumber } from '@/lib/format'
+import { resolveLabelDimensions } from '@/lib/labelPresets'
 import { DEFAULT_PAGE_SIZE } from '@/lib/pagination'
 import { runLabelPrint } from '@/lib/printDocument'
 import type {
@@ -285,8 +286,8 @@ export function Dashboard() {
   const items = useMemo(() => result?.data ?? [], [result])
   const total = result?.total ?? 0
 
-  const dims = settings
-    ? { widthMm: settings.labelWidthMm, heightMm: settings.labelHeightMm }
+  const dims: { widthMm?: number; heightMm?: number } = settings
+    ? resolveLabelDimensions(settings.labelPreset, settings.labelWidthMm, settings.labelHeightMm)
     : {}
 
   const allSelected = items.length > 0 && items.every((label) => selectedIds.has(label.id))
@@ -443,7 +444,7 @@ export function Dashboard() {
     if (!printTarget) return
     const clear = () => setPrintTarget(null)
     window.addEventListener('afterprint', clear)
-    runLabelPrint('printLabel', settings ? { widthMm: settings.labelWidthMm, heightMm: settings.labelHeightMm } : {})
+    runLabelPrint('printLabel', dims)
     return () => window.removeEventListener('afterprint', clear)
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [printTarget])
@@ -472,7 +473,7 @@ export function Dashboard() {
       })
     }
     window.addEventListener('afterprint', clear)
-    runLabelPrint('bulkPrintArea', settings ? { widthMm: settings.labelWidthMm, heightMm: settings.labelHeightMm } : {})
+    runLabelPrint('bulkPrintArea', dims)
     return () => window.removeEventListener('afterprint', clear)
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [bulkPrintLabels])
@@ -1376,6 +1377,8 @@ export function Dashboard() {
               label={printTarget}
               company={company}
               options={settings?.labelOptions}
+              widthMm={dims.widthMm}
+              heightMm={dims.heightMm}
             />
           </div>
         </div>
@@ -1385,7 +1388,13 @@ export function Dashboard() {
         <div id="bulkPrintArea" className="hidden">
           {bulkPrintLabels.map((label) => (
             <div key={label.id} className="label-sheet">
-              <LabelPrintCard label={label} company={company} options={settings?.labelOptions} />
+              <LabelPrintCard
+                label={label}
+                company={company}
+                options={settings?.labelOptions}
+                widthMm={dims.widthMm}
+                heightMm={dims.heightMm}
+              />
             </div>
           ))}
         </div>

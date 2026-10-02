@@ -10,6 +10,7 @@ const pdf = vi.hoisted(() => {
   const setDrawColor = vi.fn()
   const setLineWidth = vi.fn()
   const line = vi.fn()
+  const rect = vi.fn()
   const addImage = vi.fn()
   const getTextDimensions = vi.fn(() => ({ w: 10, h: 3 }))
   const jsPDF = vi.fn(function () {
@@ -22,6 +23,7 @@ const pdf = vi.hoisted(() => {
       setDrawColor,
       setLineWidth,
       line,
+      rect,
       addImage,
       getTextDimensions,
     }
@@ -101,7 +103,7 @@ describe('exportLabelsPdf', () => {
 
     expect(pdf.jsPDF).toHaveBeenCalledWith({
       unit: 'mm',
-      format: [60, 40],
+      format: [50, 50],
       orientation: 'landscape',
     })
     // one addPage for the second label
@@ -121,7 +123,8 @@ describe('exportLabelsPdf', () => {
   it('replaces the rupee sign with a PDF-safe ASCII equivalent', async () => {
     await exportLabelsPdf([label])
     const rendered = pdf.text.mock.calls.map((call) => call[0] as string)
-    expect(rendered).toContain('AMOUNT - Rs 1,000.00')
+    expect(rendered).toContain('GRAND TOTAL:')
+    expect(rendered).toContain('Rs 1,000.00')
     expect(rendered.some((line) => line.includes('₹'))).toBe(false)
   })
 

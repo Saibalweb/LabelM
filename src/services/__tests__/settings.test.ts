@@ -120,9 +120,9 @@ describe('settingsService.getAppSettings', () => {
     supabaseMock.from.mockReturnValue(query)
 
     const settings = await settingsService.getAppSettings()
-    expect(settings.labelPreset).toBe('60x40')
-    expect(settings.labelWidthMm).toBe(60)
-    expect(settings.labelHeightMm).toBe(40)
+    expect(settings.labelPreset).toBe('50x50')
+    expect(settings.labelWidthMm).toBe(50)
+    expect(settings.labelHeightMm).toBe(50)
     expect(settings.invoiceOptions.showDueDate).toBe(true)
   })
 })

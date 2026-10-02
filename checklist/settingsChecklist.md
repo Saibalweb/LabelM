@@ -42,9 +42,9 @@ Related files:
 
 | # | Item | Status |
 |---|------|--------|
-| 1 | Presets shipped: `50×25`, `60×40` (default), `75×50`, `100×50`, `100×100`, `100×150 (4×6)`, plus `Custom` | Done |
+| 1 | Presets shipped (Indian standard thermal): `50×50` (2″×2″, **default**), `75×75` (3″×3″), `100×100` (4″×4″), `50×85` (2″×3.3″), `50×100` (2″×4″), `75×50` (3″×2″), `100×50` (4″×2″), plus `Custom` | Done |
 | 2 | Choosing a preset fills width/height; editing a dimension switches to `Custom` | Done |
-| 3 | Live proportion preview + inline validation message | Done |
+| 3 | **Live label preview** (dummy data + gray paper backing + 5mm safe-margin legend) in both the summary section and the Edit modal, updating as size/toggles change | Done |
 | 4 | Print (`runLabelPrint`) and PDF (`exportLabelsPdf`) both honour the configured size | Unit |
 | 5 | `label_prefix` used by `labelService.create` (fallback `LBL`) | Unit |
 | 6 | `invoice_prefix` used by `generate_invoice_for_customer` (fallback `INV`) | Migration |
@@ -54,7 +54,7 @@ Related files:
 
 | # | Input (W×H) | short edge | long edge | Result | Verified |
 |---|-------------|-----------|-----------|--------|----------|
-| 1 | 60 × 40 | 40 | 60 | valid | Unit |
+| 1 | 50 × 50 (default preset) | 50 | 50 | valid | Unit |
 | 2 | 101.6 × 152.4 (4×6, at ceiling) | 101.6 | 152.4 | valid | Unit |
 | 3 | 152.4 × 101.6 (6×4 rotated) | 101.6 | 152.4 | valid | Unit |
 | 4 | 100 × 150 | 100 | 150 | valid **+ near-limit warning** | Unit |
@@ -63,6 +63,8 @@ Related files:
 | 7 | 0 × 40 | 0 | 40 | **invalid** (must be > 0) | Unit |
 | 8 | 60 × -1 | -1 | 60 | **invalid** | Unit |
 | 9 | DB constraint `least ≤ 101.6 AND greatest ≤ 152.4` mirrors the client rule | — | — | enforced | Migration |
+
+All 7 presets sit inside the ceiling (max edge = 100mm), so no size check was relaxed.
 
 ## 4. Label content toggles (`label_options`)
 
@@ -78,7 +80,7 @@ Related files:
 | 8 | `showPhone` | off | Done |
 | 9 | `showAddress` | off | Done |
 
-Disabled fields are omitted from both the on-screen card and the PDF (unit-tested in `LabelPrintCard.test.tsx` and `documentPdf.test.ts`).
+Disabled fields keep their layout slot as **empty space** (visibility hidden) — on screen, print and PDF — so the label ratio never shifts when fields are turned off (unit-tested in `LabelPrintCard.test.tsx` and `documentPdf.test.ts`).
 
 ## 5. Invoice content toggles (`invoice_options`)
 
@@ -111,7 +113,7 @@ Disabled fields are omitted from both the on-screen card and the PDF (unit-teste
 | 1 | Stored option blobs are merged over defaults, so a missing key never breaks rendering | Unit |
 | 2 | Unknown keys are ignored; non-boolean values are ignored | Unit |
 | 3 | A non-object / null blob resolves to the full default set | Unit |
-| 4 | Missing `company_profile`/`app_settings` row falls back to code defaults (60×40, "My Company", empty phones) | Unit |
+| 4 | Missing `company_profile`/`app_settings` row falls back to code defaults (50×50, "My Company", empty phones) | Unit |
 
 ## 8. Roles & RLS
 
@@ -154,7 +156,28 @@ page redesign. Files: `src/pages/settings.tsx`,
 | 12 | Shared `SectionHeader` gives every settings section a consistent icon chip, title, description and action slot | Done |
 | 13 | Global heading scale raised (`headline-lg`/`headline` 30px, mobile 26px) so page titles outrank section titles | Done |
 
-## 11. Follow-ups / deferred
+## 12. Thermal label design — Indian standard sizing + settings preview (2026-10-02)
+
+Follows the Stitch "Thermal Label Variants — Indian Standard Sizing" sheet: a white
+printable surface with a fixed **5mm safe margin**, JetBrains Mono typography and
+fixed layout zones (company header / customer + serial / DATE·WEIGHT·RATE metrics /
+boxed GRAND TOTAL). New files:
+`src/components/labels/LabelPrintCard.tsx` (rewritten), `src/components/labels/LabelPaperFrame.tsx`
+(gray paper frame + `ScaledLabelPreview`), `src/components/labels/labelDummyData.ts`.
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | Preset list replaced with the 7 Indian standard sizes + Custom (see §3.1) | Done |
+| 2 | Layout adapts to aspect ratio: **landscape** = two-column split, **square/tall** = stacked; driven by `labelLayout(w,h)` in `labelPresets.ts` | Done |
+| 3 | Typography scales with `min(w,h)/50` in mm — one layout renders proportionally at every size, screen and print | Done |
+| 4 | **Gray paper frame** (`LabelPaperFrame`) = physical paper backing — settings preview **only**, never printed | Done |
+| 5 | Print CSS neutralises the frame and forces pure black ink; `@page` stays exactly W×H mm, margin 0 | Done |
+| 6 | Hidden fields keep an empty slot (same ratio) on screen, print and PDF | Done |
+| 7 | Settings summary + Edit modal show a live scaled preview with dummy data (`UMA ENTERPRISE`, 5.000 g, ₹560/g) | Done |
+| 8 | PDF export (`exportLabelsPdf`) mirrors the zone layout: header, customer+serial box, metric rows with dividers, bordered total | Unit |
+| 9 | Legacy stored presets (e.g. `60x40`) fall back to stored mm dims and display as `Custom` | Done |
+
+## 13. Follow-ups / deferred
 
 - Logo upload (Supabase Storage bucket + policy) — column `logo_url` reserved.
 - `currency` / `tax_percent` — deferred (currency is hardcoded across `format.ts`; invoice has no tax line and `amount = round(weight*rate,2)` is a DB invariant).

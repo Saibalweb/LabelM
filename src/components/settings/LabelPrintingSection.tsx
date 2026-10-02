@@ -11,8 +11,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { useAppSettingsQuery, useUpdateAppSettings } from '@/hooks/queries'
+import { useAppSettingsQuery, useCompanyProfileQuery, useUpdateAppSettings } from '@/hooks/queries'
 import { SectionHeader } from '@/components/settings/SectionHeader'
+import { ScaledLabelPreview } from '@/components/labels/LabelPaperFrame'
 import {
   CUSTOM_PRESET_ID,
   findPreset,
@@ -124,6 +125,7 @@ function toInput(settings: AppSettings): AppSettingsInput {
 
 export function LabelPrintingSection({ canEdit }: { canEdit: boolean }) {
   const { data } = useAppSettingsQuery()
+  const { data: company } = useCompanyProfileQuery()
   const updateSettings = useUpdateAppSettings()
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<AppSettingsInput | null>(null)
@@ -189,6 +191,13 @@ export function LabelPrintingSection({ canEdit }: { canEdit: boolean }) {
       ? (findPreset(data.labelPreset)?.label ?? `${data.labelWidthMm} × ${data.labelHeightMm} mm`)
       : `${data?.labelWidthMm ?? '—'} × ${data?.labelHeightMm ?? '—'} mm (Custom)`
 
+  const summaryDims = data
+    ? resolveLabelDimensions(data.labelPreset, data.labelWidthMm, data.labelHeightMm)
+    : null
+  const formDims = form
+    ? resolveLabelDimensions(form.labelPreset, form.labelWidthMm, form.labelHeightMm)
+    : null
+
   return (
     <>
       <section className="space-y-4">
@@ -217,6 +226,25 @@ export function LabelPrintingSection({ canEdit }: { canEdit: boolean }) {
             <SummaryTile label="Label size" value={presetLabel} />
             <SummaryTile label="Label prefix" value={data?.labelPrefix ?? 'LBL'} />
             <SummaryTile label="Invoice prefix" value={data?.invoicePrefix ?? 'INV'} />
+          </div>
+
+          <div className="space-y-2">
+            <p className="font-label-sm text-label-sm tracking-wider text-on-surface-variant uppercase">
+              Label preview
+            </p>
+            {data && summaryDims ? (
+              <ScaledLabelPreview
+                widthMm={summaryDims.widthMm}
+                heightMm={summaryDims.heightMm}
+                options={data.labelOptions}
+                company={company}
+                maxHeightPx={280}
+              />
+            ) : (
+              <p className="font-body-md text-body-md text-on-surface-variant">
+                Loading label settings…
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -324,29 +352,31 @@ export function LabelPrintingSection({ canEdit }: { canEdit: boolean }) {
                       />
                     </label>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="rounded border border-dashed border-outline-variant bg-surface-container"
-                      style={{
-                        width: `${Math.min(96, (form.labelWidthMm / 101.6) * 96)}px`,
-                        height: `${Math.min(96, (form.labelHeightMm / 152.4) * 96)}px`,
-                      }}
-                    />
-                    <p
-                      className={`font-sans text-[12px] ${
-                        !validation?.ok
-                          ? 'text-destructive'
-                          : validation?.warning
-                            ? 'text-tertiary'
-                            : 'text-on-surface-variant'
-                      }`}
-                    >
-                      {!validation?.ok
-                        ? validation?.error
-                        : validation?.warning ??
-                          `Preview · ${form.labelWidthMm} × ${form.labelHeightMm} mm`}
-                    </p>
-                  </div>
+                  {formDims ? (
+                    <div className="space-y-1">
+                      <ScaledLabelPreview
+                        widthMm={formDims.widthMm}
+                        heightMm={formDims.heightMm}
+                        options={form.labelOptions}
+                        company={company}
+                        maxHeightPx={260}
+                      />
+                      <p
+                        className={`text-center font-sans text-[12px] ${
+                          !validation?.ok
+                            ? 'text-destructive'
+                            : validation?.warning
+                              ? 'text-tertiary'
+                              : 'text-on-surface-variant'
+                        }`}
+                      >
+                        {!validation?.ok
+                          ? validation?.error
+                          : validation?.warning ??
+                            `Preview · ${formDims.widthMm} × ${formDims.heightMm} mm`}
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="h-px w-full bg-outline-variant/60" />

@@ -3,11 +3,11 @@ import { formatAmount, formatCurrency, formatDate, todayISO } from '@/lib/format
 import { DEFAULT_INVOICE_OPTIONS, DEFAULT_LABEL_OPTIONS } from '@/lib/documentOptions'
 import { resolveCompanyHeader, resolveInvoiceCustomer } from '@/lib/invoiceDocument'
 import {
-  A4_HEIGHT_MM,
-  A4_WIDTH_MM,
   DEFAULT_LABEL_HEIGHT_MM,
   DEFAULT_LABEL_WIDTH_MM,
-} from '@/lib/printDocument'
+  LABEL_SAFE_MARGIN_MM,
+} from '@/lib/labelPresets'
+import { A4_HEIGHT_MM, A4_WIDTH_MM } from '@/lib/printDocument'
 import type {
   CompanyProfile,
   Invoice,
@@ -30,71 +30,8 @@ export interface InvoicePdfOptions {
   filename?: string
 }
 
-interface PdfLine {
-  text: string
-  size: number
-  bold: boolean
-  spaceAfter: number
-}
-
 const MM_PER_PT = 0.352778
 const A4_MARGIN_MM = 12
-
-function buildLines(
-  label: Label,
-  company: CompanyProfile | null | undefined,
-  options: LabelOptions
-): PdfLine[] {
-  const lines: PdfLine[] = []
-  const companyName = company?.companyName || 'My Company'
-  const phone = company?.phones.find((entry) => entry.showOnLabel) ?? company?.phones[0]
-
-  if (options.showCompanyName) {
-    lines.push({ text: companyName.toUpperCase(), size: 12, bold: true, spaceAfter: 1.2 })
-  }
-  if (options.showCustomerName) {
-    lines.push({
-      text: (label.customerName || 'Walk-in Customer').toUpperCase(),
-      size: 8,
-      bold: false,
-      spaceAfter: 0.6,
-    })
-  }
-  if (options.showSlNo) {
-    lines.push({ text: `SL No: ${label.slNo}`, size: 8, bold: false, spaceAfter: 1.6 })
-  }
-  if (options.showDate) {
-    lines.push({ text: `DATE - ${formatDate(label.date)}`, size: 8.5, bold: true, spaceAfter: 0.8 })
-  }
-  if (options.showWeight) {
-    lines.push({ text: `WT (g) - ${label.weight}`, size: 8.5, bold: true, spaceAfter: 0.8 })
-  }
-  if (options.showRate) {
-    lines.push({
-      text: `RATE - ${formatCurrency(label.rate)}/g`,
-      size: 8.5,
-      bold: true,
-      spaceAfter: 0.8,
-    })
-  }
-  if (options.showAmount) {
-    lines.push({
-      text: `AMOUNT - ${formatCurrency(label.amount)}`,
-      size: 8.5,
-      bold: true,
-      spaceAfter: 0.8,
-    })
-  }
-  if (options.showPhone && phone) {
-    lines.push({ text: phone.value, size: 7, bold: false, spaceAfter: 0.4 })
-  }
-  if (options.showAddress && company?.address) {
-    for (const part of company.address.split('\n')) {
-      lines.push({ text: part, size: 7, bold: false, spaceAfter: 0.3 })
-    }
-  }
-  return lines
-}
 
 function sanitizeFilename(value: string): string {
   return value.replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '') || 'invoice'
@@ -118,7 +55,10 @@ function toPdfText(text: string): string {
 }
 
 /**
- * Renders one PDF page per label at the configured size (default 60x40mm).
+ * Renders one PDF page per label at the configured size (default 50x50mm),
+ * mirroring the on-screen thermal layout: 5mm safe margin, header / customer
+ * + serial / metric rows / boxed grand total. Hidden fields keep their slot
+ * as empty space so the layout ratio stays fixed.
  * jsPDF is imported lazily so it stays out of the initial bundle.
  */
 export async function exportLabelsPdf(
@@ -132,34 +72,12 @@ export async function exportLabelsPdf(
   const height = opts.heightMm ?? DEFAULT_LABEL_HEIGHT_MM
   const options = opts.options ?? DEFAULT_LABEL_OPTIONS
   const orientation = width >= height ? 'landscape' : 'portrait'
-  const maxTextWidth = width - 6
 
   const doc = new jsPDF({ unit: 'mm', format: [width, height], orientation })
 
   labels.forEach((label, index) => {
     if (index > 0) doc.addPage([width, height], orientation)
-
-    const lines = buildLines(label, opts.company, options)
-    if (lines.length === 0) return
-
-    // Measure to vertically centre the block.
-    let total = 0
-    for (const line of lines) {
-      doc.setFont('helvetica', line.bold ? 'bold' : 'normal')
-      doc.setFontSize(line.size)
-      const dims = doc.getTextDimensions(toPdfText(line.text), { maxWidth: maxTextWidth })
-      total += dims.h + line.spaceAfter
-    }
-
-    let y = Math.max(3, (height - total) / 2) + lines[0].size * MM_PER_PT
-    for (const line of lines) {
-      doc.setFont('helvetica', line.bold ? 'bold' : 'normal')
-      doc.setFontSize(line.size)
-      const text = toPdfText(line.text)
-      const dims = doc.getTextDimensions(text, { maxWidth: maxTextWidth })
-      doc.text(text, width / 2, y, { align: 'center', maxWidth: maxTextWidth })
-      y += dims.h + line.spaceAfter
-    }
+    drawLabel(doc, label, opts.company, options, width, height)
   })
 
   const filename =
@@ -168,6 +86,122 @@ export async function exportLabelsPdf(
       ? `label-${labels[0].slNo}.pdf`
       : `labels-${labels.length}-${todayISO()}.pdf`)
   doc.save(filename)
+}
+
+function drawLabel(
+  doc: import('jspdf').jsPDF,
+  label: Label,
+  company: CompanyProfile | null | undefined,
+  options: LabelOptions,
+  width: number,
+  height: number
+): void {
+  const s = Math.min(2.2, Math.max(0.8, Math.min(width, height) / 50))
+  const m = LABEL_SAFE_MARGIN_MM
+  const x0 = m
+  const iw = width - 2 * m
+  const ih = height - 2 * m
+  const right = x0 + iw
+
+  const companyName = (company?.companyName || 'My Company').toUpperCase()
+  const customerName = (label.customerName || 'Walk-in Customer').toUpperCase()
+  const phone = company?.phones.find((entry) => entry.showOnLabel) ?? company?.phones[0]
+  const address = company?.address ?? null
+
+  const write = (
+    text: string,
+    x: number,
+    y: number,
+    { size = 7.5 * s, bold = false, align }: { size?: number; bold?: boolean; align?: 'center' | 'right' } = {}
+  ) => {
+    doc.setFont('helvetica', bold ? 'bold' : 'normal')
+    doc.setFontSize(size)
+    doc.text(toPdfText(text), x, y, align ? { align } : undefined)
+  }
+
+  // Fixed zone heights (mm) — reserved even when a field is hidden.
+  const headerH = 9.6 * s
+  const customerH = 6 * s
+  const metricsH = 3 * 3.6 * s
+  const totalH = 6.5 * s
+  const gap = Math.max(1 * s, (ih - (headerH + customerH + metricsH + totalH)) / 4)
+
+  let y = m
+
+  // Header zone (centred company identity)
+  let cy = y
+  if (options.showCompanyName) {
+    write(companyName, width / 2, cy + 11 * s * MM_PER_PT, { size: 11 * s, bold: true, align: 'center' })
+  }
+  cy += 4.2 * s
+  if (options.showPhone && phone) {
+    write(`TEL: ${phone.value}`, width / 2, cy + 6 * s * MM_PER_PT, { size: 6 * s, bold: true, align: 'center' })
+  }
+  cy += 2.7 * s
+  if (options.showAddress && address) {
+    write(address.replace(/\n/g, ', ').toUpperCase(), width / 2, cy + 5 * s * MM_PER_PT, {
+      size: 5 * s,
+      align: 'center',
+    })
+  }
+  cy += 2.7 * s
+  doc.setDrawColor(0)
+  doc.setLineWidth(0.3 * s)
+  doc.line(x0, y + headerH, right, y + headerH)
+  y += headerH + gap
+
+  // Customer + serial zone
+  const custBase = y + 2.2 * s
+  if (options.showCustomerName) {
+    write('BILLED TO / CUSTOMER', x0, custBase, { size: 5 * s, bold: true })
+    write(customerName, x0, custBase + 3.4 * s, { size: 8.5 * s, bold: true })
+  }
+  if (options.showSlNo) {
+    write('SERIAL NO.', right, custBase, { size: 5 * s, bold: true, align: 'right' })
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7 * s)
+    const sl = toPdfText(label.slNo)
+    const tw = doc.getTextDimensions(sl).w
+    const pad = 0.8 * s
+    doc.setLineWidth(0.2 * s)
+    doc.rect(right - tw - 2 * pad, custBase + 1.2 * s, tw + 2 * pad, 3.4 * s)
+    doc.text(sl, right - pad, custBase + 1.2 * s + 2.5 * s, { align: 'right' })
+  }
+  doc.setLineWidth(0.15 * s)
+  doc.line(x0, y + customerH, right, y + customerH)
+  y += customerH + gap
+
+  // Metric rows: label left, value right, hairline dividers
+  const rows: [boolean, string, string][] = [
+    [options.showDate, 'DATE:', formatDate(label.date)],
+    [options.showWeight, 'WEIGHT:', `${formatAmount(label.weight)} g`],
+    [options.showRate, 'RATE:', `${formatCurrency(label.rate)}/g`],
+  ]
+  doc.setLineWidth(0.1 * s)
+  rows.forEach(([on, rowLabel, value], rowIndex) => {
+    const rowY = y + rowIndex * 3.6 * s
+    if (on) {
+      write(rowLabel, x0, rowY + 2.6 * s, { size: 7 * s })
+      write(value, right, rowY + 2.6 * s, { size: 7.5 * s, bold: true, align: 'right' })
+    }
+    if (rowIndex < rows.length - 1) {
+      doc.line(x0, rowY + 3.6 * s, right, rowY + 3.6 * s)
+    }
+  })
+  y += metricsH + gap
+
+  // Grand total box
+  doc.setLineWidth(0.5 * s)
+  doc.rect(x0, y, iw, totalH)
+  if (options.showAmount) {
+    const base = y + totalH / 2 + 3 * s * MM_PER_PT
+    write('GRAND TOTAL:', x0 + 1.5 * s, base, { size: 7 * s, bold: true })
+    write(formatCurrency(label.amount), right - 1.5 * s, base, {
+      size: 11 * s,
+      bold: true,
+      align: 'right',
+    })
+  }
 }
 
 export function exportLabelPdf(label: Label, opts: LabelPdfOptions = {}): Promise<void> {

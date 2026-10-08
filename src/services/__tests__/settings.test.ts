@@ -35,7 +35,7 @@ const settingsRow = {
   label_prefix: 'ML',
   invoice_prefix: 'INV',
   auto_mark_printed: true,
-  label_options: { showCompanyName: false, showRate: true },
+  label_options: { showRate: true, showPhone: true },
   invoice_options: { showDueDate: false },
 }
 
@@ -108,8 +108,10 @@ describe('settingsService.getAppSettings', () => {
     expect(settings.labelPrefix).toBe('ML')
     expect(settings.autoMarkPrinted).toBe(true)
     // overridden keys apply, untouched keys keep defaults
-    expect(settings.labelOptions.showCompanyName).toBe(false)
     expect(settings.labelOptions.showRate).toBe(true)
+    expect(settings.labelOptions.showPhone).toBe(true)
+    // mandatory fields are always on
+    expect(settings.labelOptions.showCompanyName).toBe(true)
     expect(settings.labelOptions.showAmount).toBe(true)
     expect(settings.invoiceOptions.showDueDate).toBe(false)
     expect(settings.invoiceOptions.showGst).toBe(true)

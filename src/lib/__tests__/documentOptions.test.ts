@@ -13,11 +13,26 @@ describe('resolveLabelOptions', () => {
   })
 
   it('applies stored booleans over the defaults', () => {
-    const resolved = resolveLabelOptions({ showCompanyName: false, showRate: true })
-    expect(resolved.showCompanyName).toBe(false)
+    const resolved = resolveLabelOptions({ showRate: true, showPhone: true })
     expect(resolved.showRate).toBe(true)
+    expect(resolved.showPhone).toBe(true)
     // untouched keys keep defaults
     expect(resolved.showAmount).toBe(true)
+  })
+
+  it('forces mandatory fields on even when stored as false', () => {
+    const resolved = resolveLabelOptions({
+      showCompanyName: false,
+      showCustomerName: false,
+      showDate: false,
+      showWeight: false,
+    })
+    expect(resolved.showCompanyName).toBe(true)
+    expect(resolved.showCustomerName).toBe(true)
+    expect(resolved.showDate).toBe(true)
+    expect(resolved.showWeight).toBe(true)
+    // optional fields are still respected
+    expect(resolveLabelOptions({ showRate: false }).showRate).toBe(false)
   })
 
   it('ignores unknown keys and non-boolean values', () => {

@@ -12,6 +12,21 @@ export const DEFAULT_LABEL_OPTIONS: LabelOptions = {
   showAddress: false,
 }
 
+/**
+ * Fields that must always appear on a label. They cannot be switched off, so a
+ * label can never be printed completely blank.
+ */
+export const MANDATORY_LABEL_OPTIONS: (keyof LabelOptions)[] = [
+  'showCompanyName',
+  'showCustomerName',
+  'showDate',
+  'showWeight',
+]
+
+export function isMandatoryLabelOption(key: keyof LabelOptions): boolean {
+  return MANDATORY_LABEL_OPTIONS.includes(key)
+}
+
 export const DEFAULT_INVOICE_OPTIONS: InvoiceOptions = {
   showTagline: true,
   showAddress: true,
@@ -37,7 +52,12 @@ function pickBooleans<T>(raw: unknown, defaults: T): T {
 
 /** Merge a stored JSONB blob over the defaults so missing/legacy keys never break rendering. */
 export function resolveLabelOptions(raw: unknown): LabelOptions {
-  return pickBooleans(raw, DEFAULT_LABEL_OPTIONS)
+  const resolved = pickBooleans(raw, DEFAULT_LABEL_OPTIONS)
+  // Mandatory fields are always on, even if an older row stored them as false.
+  for (const key of MANDATORY_LABEL_OPTIONS) {
+    resolved[key] = true
+  }
+  return resolved
 }
 
 export function resolveInvoiceOptions(raw: unknown): InvoiceOptions {

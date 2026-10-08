@@ -68,19 +68,24 @@ All 7 presets sit inside the ceiling (max edge = 100mm), so no size check was re
 
 ## 4. Label content toggles (`label_options`)
 
-| # | Toggle | Default | Status |
-|---|--------|---------|--------|
-| 1 | `showCompanyName` | on | Done |
-| 2 | `showCustomerName` | on | Done |
-| 3 | `showSlNo` | on | Done |
-| 4 | `showDate` | on | Done |
-| 5 | `showWeight` | on | Done |
-| 6 | `showRate` | off | Done |
-| 7 | `showAmount` | on | Done |
-| 8 | `showPhone` | off | Done |
-| 9 | `showAddress` | off | Done |
+| # | Toggle | Default | Mandatory | Status |
+|---|--------|---------|-----------|--------|
+| 1 | `showCompanyName` | on | **yes** | Done |
+| 2 | `showCustomerName` | on | **yes** | Done |
+| 3 | `showSlNo` | on | no | Done |
+| 4 | `showDate` | on | **yes** | Done |
+| 5 | `showWeight` | on | **yes** | Done |
+| 6 | `showRate` | off | no | Done |
+| 7 | `showAmount` | on | no | Done |
+| 8 | `showPhone` | off | no | Done |
+| 9 | `showAddress` | off | no | Done |
 
-Disabled fields keep their layout slot as **empty space** (visibility hidden) — on screen, print and PDF — so the label ratio never shifts when fields are turned off (unit-tested in `LabelPrintCard.test.tsx` and `documentPdf.test.ts`).
+Mandatory fields can never be switched off, so a label can never be printed completely
+blank. Enforced in three places: `MANDATORY_LABEL_OPTIONS` coercion in `resolveLabelOptions`
+(covers legacy rows stored as false), disabled + "Required" switches in the settings modal,
+and forced-true on save. Optional fields keep their layout slot as **empty space**
+(visibility hidden) — on screen, print and PDF — so the label ratio never shifts when they
+are turned off (unit-tested in `LabelPrintCard.test.tsx` and `documentPdf.test.ts`).
 
 ## 5. Invoice content toggles (`invoice_options`)
 

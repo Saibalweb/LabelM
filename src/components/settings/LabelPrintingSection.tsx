@@ -21,6 +21,7 @@ import {
   resolveLabelDimensions,
   validateLabelSize,
 } from '@/lib/labelPresets'
+import { MANDATORY_LABEL_OPTIONS, isMandatoryLabelOption } from '@/lib/documentOptions'
 import type { AppSettings, AppSettingsInput, InvoiceOptions, LabelOptions } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -54,17 +55,30 @@ function ToggleRow({
   label,
   checked,
   disabled,
+  required,
   onCheckedChange,
 }: {
   label: string
   checked: boolean
   disabled: boolean
+  required?: boolean
   onCheckedChange: (value: boolean) => void
 }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg border border-outline-variant/60 px-3 py-2">
-      <span className="font-sans text-[13px] text-on-surface">{label}</span>
-      <Switch checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} />
+      <span className="flex items-center gap-2 font-sans text-[13px] text-on-surface">
+        {label}
+        {required ? (
+          <span className="rounded-full bg-surface-container px-2 py-0.5 font-label-sm text-[10px] tracking-wide text-on-surface-variant uppercase">
+            Required
+          </span>
+        ) : null}
+      </span>
+      <Switch
+        checked={checked}
+        disabled={disabled}
+        onCheckedChange={required ? undefined : onCheckedChange}
+      />
     </div>
   )
 }
@@ -83,14 +97,17 @@ function SummaryTile({ label, value }: { label: string; value: string }) {
 function ToggleChips({
   toggles,
   options,
+  requiredKeys = [],
 }: {
   toggles: { key: string; label: string }[]
   options: Record<string, boolean>
+  requiredKeys?: string[]
 }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {toggles.map((toggle) => {
-        const on = options[toggle.key]
+        const required = requiredKeys.includes(toggle.key)
+        const on = required || options[toggle.key]
         return (
           <span
             key={toggle.key}
@@ -103,6 +120,7 @@ function ToggleChips({
           >
             {on ? <Check className="size-3" /> : <Minus className="size-3" />}
             {toggle.label}
+            {required ? <span className="text-[9px] tracking-wide uppercase opacity-70">· req</span> : null}
           </span>
         )
       })}
@@ -161,10 +179,12 @@ export function LabelPrintingSection({ canEdit }: { canEdit: boolean }) {
     )
   }
 
-  const setLabelOption = (key: keyof LabelOptions, value: boolean) =>
+  const setLabelOption = (key: keyof LabelOptions, value: boolean) => {
+    if (isMandatoryLabelOption(key)) return
     setForm((prev) =>
       prev ? { ...prev, labelOptions: { ...prev.labelOptions, [key]: value } } : prev
     )
+  }
 
   const setInvoiceOption = (key: keyof InvoiceOptions, value: boolean) =>
     setForm((prev) =>
@@ -177,8 +197,16 @@ export function LabelPrintingSection({ canEdit }: { canEdit: boolean }) {
       toast.error(validation?.error ?? 'Invalid label size.')
       return
     }
+    // Never persist a blank label: force the mandatory fields on.
+    const payload: AppSettingsInput = {
+      ...form,
+      labelOptions: { ...form.labelOptions },
+    }
+    for (const key of MANDATORY_LABEL_OPTIONS) {
+      payload.labelOptions[key] = true
+    }
     try {
-      await updateSettings.mutateAsync(form)
+      await updateSettings.mutateAsync(payload)
       toast.success('Label & invoice settings saved')
       setEditing(false)
     } catch {
@@ -254,6 +282,7 @@ export function LabelPrintingSection({ canEdit }: { canEdit: boolean }) {
             <ToggleChips
               toggles={LABEL_TOGGLES}
               options={(data?.labelOptions ?? {}) as Record<string, boolean>}
+              requiredKeys={MANDATORY_LABEL_OPTIONS}
             />
           </div>
 
@@ -420,7 +449,8 @@ export function LabelPrintingSection({ canEdit }: { canEdit: boolean }) {
                         key={toggle.key}
                         label={toggle.label}
                         checked={form.labelOptions[toggle.key]}
-                        disabled={false}
+                        disabled={isMandatoryLabelOption(toggle.key)}
+                        required={isMandatoryLabelOption(toggle.key)}
                         onCheckedChange={(value) => setLabelOption(toggle.key, value)}
                       />
                     ))}
